@@ -116,7 +116,7 @@ class Genesis():
             self.entity.control_dofs_position(waypoint)
             self.step()
 
-        # allow more steps to the PD controller to stabilize to the position
+        # allow more steps to the PD controller to stabilize to the target position
         for _ in range(self.POSITION_STEPS):
             self.step()
 

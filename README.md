@@ -2,7 +2,7 @@
 
 There are 2 main use cases
 1. sim to real, where genesis controls the physical robot
-2. real to sim, where the servo positions will trigger rendering in genesis
+2. real to sim, where the physical robot moves will refresh the robot rendering in genesis
 
 ## Acknowledgements
 
@@ -10,9 +10,9 @@ There are 2 main use cases
 
 [SO-ARM-100](https://github.com/TheRobotStudio/SO-ARM100) provides CAD & [STL model](https://github.com/TheRobotStudio/SO-ARM100/blob/main/stl_files_for_3dprinting/Follower/Print_Follower_SO_ARM100_08k_Ender.STL) of the robotic arm links. After 3D-printing them and ordering the remaining parts, the robot can be assembled for prototyping.
 
-### Servos
+### Feetech
 
-[Feetech STS2115](https://www.feetechrc.com/74v-19-kgcm-plastic-case-metal-tooth-magnetic-code-double-axis-ttl-series-steering-gear.html) is the servo inserted in each joint of the robot.
+[Feetech STS3115](https://www.feetechrc.com/74v-19-kgcm-plastic-case-metal-tooth-magnetic-code-double-axis-ttl-series-steering-gear.html) is the servo inserted in each joint of the robot.
 
 - It's *motor* rotates the connected link.
 - It's *magnetic encoder* measures the absolute angular position of the joint.
@@ -21,7 +21,7 @@ There are 2 main use cases
 
 [LeRobot](https://github.com/huggingface/lerobot) provides a SOTA library to perform *Imitation Learning* and *Reinforcement Learning*.
 
-Curate of a new dataset: have the follower arm perform a task of interest, by replicating the motion of the leader arm held a human operator.
+Curate a new dataset: have the follower arm perform a task of interest, by replicating the motion of the leader arm held a human operator.
 
 Then fine-tune a model on the training dataset.
 
@@ -142,12 +142,12 @@ This example moves the robot to the 3 preset positions, waiting 1 sec in between
 python real.py
 ```
 
-<video controls><source src="doc/Real3Presets.webm" type="video/webm"></video>
+<video controls src="https://github.com/user-attachments/assets/857dd958-2e4c-4221-abef-563f9617385a"></video>
 
 
 ### Sim To Real
 
-This example performs the 3 elemetal rotations in sim and real.
+This example performs the 3 elemental rotations in sim and real.
 The simulation generates steps, propagating the joint positions to the Feetech motors.
 
 ```
@@ -157,4 +157,4 @@ python sim_to_real.py
 
 | sim | real |
 |----------|-------------|
-| <video controls><source src="doc/SimToReal_Sim.webm" type="video/webm"></video> | <video controls><source src="doc/SimToReal_Real.webm" type="video/webm"></video> |
+| <video controls src="https://github.com/user-attachments/assets/eab20130-a21d-4811-bca8-07502012b8da"></video> | <video controls src="https://github.com/user-attachments/assets/a429d559-58e4-4328-a7f0-17f7477125ff"></video> |

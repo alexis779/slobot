@@ -74,7 +74,7 @@ class SoArm100():
         self.genesis.draw_arrow(self.fixed_jaw, t)
 
     def open_jaw(self):
-        self.update_qpos(self.jaw, np.pi/2)
+        self.genesis.update_qpos(self.jaw, np.pi/2)
     
     def step(self):
         self.camera.render()

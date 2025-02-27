@@ -9,3 +9,5 @@ if len(sys.argv) < 2:
 
 preset = sys.argv[1]
 Feetech.calibrate_pos(preset)
+
+# Copy the pos array in Configuration.POS_MAP
