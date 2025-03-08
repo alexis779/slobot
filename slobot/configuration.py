@@ -1,6 +1,14 @@
 import numpy as np
 
 class Configuration:
+    MJCF_CONFIG = './trs_so_arm100/so_arm100.xml'
+
+    # 16:9 aspect ratio
+    LD = (426, 240)
+    SD = (854, 480)
+    HD = (1280, 720)
+    FHD = (1920, 1080)
+
     QPOS_MAP = {
         "rotated": [-np.pi/2, -np.pi/2, np.pi/2, np.pi/2, -np.pi/2, np.pi/2],
         "zero": [0, 0, 0, 0, 0, 0],

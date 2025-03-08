@@ -21,7 +21,7 @@ class Feetech():
     def calibrate_pos(preset):
         feetech = Feetech()
         feetech.calibrate(preset)
-    
+
     def move_to_pos(pos):
         feetech = Feetech()
         feetech.move(pos)
@@ -29,7 +29,7 @@ class Feetech():
     def __init__(self, **kwargs):
         self.motors_bus = self._create_motors_bus()
         self.qpos_handler = kwargs.get('qpos_handler', None)
-    
+
     def disconnect(self):
         self.set_torque(False)
         self.motors_bus.disconnect()
@@ -40,10 +40,10 @@ class Feetech():
     def get_pos(self):
         return self.motors_bus.read('Present_Position')
 
-    def set_qpos(self, qpos):
+    def handle_qpos(self, qpos):
         pos = self.qpos_to_pos(qpos)
         self.set_pos(pos)
-    
+
     def qpos_to_pos(self, qpos):
         pos = [ self._qpos_to_steps(qpos, i)
             for i in range(Feetech.DOF) ]
@@ -53,14 +53,14 @@ class Feetech():
         qpos = [ self._steps_to_qpos(pos, i)
             for i in range(Feetech.DOF) ]
         return qpos
-    
+
     def set_pos(self, pos):
         self.set_torque(True)
         self.motors_bus.write('Goal_Position', pos)
         if self.qpos_handler is not None:
             qpos = self.pos_to_qpos(pos)
             print("feetech qpos", qpos)
-            self.qpos_handler.set_qpos(qpos)
+            self.qpos_handler.handle_qpos(qpos)
     
     def set_torque(self, is_enabled):
         torque_enable = TorqueMode.ENABLED.value if is_enabled else TorqueMode.DISABLED.value 

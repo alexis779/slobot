@@ -19,7 +19,7 @@ There are 2 main use cases
 
 ### LeRobot
 
-[LeRobot](https://github.com/huggingface/lerobot) provides a SOTA library to perform *Imitation Learning* and *Reinforcement Learning*.
+[LeRobot](https://github.com/huggingface/lerobot) provides a SOTA library to perform *Imitation Learning* and *Reinforcement Learning* for robotics tasks.
 
 Curate a new dataset: have the follower arm perform a task of interest, by replicating the motion of the leader arm held a human operator.
 
@@ -62,11 +62,13 @@ conda env create -f ./environment.yml
 
 The example loads the [Mujoco XML configuration](https://github.com/google-deepmind/mujoco_menagerie/tree/main/trs_so_arm100).
 
-Make sure to checkout the config repo in the same parent directory.
+Ensure the robot configuration directory in available in the current directory.
 
 ```
 cd ..
-git clone https://github.com/google-deepmind/mujoco_menagerie
+git clone -b main https://github.com/google-deepmind/mujoco_menagerie
+cd slobot
+ln -s ../mujoco_menagerie/trs_so_arm100 ./trs_so_arm100
 ```
 
 ## Validation & Calibration
@@ -158,3 +160,55 @@ python sim_to_real.py
 | sim | real |
 |----------|-------------|
 | <video controls src="https://github.com/user-attachments/assets/eab20130-a21d-4811-bca8-07502012b8da"></video> | <video controls src="https://github.com/user-attachments/assets/a429d559-58e4-4328-a7f0-17f7477125ff"></video> |
+
+
+### Image stream
+
+Genesis camera provides access to each frames rendered by the rasterizer. Multiple types of image are provided:
+- RGB
+- Depth
+- Segmentation
+- Surface
+
+The following script iterates through all the frames, calculating the FPS metric every second.
+
+```
+PYOPENGL_PLATFORM=egl python sim_fps.py
+...
+FPS= FpsMetric(1741584119.3494527, 32.94385655244901)
+FPS= FpsMetric(1741584120.3504074, 34.96661988591595)
+FPS= FpsMetric(1741584121.3583934, 36.7068565211221)
+FPS= FpsMetric(1741584122.3869967, 34.998914997305455)
+...
+```
+
+
+### Gradio app
+
+Gradio app is a UI web framework to demo ML applications.
+
+The [`Image` component](https://www.gradio.app/docs/gradio/image) can sample the frames of the simulation at a small FPS rate.
+The frontend receives backend events via a Server Side Event stream. For each new *frame generated* event, it downloads the image from the webserver and displays it to the user.
+
+```
+PYOPENGL_PLATFORM=egl python sim_gradio.py
+```
+
+Navigate to the [local URL](http://127.0.0.1:7860) in the browser. Then click *Run Simulation* button.
+
+![Genesis frame types](./doc/GenesisFrameTypes.png)
+
+
+#### Docker
+
+Build docker image:
+
+```
+docker build -t slobot-genesis-image .
+```
+
+Run docker container. Make sure to enable **DRI** for hardware graphics acceleration.
+
+```
+docker run -it -e GRADIO_SERVER_NAME="0.0.0.0" -p 7860:7860 --device=/dev/dri slobot-genesis-image
+```

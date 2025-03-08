@@ -1,0 +1,8 @@
+git+https://github.com/Genesis-Embodied-AI/Genesis.git
+numpy<2
+
+https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp311-cp311-manylinux_2_28_x86_64.whl
+
+torch
+
+gradio

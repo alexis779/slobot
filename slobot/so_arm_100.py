@@ -12,7 +12,7 @@ class SoArm100():
     HOME_QPOS = [0, -np.pi/2, np.pi/2, np.pi/2, -np.pi/2, 0]
 
     def sim_qpos(target_qpos):
-        mjcf_path = '../mujoco_menagerie/trs_so_arm100/so_arm100.xml'
+        mjcf_path = Configuration.MJCF_CONFIG
         arm = SoArm100(mjcf_path=mjcf_path)
         arm.genesis.entity.set_qpos(target_qpos)
         arm.genesis.hold_entity()
@@ -23,6 +23,8 @@ class SoArm100():
         # provide a callback for each step update of the simulation
         kwargs['step_handler'] = self
         self.genesis = Genesis(**kwargs)
+
+        self.frame_handler = kwargs.get('frame_handler', None)
 
         self.camera = self.genesis.camera
         self.entity = self.genesis.entity
@@ -62,22 +64,27 @@ class SoArm100():
             self.genesis.move(self.fixed_jaw, pos, quat)
 
         self.stop()
-    
+
     def stop(self):
         self.camera.stop_recording(save_to_filename='so_arm_100.mp4')
 
     def go_home(self):
         self.genesis.follow_path(SoArm100.HOME_QPOS)
-    
+
     def draw_fixed_jaw_arrow(self):
         t = [self.JAW_WIDTH, -self.JAW_LENGTH, -self.JAW_DEPTH]
         self.genesis.draw_arrow(self.fixed_jaw, t)
 
     def open_jaw(self):
         self.genesis.update_qpos(self.jaw, np.pi/2)
-    
-    def step(self):
-        self.camera.render()
-        if self.qpos_handler is not None:
-            self.qpos_handler.set_qpos(self.entity.get_qpos())
 
+    def handle_step(self):
+        if self.frame_handler is not None:
+            frame = self.camera.render(rgb=True, depth=True, segmentation=True, colorize_seg=True, normal=True)
+            self.frame_handler.handle_frame(frame)
+
+        if self.qpos_handler is not None:
+            self.qpos_handler.handle_qpos(self.entity.get_qpos())
+
+    def handle_qpos(self, qpos):
+        self.entity.set_qpos(qpos)

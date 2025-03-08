@@ -7,7 +7,7 @@ from slobot.configuration import Configuration
 
 feetech = Feetech()
 
-mjcf_path = '../mujoco_menagerie/trs_so_arm100/so_arm100.xml'
+mjcf_path = Configuration.MJCF_CONFIG
 arm = SoArm100(mjcf_path=mjcf_path, qpos_handler=feetech)
 arm.elemental_rotations()
 

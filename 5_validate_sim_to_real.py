@@ -15,7 +15,7 @@ feetech = Feetech()
 preset = sys.argv[1]
 qpos = Configuration.QPOS_MAP[preset]
 
-mjcf_path = '../mujoco_menagerie/trs_so_arm100/so_arm100.xml'
+mjcf_path = Configuration.MJCF_CONFIG
 arm = SoArm100(mjcf_path=mjcf_path, qpos_handler=feetech)
 arm.genesis.entity.set_qpos(qpos)
 arm.genesis.hold_entity()

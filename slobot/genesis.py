@@ -4,6 +4,8 @@ import genesis as gs
 from genesis.engine.entities import RigidEntity
 from genesis.engine.entities.rigid_entity import RigidLink, RigidJoint
 
+from slobot.configuration import Configuration
+
 import pprint
 
 from scipy.spatial.transform import Rotation
@@ -11,25 +13,28 @@ from scipy.spatial.transform import Rotation
 class Genesis():
     POSITION_STEPS = 50
 
-    EXTRINSIC_SEQ = "xyz"
+    EXTRINSIC_SEQ = 'xyz'
 
     def __init__(self, **kwargs):
-        gs.init(backend=gs.cpu)
+        gs.init(backend=gs.gpu, logging_level="debug")
 
         vis_mode = 'visual' # collision
 
-        res = (1280, 960)
-        camera_pos = (0.125, -1, 0.25)
+        res = kwargs.get('res', Configuration.FHD)
+        camera_pos = (0.125, -1, 0.5)
 
         lookat = (0, 0, 0)
- 
+
         lights = [
             { "type": "directional", "dir": (1, 1, -1), "color": (1.0, 1.0, 1.0), "intensity": 5.0 },
         ]
 
         self.step_handler = kwargs['step_handler']
 
+        show_viewer = kwargs.get('show_viewer', True)
+
         self.scene = gs.Scene(
+            show_viewer=show_viewer,
             viewer_options = gs.options.ViewerOptions(
                 res           = res,
                 camera_lookat = lookat,
@@ -52,8 +57,9 @@ class Genesis():
             vis_mode=vis_mode,
         )
 
-        print("Joints=", pprint.pformat(self.entity.joints))
-        print("Links=", pprint.pformat(self.entity.links))
+        # TODO errors in non-interactive mode in Docker
+        #print("Joints=", pprint.pformat(self.entity.joints))
+        #print("Links=", pprint.pformat(self.entity.links))
 
         self.fixed_jaw: RigidLink = self.entity.get_link('Fixed_Jaw')
 
@@ -123,6 +129,9 @@ class Genesis():
         current_error = self.qpos_error(target_qpos)
         print("qpos error=", current_error)
 
+    def stop(self):
+        gs.destroy()
+
     def move(self, link, target_pos, target_quat):
         target_qpos = self.entity.inverse_kinematics(
             link     = link,
@@ -136,7 +145,7 @@ class Genesis():
     def step(self):
         self.scene.step()
         if self.step_handler is not None:
-            self.step_handler.step()
+            self.step_handler.handle_step()
 
     def hold_entity(self):
         target_qpos = self.entity.get_qpos()
@@ -144,7 +153,7 @@ class Genesis():
         while True:
             self.entity.control_dofs_position(target_qpos)
             self.step()
-    
+
     def get_qpos_idx(self, joint):
         return joint.idx_local - 1  # offset the base joint, which is not part of qpos variables
 
@@ -180,7 +189,7 @@ class Genesis():
 
         error = np.linalg.norm(current_quat - target_quat)
         print("quat error=", error)
-    
+
     def qpos_error(self, target_qpos):
         current_qpos = self.entity.get_qpos()
 
@@ -197,10 +206,9 @@ class Genesis():
 
     def quat_to_euler(self, quat):
         return Rotation.from_quat(quat, scalar_first=True).as_euler(seq=self.EXTRINSIC_SEQ)
-        
+
     def euler_to_quat(self, euler):
         return Rotation.from_euler(self.EXTRINSIC_SEQ, euler).as_quat(scalar_first=True)
-
 
     def draw_arrow(self, link, t):
         self.scene.clear_debug_objects()
