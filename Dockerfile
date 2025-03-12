@@ -1,16 +1,19 @@
-# Use the latest Debian Bookworm image as the base image
+# Select Debian version
 FROM debian:bookworm AS builder
 
 # Set environment variables to ensure non-interactive installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install necessary packages
-RUN apt-get update && apt-get install -y \
+RUN apt-get update
+
+# install packages
+RUN apt-get install -y \
+    git \
     python3 \
     python3-pip \
-    python3.11-venv \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+    python3-venv
+
+RUN rm -rf /var/lib/apt/lists/*
 
 WORKDIR /
 RUN git clone -b main https://github.com/google-deepmind/mujoco_menagerie
@@ -26,27 +29,55 @@ RUN /venv/bin/pip install --no-cache-dir -r requirements.txt
 
 FROM debian:bookworm
 
-RUN apt-get update && apt-get install -y \
-    python3 \
+# avoid language keyboard configuration to prompt a confirmation from the user
+RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+
+RUN echo "deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware" >> /etc/apt/sources.list
+
+RUN apt-get update
+
+RUN apt-get install -y \
+    sudo \
+    git \
+    wget \
+    linux-headers-cloud-amd64 \
+    nvidia-driver \
+    firmware-misc-nonfree \
+    vulkan-tools \
+    mesa-utils \
+    libgl1-mesa-dri \
     libglib2.0-0 \
     libxrender1 \
     libgl1 \
     libegl1 \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /venv /venv
+RUN useradd -m -u 1000 user
+
+RUN echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+RUN groupadd -g 105 render
+
+RUN usermod -aG video user
+RUN usermod -aG render user
+
+COPY --chown=user --from=builder /venv /venv
 
 # Copy the robot configuration
-COPY --from=builder /mujoco_menagerie/trs_so_arm100 /app/trs_so_arm100
+COPY --chown=user --from=builder /mujoco_menagerie/trs_so_arm100 /app/trs_so_arm100
 
 # Copy the application code
 WORKDIR /app
-COPY sim_gradio.py .
-COPY slobot ./slobot
+COPY --chown=user sim_gradio.py .
+COPY --chown=user slobot ./slobot
+
+USER user
+
+ENV HOME=/home/user \
+    PATH="/venv/bin:$PATH"
 
 EXPOSE 7860
-
-ENV PATH="/venv/bin:$PATH"
 
 #ENTRYPOINT ["/bin/bash"]
 CMD ["python", "sim_gradio.py"]

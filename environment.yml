@@ -3,15 +3,13 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - python=3.12.8
-  - gcc=11.4
-  - gxx=11.4
+  - python=3.11 # python version from Debian bookworm distribution
   - pip
   - pip:
     - git+https://github.com/Genesis-Embodied-AI/Genesis.git
     - numpy<2
 
-    - https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp312-cp312-manylinux_2_28_x86_64.whl
+    - https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp311-cp311-manylinux_2_28_x86_64.whl # should match python version
 
     - git+https://github.com/huggingface/lerobot.git
 

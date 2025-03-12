@@ -194,7 +194,7 @@ The frontend receives backend events via a Server Side Event stream. For each ne
 PYOPENGL_PLATFORM=egl python sim_gradio.py
 ```
 
-Navigate to the [local URL](http://127.0.0.1:7860) in the browser. Then click *Run Simulation* button.
+Navigate to the [local URL](http://127.0.0.1:7860) in the browser. Then click *Run* button.
 
 ![Genesis frame types](./doc/GenesisFrameTypes.png)
 
