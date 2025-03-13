@@ -1,57 +1,35 @@
-# Select Debian version
-FROM debian:bookworm AS builder
+ARG PYTORCH_VERSION=2.6.0
+ARG CUDA_VERSION=12.4 # should match CUDA driver version
 
-# Set environment variables to ensure non-interactive installation
+FROM pytorch/pytorch:${PYTORCH_VERSION}-cuda${CUDA_VERSION}-cudnn9-devel AS builder
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
+RUN apt-get install -y --no-install-recommends \
+    git
 
-# install packages
-RUN apt-get install -y \
-    git \
-    python3 \
-    python3-pip \
-    python3-venv
-
-RUN rm -rf /var/lib/apt/lists/*
-
-WORKDIR /
+WORKDIR /workspace
 RUN git clone -b main https://github.com/google-deepmind/mujoco_menagerie
 
-RUN python3 -m venv /venv
-
-# Copy the list of dependencies
-WORKDIR /app
-COPY requirements.txt .
-
-RUN /venv/bin/pip install --no-cache-dir -r requirements.txt
+COPY environment.yml environment.yml
+RUN conda env create
 
 
-FROM debian:bookworm
-
-# avoid language keyboard configuration to prompt a confirmation from the user
-RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
-
-RUN echo "deb http://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware" >> /etc/apt/sources.list
+FROM pytorch/pytorch:${PYTORCH_VERSION}-cuda${CUDA_VERSION}-cudnn9-devel
 
 RUN apt-get update
-
-RUN apt-get install -y \
+RUN apt-get install -y --no-install-recommends \
     sudo \
     git \
     wget \
-    linux-headers-cloud-amd64 \
-    nvidia-driver \
-    firmware-misc-nonfree \
-    vulkan-tools \
-    mesa-utils \
-    libgl1-mesa-dri \
     libglib2.0-0 \
-    libxrender1 \
     libgl1 \
     libegl1 \
-    python3 \
-    && rm -rf /var/lib/apt/lists/*
+    libxrender1 \
+    libx11-6 \
+    mesa-vulkan-drivers \
+    vulkan-tools
 
 RUN useradd -m -u 1000 user
 
@@ -62,22 +40,29 @@ RUN groupadd -g 105 render
 RUN usermod -aG video user
 RUN usermod -aG render user
 
-COPY --chown=user --from=builder /venv /venv
+USER user
 
-# Copy the robot configuration
-COPY --chown=user --from=builder /mujoco_menagerie/trs_so_arm100 /app/trs_so_arm100
-
-# Copy the application code
 WORKDIR /app
 COPY --chown=user sim_gradio.py .
 COPY --chown=user slobot ./slobot
 
-USER user
+COPY --chown=user --from=builder /workspace/mujoco_menagerie/trs_so_arm100 /app/trs_so_arm100
 
-ENV HOME=/home/user \
-    PATH="/venv/bin:$PATH"
+ARG CONDA_ENV_NAME=slobot # should match the env name in environment.yml
+
+ENV CONDA_ENV_PATH=/opt/conda/envs/${CONDA_ENV_NAME}
+
+# Copy the Conda environment from the builder stage
+COPY --from=builder ${CONDA_ENV_PATH} ${CONDA_ENV_PATH}
+
+RUN echo "source activate ${CONDA_ENV_NAME}" > ~/.bashrc
+
+ENV PATH=${CONDA_ENV_PATH}/bin:$PATH
 
 EXPOSE 7860
 
-#ENTRYPOINT ["/bin/bash"]
+# ENTRYPOINT ["/bin/bash"]
+
+ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6
+
 CMD ["python", "sim_gradio.py"]

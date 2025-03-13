@@ -1,16 +1,18 @@
 name: slobot
 channels:
   - defaults
-  - conda-forge
 dependencies:
-  - python=3.11 # python version from Debian bookworm distribution
+  - python=3.12
   - pip
   - pip:
     - git+https://github.com/Genesis-Embodied-AI/Genesis.git
     - numpy<2
 
-    - https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp311-cp311-manylinux_2_28_x86_64.whl # should match python version
+    - --extra-index-url https://download.pytorch.org/whl/cu124 # this should match CUDA version
+    - torch
 
-    - git+https://github.com/huggingface/lerobot.git
+    - https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp312-cp312-manylinux_2_28_x86_64.whl # should match python version
+
+    #- git+https://github.com/huggingface/lerobot.git
 
     - gradio
