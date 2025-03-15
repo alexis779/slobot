@@ -5,14 +5,13 @@ dependencies:
   - python=3.12
   - pip
   - pip:
-    - git+https://github.com/Genesis-Embodied-AI/Genesis.git
+    - genesis-world
     - numpy<2
 
-    - --extra-index-url https://download.pytorch.org/whl/cu124 # this should match CUDA version
     - torch
 
     - https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp312-cp312-manylinux_2_28_x86_64.whl # should match python version
 
-    #- git+https://github.com/huggingface/lerobot.git
+    - git+https://github.com/huggingface/lerobot.git
 
     - gradio

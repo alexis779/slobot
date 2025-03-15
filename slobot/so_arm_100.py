@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from slobot.genesis import Genesis
 from slobot.configuration import Configuration
@@ -69,7 +70,8 @@ class SoArm100():
         self.camera.stop_recording(save_to_filename='so_arm_100.mp4')
 
     def go_home(self):
-        self.genesis.follow_path(SoArm100.HOME_QPOS)
+        target_qpos = torch.tensor(SoArm100.HOME_QPOS)
+        self.genesis.follow_path(target_qpos)
 
     def draw_fixed_jaw_arrow(self):
         t = [self.JAW_WIDTH, -self.JAW_LENGTH, -self.JAW_DEPTH]

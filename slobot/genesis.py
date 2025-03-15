@@ -1,4 +1,4 @@
-import numpy as np
+import torch
 
 import genesis as gs
 from genesis.engine.entities import RigidEntity
@@ -109,7 +109,6 @@ class Genesis():
         raise ValueError(f"Provide either mjcf_path or urdf_path")
 
     def follow_path(self, target_qpos):
-        target_qpos = np.array(target_qpos)
         path = self.entity.plan_path(
             qpos_goal        = target_qpos,
             ignore_collision = True,
@@ -173,10 +172,7 @@ class Genesis():
 
         current_pos = link.get_pos()
 
-        current_pos = np.array(current_pos)
-        target_pos = np.array(target_pos)
-
-        error = np.linalg.norm(current_pos - target_pos)
+        error = torch.norm(current_pos - target_pos)
         print("pos error=", error)
 
     def validate_quat(self, link, target_quat):
@@ -184,20 +180,18 @@ class Genesis():
             return
 
         current_quat = link.get_quat()
-        current_quat = np.array(current_quat)
-        target_quat = np.array(target_quat)
 
-        error = np.linalg.norm(current_quat - target_quat)
+        error = torch.norm(current_quat - target_quat)
         print("quat error=", error)
 
     def qpos_error(self, target_qpos):
         current_qpos = self.entity.get_qpos()
 
         # To avoid division by 0, create a target_qpos_denominator variable where 0 are replaced with 1
-        target_qpos_denominator = np.where(target_qpos == 0, 1, target_qpos)
+        target_qpos_denominator = torch.where(target_qpos == 0, torch.tensor(1.0, device=target_qpos.device), target_qpos)
 
-        error = np.abs((current_qpos - target_qpos) / target_qpos_denominator)
-        return np.linalg.norm(error)
+        error = torch.abs((current_qpos - target_qpos) / target_qpos_denominator)
+        return torch.norm(error)
 
     def translate(self, pos, t, euler):
         r = Rotation.from_euler(self.EXTRINSIC_SEQ, euler)

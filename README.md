@@ -68,7 +68,7 @@ Ensure the robot configuration directory in available in the current directory.
 cd ..
 git clone -b main https://github.com/google-deepmind/mujoco_menagerie
 cd slobot
-ln -s ../mujoco_menagerie/trs_so_arm100 ./trs_so_arm100
+cp -r ../mujoco_menagerie/trs_so_arm100 .
 ```
 
 ## Validation & Calibration
@@ -210,5 +210,5 @@ docker build -t slobot-genesis-image .
 Run docker container. Make sure to enable **DRI** for hardware graphics acceleration.
 
 ```
-docker run -it -e GRADIO_SERVER_NAME="0.0.0.0" -p 7860:7860 --device=/dev/dri slobot-genesis-image
+docker run -it --security-opt no-new-privileges=true -e GRADIO_SERVER_NAME="0.0.0.0" -p 7860:7860 --device=/dev/dri slobot-genesis-image
 ```
