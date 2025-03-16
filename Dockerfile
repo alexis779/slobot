@@ -15,7 +15,7 @@ RUN apt clean
 ARG kernel=6.1.0-32
 
 RUN --mount=target=/tmp/merge_headers.sh,source=merge_headers.sh \
-    /tmp/merge_headers.sh /usr/src/linux-headers-$kernel-amd64 /usr/src/linux-headers-$kernel-common /usr/src/linux-headers-$kernel
+    /tmp/merge_headers.sh /usr/src/linux-headers-$kernel-cloud-amd64 /usr/src/linux-headers-$kernel-common /usr/src/linux-headers-$kernel
 
 
 # nvidia driver version. This should match the host version showed in nvidia-smi output

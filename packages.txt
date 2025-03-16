@@ -7,7 +7,7 @@ python3-venv
 gcc
 make
 kmod
-linux-headers-amd64
+linux-headers-cloud-amd64
 xorg-dev
 libglvnd-dev
 libx11-6
