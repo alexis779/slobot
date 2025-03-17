@@ -24,8 +24,10 @@ ARG version=550.144.03
 ENV script=NVIDIA-Linux-x86_64-$version.run
 RUN curl -o $script "https://us.download.nvidia.com/XFree86/Linux-x86_64/$version/$script" 
 RUN chmod +x $script
-RUN ./$script --silent --kernel-source-path /usr/src/linux-headers-$kernel
 
+# Skip loading kernel modules to avoid "Kernel module load error: Operation not permitted" error
+RUN ./$script --silent --kernel-source-path /usr/src/linux-headers-$kernel --skip-module-load \
+    || cat /var/log/nvidia-installer.log
 
 # create user
 RUN useradd -m -s /bin/bash user
@@ -50,4 +52,7 @@ RUN --mount=target=/tmp/requirements.txt,source=requirements.txt \
 COPY --chown=user . /home/user/app
 
 WORKDIR /home/user/app
+
+ENV GRADIO_SERVER_NAME="0.0.0.0"
+
 CMD [ "python", "sim_gradio.py" ]

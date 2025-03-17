@@ -172,6 +172,7 @@ class Genesis():
 
         current_pos = link.get_pos()
 
+        current_pos = current_pos.to(target_pos.device)
         error = torch.norm(current_pos - target_pos)
         print("pos error=", error)
 
@@ -181,6 +182,7 @@ class Genesis():
 
         current_quat = link.get_quat()
 
+        current_quat = current_quat.to(target_quat.device)
         error = torch.norm(current_quat - target_quat)
         print("quat error=", error)
 
@@ -190,6 +192,7 @@ class Genesis():
         # To avoid division by 0, create a target_qpos_denominator variable where 0 are replaced with 1
         target_qpos_denominator = torch.where(target_qpos == 0, torch.tensor(1.0, device=target_qpos.device), target_qpos)
 
+        current_qpos = current_qpos.to(target_qpos.device)
         error = torch.abs((current_qpos - target_qpos) / target_qpos_denominator)
         return torch.norm(error)
 
@@ -199,10 +202,12 @@ class Genesis():
         return pos + t
 
     def quat_to_euler(self, quat):
+        quat = quat.cpu()
         return Rotation.from_quat(quat, scalar_first=True).as_euler(seq=self.EXTRINSIC_SEQ)
 
     def euler_to_quat(self, euler):
-        return Rotation.from_euler(self.EXTRINSIC_SEQ, euler).as_quat(scalar_first=True)
+        quat = Rotation.from_euler(self.EXTRINSIC_SEQ, euler).as_quat(scalar_first=True)
+        return torch.tensor(quat)
 
     def draw_arrow(self, link, t):
         self.scene.clear_debug_objects()

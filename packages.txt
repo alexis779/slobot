@@ -7,6 +7,7 @@ python3-venv
 gcc
 make
 kmod
+pciutils
 linux-headers-cloud-amd64
 xorg-dev
 libglvnd-dev
@@ -15,6 +16,7 @@ libxext6
 libvulkan-dev
 nvidia-vulkan-common
 vulkan-tools
+mesa-utils
 libxrender1
 libglib2.0-0
 libgl1

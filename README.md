@@ -207,7 +207,7 @@ Build docker image:
 docker build -t slobot-genesis-image .
 ```
 
-Run docker container. Make sure to enable **DRI** for hardware graphics acceleration.
+Run docker container. Make sure to enable **DRI** for hardware graphics acceleration, if available.
 
 ```
 docker run -it --security-opt no-new-privileges=true -e GRADIO_SERVER_NAME="0.0.0.0" -p 7860:7860 --device=/dev/dri slobot-genesis-image
