@@ -16,7 +16,7 @@ class Genesis():
     EXTRINSIC_SEQ = 'xyz'
 
     def __init__(self, **kwargs):
-        gs.init(backend=gs.gpu, logging_level="debug")
+        gs.init(backend=gs.gpu)
 
         vis_mode = 'visual' # collision
 
