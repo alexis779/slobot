@@ -52,10 +52,35 @@ Finally evaluate it on the eval dataset to see how well it performs.
 
 ## Setup the environment
 
+### Python
+
+Python version should match [OMPL library](https://github.com/ompl/ompl/releases/tag/prerelease) compatible version.
+
+Following installs Python 3.11 with *pyenv*
+
+
+```
+sudo apt install -y build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+curl https://pyenv.run | bash
+alias pyenv=~/.pyenv/bin/pyenv
+pyenv install 3.11.0
+export PATH="$HOME/.pyenv/versions/3.11.0/bin:$PATH"
+```
+
+Create a virtual environment with *venv*
+
+```
+python -m venv .venv
+. .venv/bin/activate
+```
+
+
+### Current repo
+
 ```
 git clone https://github.com/alexis779/slobot
 cd slobot
-conda env create -f ./environment.yml
+pip install -r requirements.txt
 ```
 
 ## Robot configuration
