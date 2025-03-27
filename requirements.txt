@@ -1,4 +1,5 @@
 genesis-world
+trimesh
 numpy<2
 
 torch
