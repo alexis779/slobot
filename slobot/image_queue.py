@@ -13,11 +13,9 @@ from slobot.simulation_frame import SimulationFrame
 
 # Generate a stream of images from the simulation
 class ImageQueue:
-    IMAGE_DIR = "/tmp/slobot"
 
     def __init__(self):
-        os.makedirs(ImageQueue.IMAGE_DIR, exist_ok=True)
-        self.colormap = plt.get_cmap('viridis')
+        os.makedirs(Configuration.WORK_DIR, exist_ok=True)
 
     def simulation_frames(self, max_fps, res):
         self.frames = []
@@ -45,7 +43,7 @@ class ImageQueue:
         rgb = frame[0]
 
         depth = frame[1]
-        depth = self.depth_to_rgb(depth)
+        depth = self._logarithmic_depth_to_rgb(depth)
 
         segmentation = frame[2]
         surface = frame[3]
@@ -64,14 +62,21 @@ class ImageQueue:
 
     def create_image_paths(self, image_array):
         image_name = str(uuid.uuid4())
-        image_path = os.path.join(ImageQueue.IMAGE_DIR, f"{image_name}.webp")
+        image_path = os.path.join(Configuration.WORK_DIR, f"{image_name}.webp")
         image = Image.fromarray(image_array, mode='RGB')
         image.save(image_path)
         return image_path
 
-    def depth_to_rgb(self, depth):
-        depth_rgb = self.colormap(depth) * 255
+    def _logarithmic_depth_to_rgb(self, depth_arr):
+        """
+        Use logarithmic scaling to enhance depth visualization
+        Helps spread out colors more non-linearly, potentially improving contrast
+        """
+        # Add small epsilon to avoid log(0)
+        log_depth = np.log1p(depth_arr - np.min(depth_arr))
+        normalized_log_depth = (log_depth - np.min(log_depth)) / (np.max(log_depth) - np.min(log_depth))
+
+        # Use a perceptually uniform colormap for better distinction
+        depth_rgb = plt.cm.plasma(normalized_log_depth) * 255
         depth_rgb = depth_rgb.astype(np.uint8)
-        # remove alpha channel
-        depth_rgb = depth_rgb[:, :, :3]
-        return depth_rgb
+        return depth_rgb[:, :, :3]

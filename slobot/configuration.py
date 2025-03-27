@@ -1,6 +1,8 @@
 import numpy as np
 
 class Configuration:
+    WORK_DIR = "/tmp/slobot"
+
     MJCF_CONFIG = './trs_so_arm100/so_arm100.xml'
 
     # 16:9 aspect ratio

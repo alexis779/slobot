@@ -2,7 +2,7 @@ import gradio as gr
 from slobot.image_queue import ImageQueue
 import time
 
-class GradioApp():
+class GradioImageApp():
     def __init__(self, **kwargs):
         image_queue = ImageQueue()
 

@@ -55,4 +55,4 @@ WORKDIR /home/user/app
 
 ENV GRADIO_SERVER_NAME="0.0.0.0"
 
-CMD [ "python", "sim_gradio.py" ]
+CMD [ "python", "sim_gradio_video.py" ]

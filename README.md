@@ -208,20 +208,32 @@ FPS= FpsMetric(1741584122.3869967, 34.998914997305455)
 ```
 
 
-### Gradio app
+### Gradio apps
 
 Gradio app is a UI web framework to demo ML applications.
+
+Navigate to the [local URL](http://127.0.0.1:7860) in the browser. Then click *Run* button.
+
+#### Image
 
 The [`Image` component](https://www.gradio.app/docs/gradio/image) can sample the frames of the simulation at a small FPS rate.
 The frontend receives backend events via a Server Side Event stream. For each new *frame generated* event, it downloads the image from the webserver and displays it to the user.
 
 ```
-PYOPENGL_PLATFORM=egl python sim_gradio.py
+PYOPENGL_PLATFORM=egl python sim_gradio_image.py
 ```
 
-Navigate to the [local URL](http://127.0.0.1:7860) in the browser. Then click *Run* button.
+![Genesis frame types](./doc/GenesisImageFrameTypes.png)
 
-![Genesis frame types](./doc/GenesisFrameTypes.png)
+#### Video
+
+The [`Video` component](https://www.gradio.app/docs/gradio/video) can play a full mp4 encoded in h264 or a stream of smaller TS files from a HLS playlist.
+
+```
+PYOPENGL_PLATFORM=egl python sim_gradio_video.py
+```
+
+![Genesis frame types](./doc/GenesisVideoFrameTypes.png)
 
 
 #### Docker
@@ -229,11 +241,11 @@ Navigate to the [local URL](http://127.0.0.1:7860) in the browser. Then click *R
 Build docker image:
 
 ```
-docker build -t slobot-genesis-image .
+docker build -t slobot-genesis .
 ```
 
-Run docker container. Make sure to enable **DRI** for hardware graphics acceleration, if available.
+Run docker container. Make sure to enable **DRI** for hardware graphics acceleration.
 
 ```
-docker run -it --security-opt no-new-privileges=true -e GRADIO_SERVER_NAME="0.0.0.0" -p 7860:7860 --device=/dev/dri slobot-genesis-image
+docker run -it --security-opt no-new-privileges=true -p 7860:7860 --device=/dev/dri -v $PWD:/home/user/app slobot-genesis-image
 ```
