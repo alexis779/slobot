@@ -76,12 +76,24 @@ python -m venv .venv
 ```
 
 
-### Current repo
+### slobot
 
 ```
 git clone https://github.com/alexis779/slobot
 cd slobot
 pip install -e .
+```
+
+Because ompl module is not available on PyPI, it needs to be installed by downloading the wheel directly.
+
+```
+pip install https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp311-cp311-manylinux_2_28_x86_64.whl
+```
+
+Because LeRobot PyPI module is not up-to-date, it needs to be installed directly from source.
+
+```
+pip install git+https://github.com/huggingface/lerobot.git
 ```
 
 ## Robot configuration
@@ -226,7 +238,7 @@ PYOPENGL_PLATFORM=egl python sim_gradio_image.py
 
 #### Video
 
-The [`Video` component](https://www.gradio.app/docs/gradio/video) can play a full mp4 encoded in h264 or a stream of smaller TS files from a HLS playlist.
+The [`Video` component](https://www.gradio.app/docs/gradio/video) can play a full mp4 encoded in h264 or a stream of smaller TS files.
 
 ```
 PYOPENGL_PLATFORM=egl python sim_gradio_video.py
