@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import logging
 
 from slobot.genesis import Genesis
 from slobot.configuration import Configuration
@@ -67,7 +68,8 @@ class SoArm100():
         self.stop()
 
     def stop(self):
-        self.camera.stop_recording(save_to_filename='so_arm_100.mp4')
+        #self.camera.stop_recording(save_to_filename='so_arm_100.mp4')
+        pass
 
     def go_home(self):
         target_qpos = torch.tensor(SoArm100.HOME_QPOS)

@@ -1,19 +1,17 @@
 import gradio as gr
-from slobot.image_queue import ImageQueue
-import time
+from slobot.image_streams import ImageStreams
 
 class GradioImageApp():
-    def __init__(self, **kwargs):
-        image_queue = ImageQueue()
-
-        max_fps = kwargs['max_fps']
-        res = kwargs['res']
-        self.simulation_frames = image_queue.simulation_frames(max_fps, res)
+    def __init__(self):
+        self.image_streams = ImageStreams()
 
     def launch(self):
         with gr.Blocks() as demo:
             with gr.Row():
                 button = gr.Button()
+                width = gr.Number(label='Width', value=640)
+                height = gr.Number(label='Height', value=480)
+                fps = gr.Slider(label='FPS', minimum=1, maximum=10, value=3, step=1)
             with gr.Row():
                 rgb = gr.Image(label='RGB')
                 depth = gr.Image(label='Depth')
@@ -21,15 +19,11 @@ class GradioImageApp():
                 segmentation = gr.Image(label='Segmentation Mask')
                 surface = gr.Image(label='Surface Normal')
 
-            button.click(self.sim_images, [], [rgb, depth, segmentation, surface])
+            button.click(self.sim_images, [width, height, fps], [rgb, depth, segmentation, surface])
 
         demo.launch()
 
-    def sim_images(self):
-        previous_timestamp = self.simulation_frames[0].timestamp
-        for simultation_image in self.simulation_frames:
-            current_timestamp = simultation_image.timestamp
-            sleep_time = current_timestamp - previous_timestamp
-            time.sleep(sleep_time)
-            yield simultation_image.paths
-            previous_timestamp = current_timestamp
+    def sim_images(self, width, height, fps):
+        res = (width, height)
+        for simulation_frame_paths in self.image_streams.frame_filenames(res, fps):
+            yield simulation_frame_paths.paths

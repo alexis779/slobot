@@ -3,3 +3,5 @@
 __pycache__
 /.gradio
 /.venv
+/trs_so_arm100
+/*.egg-info

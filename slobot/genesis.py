@@ -73,7 +73,7 @@ class Genesis():
 
         self.scene.build()
 
-        self.camera.start_recording()
+        #self.camera.start_recording()
 
         print("Limits=", self.entity.get_dofs_limit())
 

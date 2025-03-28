@@ -1,0 +1,23 @@
+[project]
+name = "slobot"
+version = "0.1.0"
+
+dependencies = [
+    "genesis-world",
+    "ompl @ https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp311-cp311-manylinux_2_28_x86_64.whl",
+    "trimesh",
+    "numpy<2",
+    "torch",
+    "lerobot @ git+https://github.com/huggingface/lerobot.git",
+    "feetech-servo-sdk",
+    "gradio",
+]
+
+[tool.setuptools]
+packages = ["slobot"]
+
+[tool.setuptools.package-data]
+slobot = [
+    "trs_so_arm100/*",
+    "trs_so_arm100/assets/*"
+]

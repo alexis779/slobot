@@ -56,15 +56,16 @@ Finally evaluate it on the eval dataset to see how well it performs.
 
 Python version should match [OMPL library](https://github.com/ompl/ompl/releases/tag/prerelease) compatible version.
 
-Following installs Python 3.11 with *pyenv*
+Following installs Python `3.11.0` with *pyenv*
 
 
 ```
 sudo apt install -y build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
 curl https://pyenv.run | bash
 alias pyenv=~/.pyenv/bin/pyenv
-pyenv install 3.11.0
-export PATH="$HOME/.pyenv/versions/3.11.0/bin:$PATH"
+python_version=3.11.0
+pyenv install $python_version
+export PATH="$HOME/.pyenv/versions/$python_version/bin:$PATH"
 ```
 
 Create a virtual environment with *venv*
@@ -80,7 +81,7 @@ python -m venv .venv
 ```
 git clone https://github.com/alexis779/slobot
 cd slobot
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ## Robot configuration
@@ -90,9 +91,7 @@ The example loads the [Mujoco XML configuration](https://github.com/google-deepm
 Ensure the robot configuration directory in available in the current directory.
 
 ```
-cd ..
-git clone -b main https://github.com/google-deepmind/mujoco_menagerie
-cd slobot
+git clone -b main https://github.com/google-deepmind/mujoco_menagerie ../mujoco_menagerie
 cp -r ../mujoco_menagerie/trs_so_arm100 .
 ```
 

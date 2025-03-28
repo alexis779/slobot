@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 
 class Configuration:
     WORK_DIR = "/tmp/slobot"
@@ -22,3 +23,11 @@ class Configuration:
         "zero": [2112, 3069, 996, 2099, 2111, 2088],
         "rest": [2091, 728, 3056, 2812, 2032, 1977]
     }
+
+    def logger(logger_name):
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logger.addHandler(handler)
+        return logger

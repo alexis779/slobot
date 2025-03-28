@@ -1,14 +1,15 @@
 import time
-import queue
 import os
 import threading
+import queue
 import numpy as np
 import matplotlib.pyplot as plt
-
 
 from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 from slobot.configuration import Configuration
 from slobot.so_arm_100 import SoArm100
+from slobot.simulation_frame import SimulationFrame
+from slobot.simulation_frame_paths import SimulationFramePaths
 
 
 class VideoStreams:
@@ -16,12 +17,27 @@ class VideoStreams:
 
     def __init__(self):
         os.makedirs(Configuration.WORK_DIR, exist_ok=True)
+        self.logger = Configuration.logger(__name__)
+        self.queue = queue.Queue()
 
-    def frame_filenames(self, fps, res):
+    def frame_filenames(self, res, fps, segment_duration):
+        # run simulation in a separate thread
+        thread = threading.Thread(target=self.run_simulation, args=(res, fps, segment_duration))
+        thread.start()
+
+        while True:
+            simulation_frame_paths = self.queue.get()
+            if simulation_frame_paths is None:
+                break
+
+            yield simulation_frame_paths
+
+        thread.join()
+
+    def run_simulation(self, res, fps, segment_duration):
         cam_id = 0
         env_id = 0
-        filenames = self.start(cam_id, [env_id], None, res, fps=fps, rgb=True, depth=True, segmentation=True, normal=True)
-        filenames = list(map(lambda filename: filename[env_id], filenames))
+        self.start(cam_id, [env_id], res, fps, segment_duration, rgb=True, depth=True, segmentation=True, normal=True)
 
         mjcf_path = Configuration.MJCF_CONFIG
         arm = SoArm100(mjcf_path=mjcf_path, frame_handler=self, res=res, show_viewer=False)
@@ -31,125 +47,110 @@ class VideoStreams:
 
         # stop genesis
         arm.genesis.stop()
-        return filenames
 
     def start(
         self,
         cam_id,
         env_ids,
-        save_to_filename,
         res,
         fps,
+        segment_duration,
         rgb=True,
         depth=False,
         segmentation=False,
         normal=False
     ):
+        self.cam_id = cam_id
         self.env_ids = env_ids
+        self.res = res
+        self.fps = fps
 
-        self.period = 1.0 / fps
+        self.period = 1.0 / self.fps
+        self.segment_id = 0
 
         self.frame_enabled = [rgb, depth, segmentation, normal]
 
-        self.save_to_filename = save_to_filename
+        self.video_timestamp = time.time()
+        self.current_frame = None
 
-        date_time = time.strftime('%Y%m%d_%H%M%S')
+        self.segment_duration = segment_duration
 
-        filenames = [
-            [
-                self._filename(cam_id, env_id, self.FRAME_TYPES[frame_id], date_time)
-                for env_id in self.env_ids
-            ] if self.frame_enabled[frame_id] else None
-            for frame_id in range(len(self.FRAME_TYPES))
-        ]
-
-        self.writers = [
-            [
-                self._writer(filenames[frame_id][env_id], res, fps)
-                for env_id in self.env_ids
-            ] if self.frame_enabled[frame_id] else None
-            for frame_id in range(len(self.FRAME_TYPES))
-        ]
-
-        self.start_time = time.time()
-        self.duration = 0
-        self.previous_frame = None
-
-        self.queue = queue.Queue()
-
-        # Start the poller
-        self.poller = threading.Thread(target=self.poll)
-        self.poller.start()
-
-        return filenames
-
-    def poll(self):
-        while True:
-            frame = self.queue.get()
-            if frame is None:
-                break
-
-            for frame_id in range(len(self.FRAME_TYPES)):
-                typed_frame = frame[frame_id]
-                if typed_frame is None:
-                    #if self.frame_enabled[frame_id]:
-                    #    print(f"Frame type {self.FRAME_TYPES[frame_id]} is enabled but not provided")
-                    continue
-
-                if self.writers[frame_id] is None:
-                    continue
-
-                for env_id in self.env_ids:
-                    env_arr = typed_frame if len(self.env_ids) == 1 else typed_frame[env_id]
-
-                    writer = self.writers[frame_id][env_id]
-                    writer.write_frame(env_arr)
+        self.simulation_frames = []
 
     def handle_frame(self, frame):
-        current_time = time.time()
+        timestamp = time.time()
 
         rgb_arr, depth_arr, seg_arr, normal_arr = frame
 
         if depth_arr is not None:
-            depth_arr = self._logarithmic_depth_to_rgb(depth_arr)
+            depth_arr = VideoStreams.logarithmic_depth_to_rgb(depth_arr)
 
-        current_frame = (rgb_arr, depth_arr, seg_arr, normal_arr)
+        simulation_frame = SimulationFrame(timestamp, rgb_arr, depth_arr, seg_arr, normal_arr)
 
-        for frame_id in range(len(self.FRAME_TYPES)):
-            typed_frame = current_frame[frame_id]
-            if typed_frame is None:
-                if self.frame_enabled[frame_id]:
-                    print(f"Frame type {self.FRAME_TYPES[frame_id]} is enabled but not provided")
+        self.simulation_frames.append(simulation_frame)
 
-        if self.previous_frame is None:
-            self.previous_frame = current_frame
+        if self.video_timestamp + self.segment_duration <= simulation_frame.timestamp:
+            self.flush_frames()
 
-        while self.start_time + self.duration < current_time:
-            self.duration += self.period
-            self.queue.put(self.previous_frame)
+    def flush_frames(self):
+        simulation_frame_paths = self.transcode_frames()
+        self.queue.put(simulation_frame_paths)
 
-        self.previous_frame = current_frame
+    def transcode_frames(self) -> SimulationFramePaths:
+        self.logger.info(f"Flushing frames for segment {self.segment_id}")
+        date_time = time.strftime('%Y%m%d_%H%M%S')
+
+        if self.current_frame is None:
+            self.current_frame = self.simulation_frames[0]
+
+        first_timestamp = self.simulation_frames[0].timestamp
+
+        video_frames = []
+        for simulation_frame in self.simulation_frames:
+            while self.video_timestamp + self.period < simulation_frame.timestamp:
+                video_frames.append(self.current_frame)
+                self.video_timestamp += self.period
+
+            # TODO last frame of the simulation will be dropped
+            self.current_frame = simulation_frame
+
+        self.simulation_frames.clear()
+
+        simulation_frame_videos = []
+        for env_id in self.env_ids:
+            env_simulation_frame_videos = []
+            for frame_id in range(len(self.FRAME_TYPES)):
+                if not self.frame_enabled[frame_id]:
+                    next
+
+                filename = self._filename(self.cam_id, env_id, self.FRAME_TYPES[frame_id], date_time, self.segment_id)
+
+                with self._writer(filename, self.res, self.fps) as writer:
+                    type_frames = [
+                        simulation_frame.frame(frame_id)
+                        for simulation_frame in video_frames
+                    ]
+                    if len(self.env_ids) > 1:
+                        type_frames = [
+                            env_frame[env_id]
+                            for env_frame in type_frames
+                        ]
+                    type_frames = np.array(type_frames)
+                    writer.write_frame(type_frames)
+
+                env_simulation_frame_videos.append(filename)
+            simulation_frame_videos.append(env_simulation_frame_videos)
+
+        self.logger.info(f"Done flushing frames for segment {self.segment_id}")
+        self.segment_id += 1
+
+        return SimulationFramePaths(first_timestamp, simulation_frame_videos)
 
     def stop(self):
-        if self.previous_frame is not None:
-            current_time = time.time()
-            while self.start_time + self.duration < current_time:
-                self.duration += self.period
-                self.queue.put(self.previous_frame)
+        if len(self.simulation_frames) > 0:
+            self.flush_frames()
 
-        self.queue.put(None) # send poison pill
-        self.poller.join()
-
-        for frame_id in range(len(self.FRAME_TYPES)):
-            for env_id in self.env_ids:
-                if self.writers[frame_id] is None:
-                    continue
-
-                writer = self.writers[frame_id][env_id]
-                if writer is None:
-                    continue
-
-                writer.close()
+        self.queue.put(None) # add poison pill
 
     def _writer(self, filename, res, fps):
         return FFMPEG_VideoWriter(
@@ -158,14 +159,10 @@ class VideoStreams:
             fps,
         )
 
-    def _filename(self, cam_id, env_id, frame_type, date_time):
-        if self.save_to_filename is not None and env_id == 0 and len(self.env_ids) == 1 and frame_type == 'rgb':
-            return self.save_to_filename
+    def _filename(self, cam_id, env_id, frame_type, date_time, segment_id):
+        return f"{Configuration.WORK_DIR}/cam_{cam_id}_env_{env_id}_{frame_type}_{date_time}_{segment_id}.ts"
 
-        return f"{Configuration.WORK_DIR}/cam_{cam_id}_env_{env_id}_{frame_type}_{date_time}.mp4"
-
-
-    def _logarithmic_depth_to_rgb(self, depth_arr):
+    def logarithmic_depth_to_rgb(depth_arr):
         """
         Use logarithmic scaling to enhance depth visualization
         Helps spread out colors more non-linearly, potentially improving contrast
