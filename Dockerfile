@@ -37,7 +37,7 @@ RUN groupadd -g 105 render
 RUN usermod -aG video user
 RUN usermod -aG render user
 
-# next commands will be executed as the ucleanser
+# next commands will be executed as the user
 USER user
 RUN python3 -m venv /home/user/venv
 RUN echo "cd $HOME" >> /home/user/.bashrc
@@ -48,10 +48,15 @@ ENV PATH="/home/user/venv/bin:$PATH"
 RUN --mount=target=/tmp/requirements.txt,source=requirements.txt \
     pip install --no-cache-dir -r /tmp/requirements.txt
 
+WORKDIR /home/user/app
+
+# deploy robot configuration
+RUN git clone -b main https://github.com/google-deepmind/mujoco_menagerie
+RUN cp -r mujoco_menagerie/trs_so_arm100 trs_so_arm100
+RUN rm -rf mujoco_menagerie
+
 # deploy application into target directory
 COPY --chown=user . /home/user/app
-
-WORKDIR /home/user/app
 
 ENV GRADIO_SERVER_NAME="0.0.0.0"
 

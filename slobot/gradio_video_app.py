@@ -2,12 +2,8 @@ import gradio as gr
 from slobot.video_streams import VideoStreams
 
 class GradioVideoApp():
-    def __init__(self, **kwargs):
+    def __init__(self):
         self.video_streams = VideoStreams()
-
-        self.res = kwargs['res']
-        self.fps = kwargs['fps']
-        self.segment_duration = kwargs['segment_duration']
 
     def launch(self):
         with gr.Blocks() as demo:
