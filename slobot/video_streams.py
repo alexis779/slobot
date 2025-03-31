@@ -21,7 +21,6 @@ class VideoStreams:
         self.logger = Configuration.logger(__name__)
 
         self.video_segment_queue = queue.Queue()
-        self.transcode_queue = queue.Queue()
 
         self.codec = kwargs.get('codec', 'libx264')
 
@@ -43,10 +42,6 @@ class VideoStreams:
         cam_id = 0
         env_id = 0
         self.start(cam_id, [env_id], res, fps, segment_duration, rgb=True, depth=True, segmentation=True, normal=True)
-
-        # run transcoding in a separate thread
-        self.transcode_thread = threading.Thread(target=self.poll_transcode)
-        self.transcode_thread.start()
 
         mjcf_path = Configuration.MJCF_CONFIG
         arm = SoArm100(mjcf_path=mjcf_path, frame_handler=self, res=res, show_viewer=False)
@@ -99,20 +94,14 @@ class VideoStreams:
         self.simulation_frames.append(simulation_frame)
 
         if self.video_timestamp + self.segment_duration <= simulation_frame.timestamp:
-            self.flush_frames()
+            self.do_transcode(self.simulation_frames)
 
-    def flush_frames(self):
-        self.transcode_queue.put(self.simulation_frames)
-        self.simulation_frames = []
+    def do_transcode(self, simulation_frames):
+        if len(simulation_frames) == 0:
+            return
 
-    def poll_transcode(self):
-        while True:
-            simulation_frames = self.transcode_queue.get()
-            if simulation_frames is None:
-                break
-
-            simulation_frame_paths = self.transcode_frames(simulation_frames)
-            self.video_segment_queue.put(simulation_frame_paths)
+        simulation_frame_paths = self.transcode_frames(simulation_frames)
+        self.video_segment_queue.put(simulation_frame_paths)
 
     def transcode_frames(self, simulation_frames) -> SimulationFramePaths:
         self.logger.info(f"Transcoding video segment {self.segment_id}")
@@ -165,9 +154,7 @@ class VideoStreams:
         return SimulationFramePaths(first_timestamp, simulation_frame_videos)
 
     def stop(self):
-        self.flush_frames()
-        self.transcode_queue.put(None) # add poison pill
-        self.transcode_thread.join()
+        self.do_transcode(self.simulation_frames)
 
         self.video_segment_queue.put(None) # add poison pill
 
