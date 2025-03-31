@@ -10,15 +10,20 @@ from slobot.configuration import Configuration
 from slobot.so_arm_100 import SoArm100
 from slobot.simulation_frame import SimulationFrame
 from slobot.simulation_frame_paths import SimulationFramePaths
+from slobot.video_writer import VideoWriter
 
 
 class VideoStreams:
     FRAME_TYPES = ["rgb", "depth", "segmentation", "normal"]
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         os.makedirs(Configuration.WORK_DIR, exist_ok=True)
         self.logger = Configuration.logger(__name__)
-        self.queue = queue.Queue()
+
+        self.video_segment_queue = queue.Queue()
+        self.transcode_queue = queue.Queue()
+
+        self.codec = kwargs.get('codec', 'libx264')
 
     def frame_filenames(self, res, fps, segment_duration):
         # run simulation in a separate thread
@@ -26,7 +31,7 @@ class VideoStreams:
         thread.start()
 
         while True:
-            simulation_frame_paths = self.queue.get()
+            simulation_frame_paths = self.video_segment_queue.get()
             if simulation_frame_paths is None:
                 break
 
@@ -38,6 +43,10 @@ class VideoStreams:
         cam_id = 0
         env_id = 0
         self.start(cam_id, [env_id], res, fps, segment_duration, rgb=True, depth=True, segmentation=True, normal=True)
+
+        # run transcoding in a separate thread
+        self.transcode_thread = threading.Thread(target=self.poll_transcode)
+        self.transcode_thread.start()
 
         mjcf_path = Configuration.MJCF_CONFIG
         arm = SoArm100(mjcf_path=mjcf_path, frame_handler=self, res=res, show_viewer=False)
@@ -93,20 +102,29 @@ class VideoStreams:
             self.flush_frames()
 
     def flush_frames(self):
-        simulation_frame_paths = self.transcode_frames()
-        self.queue.put(simulation_frame_paths)
+        self.transcode_queue.put(self.simulation_frames)
+        self.simulation_frames = []
 
-    def transcode_frames(self) -> SimulationFramePaths:
-        self.logger.info(f"Flushing frames for segment {self.segment_id}")
+    def poll_transcode(self):
+        while True:
+            simulation_frames = self.transcode_queue.get()
+            if simulation_frames is None:
+                break
+
+            simulation_frame_paths = self.transcode_frames(simulation_frames)
+            self.video_segment_queue.put(simulation_frame_paths)
+
+    def transcode_frames(self, simulation_frames) -> SimulationFramePaths:
+        self.logger.info(f"Transcoding video segment {self.segment_id}")
         date_time = time.strftime('%Y%m%d_%H%M%S')
 
         if self.current_frame is None:
-            self.current_frame = self.simulation_frames[0]
+            self.current_frame = simulation_frames[0]
 
-        first_timestamp = self.simulation_frames[0].timestamp
+        first_timestamp = simulation_frames[0].timestamp
 
         video_frames = []
-        for simulation_frame in self.simulation_frames:
+        for simulation_frame in simulation_frames:
             while self.video_timestamp + self.period < simulation_frame.timestamp:
                 video_frames.append(self.current_frame)
                 self.video_timestamp += self.period
@@ -114,7 +132,7 @@ class VideoStreams:
             # TODO last frame of the simulation will be dropped
             self.current_frame = simulation_frame
 
-        self.simulation_frames.clear()
+        simulation_frames.clear()
 
         simulation_frame_videos = []
         for env_id in self.env_ids:
@@ -125,18 +143,18 @@ class VideoStreams:
 
                 filename = self._filename(self.cam_id, env_id, self.FRAME_TYPES[frame_id], date_time, self.segment_id)
 
-                with self._writer(filename, self.res, self.fps) as writer:
+                video_writer = VideoWriter(filename, self.res, self.fps, codec=self.codec)
+                type_frames = [
+                    simulation_frame.frame(frame_id)
+                    for simulation_frame in video_frames
+                ]
+                if len(self.env_ids) > 1:
                     type_frames = [
-                        simulation_frame.frame(frame_id)
-                        for simulation_frame in video_frames
+                        env_frame[env_id]
+                        for env_frame in type_frames
                     ]
-                    if len(self.env_ids) > 1:
-                        type_frames = [
-                            env_frame[env_id]
-                            for env_frame in type_frames
-                        ]
-                    type_frames = np.array(type_frames)
-                    writer.write_frame(type_frames)
+                type_frames = np.array(type_frames)
+                video_writer.transcode(type_frames, filename)
 
                 env_simulation_frame_videos.append(filename)
             simulation_frame_videos.append(env_simulation_frame_videos)
@@ -147,17 +165,11 @@ class VideoStreams:
         return SimulationFramePaths(first_timestamp, simulation_frame_videos)
 
     def stop(self):
-        if len(self.simulation_frames) > 0:
-            self.flush_frames()
+        self.flush_frames()
+        self.transcode_queue.put(None) # add poison pill
+        self.transcode_thread.join()
 
-        self.queue.put(None) # add poison pill
-
-    def _writer(self, filename, res, fps):
-        return FFMPEG_VideoWriter(
-            filename,
-            res,
-            fps,
-        )
+        self.video_segment_queue.put(None) # add poison pill
 
     def _filename(self, cam_id, env_id, frame_type, date_time, segment_id):
         return f"{Configuration.WORK_DIR}/cam_{cam_id}_env_{env_id}_{frame_type}_{date_time}_{segment_id}.ts"
@@ -165,7 +177,7 @@ class VideoStreams:
     def logarithmic_depth_to_rgb(depth_arr):
         """
         Use logarithmic scaling to enhance depth visualization
-        Helps spread out colors more non-linearly, potentially improving contrast
+        Helps spread out colors better than linearly potentially improving contrast
         """
         # Add small epsilon to avoid log(0)
         log_depth = np.log1p(depth_arr - np.min(depth_arr))

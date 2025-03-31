@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import logging
 
 from slobot.genesis import Genesis
 from slobot.configuration import Configuration
