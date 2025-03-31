@@ -79,9 +79,7 @@ python -m venv .venv
 ### slobot
 
 ```
-git clone https://github.com/alexis779/slobot
-cd slobot
-pip install -e .
+pip install slobot
 ```
 
 Because ompl module is not available on PyPI, it needs to be installed by downloading the wheel directly.
