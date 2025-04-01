@@ -3,6 +3,7 @@ from lerobot.common.robot_devices.motors.feetech import FeetechMotorsBus, Torque
 from lerobot.common.robot_devices.robots.utils import make_robot_config
 
 from slobot.configuration import Configuration
+from slobot.simulation_frame import SimulationFrame
 
 import json
 import numpy as np
@@ -40,8 +41,8 @@ class Feetech():
     def get_pos(self):
         return self.motors_bus.read('Present_Position')
 
-    def handle_qpos(self, qpos):
-        pos = self.qpos_to_pos(qpos)
+    def step_handler(self, frame: SimulationFrame):
+        pos = self.qpos_to_pos(frame.qpos)
         self.set_pos(pos)
 
     def qpos_to_pos(self, qpos):

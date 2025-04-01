@@ -1,5 +1,4 @@
 import time
-import json
 
 from slobot.configuration import Configuration
 from slobot.so_arm_100 import SoArm100
@@ -16,12 +15,12 @@ class FpsGauge():
         self.frames = 0
 
         mjcf_path = Configuration.MJCF_CONFIG
-        arm = SoArm100(mjcf_path=mjcf_path, frame_handler=self, res=self.res, show_viewer=False)
+        arm = SoArm100(mjcf_path=mjcf_path, step_handler=self, res=self.res, show_viewer=False)
         arm.elemental_rotations()
 
         arm.genesis.stop()
 
-    def handle_frame(self, frame):
+    def handle_step(self, frame):
         self.frames += 1
 
         current_time = time.time()

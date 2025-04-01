@@ -1,10 +1,11 @@
 class SimulationFrame():
-    def __init__(self, timestamp, rgb, depth, segmentation, surface):
+    def __init__(self, timestamp, qpos):
         self.timestamp = timestamp
-        self.rgb = rgb
-        self.depth = depth
-        self.segmentation = segmentation
-        self.surface = surface
+        self.qpos = qpos
+        self.rgb = None
+        self.depth = None
+        self.segmentation = None
+        self.normal = None
 
     def frame(self, frame_id):
         match frame_id:
@@ -15,4 +16,4 @@ class SimulationFrame():
             case 2:
                 return self.segmentation
             case 3:
-                return self.surface
+                return self.normal
