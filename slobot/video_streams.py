@@ -5,7 +5,6 @@ import queue
 import numpy as np
 import matplotlib.pyplot as plt
 
-from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 from slobot.configuration import Configuration
 from slobot.so_arm_100 import SoArm100
 from slobot.simulation_frame import SimulationFrame
@@ -24,9 +23,9 @@ class VideoStreams:
 
         self.codec = kwargs.get('codec', 'libx264')
 
-    def frame_filenames(self, res, fps, segment_duration):
+    def frame_filenames(self, res, fps, segment_duration, rgb=True, depth=False, segmentation=False, normal=False):
         # run simulation in a separate thread
-        thread = threading.Thread(target=self.run_simulation, args=(res, fps, segment_duration))
+        thread = threading.Thread(target=self.run_simulation, args=(res, fps, segment_duration, rgb, depth, segmentation, normal))
         thread.start()
 
         while True:
@@ -38,13 +37,13 @@ class VideoStreams:
 
         thread.join()
 
-    def run_simulation(self, res, fps, segment_duration):
+    def run_simulation(self, res, fps, segment_duration, rgb=True, depth=False, segmentation=False, normal=False):
         cam_id = 0
         env_id = 0
-        self.start(cam_id, [env_id], res, fps, segment_duration, rgb=True, depth=True, segmentation=True, normal=True)
+        self.start(cam_id, [env_id], res, fps, segment_duration, rgb=rgb, depth=depth, segmentation=segmentation, normal=normal)
 
         mjcf_path = Configuration.MJCF_CONFIG
-        arm = SoArm100(mjcf_path=mjcf_path, frame_handler=self, res=res, show_viewer=False)
+        arm = SoArm100(mjcf_path=mjcf_path, step_handler=self, res=res, fps=fps, show_viewer=False, rgb=rgb, depth=depth, segmentation=segmentation, normal=normal)
         arm.elemental_rotations()
 
         self.stop()
@@ -81,15 +80,9 @@ class VideoStreams:
 
         self.simulation_frames = []
 
-    def handle_frame(self, frame):
-        timestamp = time.time()
-
-        rgb_arr, depth_arr, seg_arr, normal_arr = frame
-
-        if depth_arr is not None:
-            depth_arr = VideoStreams.logarithmic_depth_to_rgb(depth_arr)
-
-        simulation_frame = SimulationFrame(timestamp, rgb_arr, depth_arr, seg_arr, normal_arr)
+    def handle_step(self, simulation_frame: SimulationFrame):
+        if simulation_frame.depth is not None:
+           simulation_frame.depth = VideoStreams.logarithmic_depth_to_rgb(simulation_frame.depth)
 
         self.simulation_frames.append(simulation_frame)
 
@@ -148,7 +141,7 @@ class VideoStreams:
                 env_simulation_frame_videos.append(filename)
             simulation_frame_videos.append(env_simulation_frame_videos)
 
-        self.logger.info(f"Done flushing frames for segment {self.segment_id}")
+        self.logger.info(f"Done transcoding video segment {self.segment_id}")
         self.segment_id += 1
 
         return SimulationFramePaths(first_timestamp, simulation_frame_videos)

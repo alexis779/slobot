@@ -33,12 +33,15 @@ class Genesis():
 
         show_viewer = kwargs.get('show_viewer', True)
 
+        fps = kwargs.get('fps', 60)
+
         self.scene = gs.Scene(
             show_viewer=show_viewer,
             viewer_options = gs.options.ViewerOptions(
                 res           = res,
                 camera_lookat = lookat,
                 camera_pos    = camera_pos,
+                max_FPS       = fps,
             ),
             vis_options    = gs.options.VisOptions(
                 lights          = lights,

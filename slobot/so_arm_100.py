@@ -1,8 +1,10 @@
 import numpy as np
 import torch
+import time
 
 from slobot.genesis import Genesis
 from slobot.configuration import Configuration
+from slobot.simulation_frame import SimulationFrame
 
 class SoArm100():
     JAW_LENGTH = 0.107
@@ -19,17 +21,20 @@ class SoArm100():
         arm.genesis.hold_entity()
 
     def __init__(self, **kwargs):
-        self.qpos_handler = kwargs.get('qpos_handler', None)
-
-        # provide a callback for each step update of the simulation
+        self.step_handler = kwargs.get('step_handler', None)
+        # overwrite step handler to delegate to this class first
         kwargs['step_handler'] = self
-        self.genesis = Genesis(**kwargs)
 
-        self.frame_handler = kwargs.get('frame_handler', None)
+        self.genesis = Genesis(**kwargs)
 
         self.camera = self.genesis.camera
         self.entity = self.genesis.entity
         self.fixed_jaw = self.genesis.fixed_jaw
+
+        self.rgb = kwargs.get('rgb', False)
+        self.depth = kwargs.get('depth', False)
+        self.segmentation = kwargs.get('segmentation', False)
+        self.normal = kwargs.get('normal', False)
 
     def elemental_rotations(self):
         self.go_home()
@@ -82,12 +87,28 @@ class SoArm100():
         self.genesis.update_qpos(self.jaw, np.pi/2)
 
     def handle_step(self):
-        if self.frame_handler is not None:
-            frame = self.camera.render(rgb=True, depth=True, segmentation=True, colorize_seg=True, normal=True)
-            self.frame_handler.handle_frame(frame)
+        if self.step_handler is None:
+            return
 
-        if self.qpos_handler is not None:
-            self.qpos_handler.handle_qpos(self.entity.get_qpos())
+        current_time = time.time()
+
+        # convert torch tensor to a JSON serializable object
+        qpos = self.entity.get_qpos().tolist()
+
+        simulation_frame = SimulationFrame(
+            timestamp=current_time,
+            qpos=qpos,
+        )
+
+        if self.rgb or self.depth or self.segmentation or self.normal:
+            frame = self.camera.render(rgb=self.rgb, depth=self.depth, segmentation=self.segmentation, colorize_seg=True, normal=self.normal)
+            rbg_arr, depth_arr, seg_arr, normal_arr = frame
+            simulation_frame.rgb = rbg_arr
+            simulation_frame.depth = depth_arr
+            simulation_frame.segmentation = seg_arr
+            simulation_frame.normal = normal_arr
+
+        self.step_handler.handle_step(simulation_frame)
 
     def handle_qpos(self, qpos):
         self.entity.set_qpos(qpos)

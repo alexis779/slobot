@@ -18,8 +18,8 @@ class ImageStreams:
         os.makedirs(Configuration.WORK_DIR, exist_ok=True)
         self.queue = queue.Queue()
 
-    def frame_filenames(self, res, fps):
-        thread = threading.Thread(target=self.run_simulation, args=(res, fps))
+    def frame_filenames(self, res, fps, rgb=True, depth=False, segmentation=False, normal=False):
+        thread = threading.Thread(target=self.run_simulation, args=(res, fps, rgb, depth, segmentation, normal))
         thread.start()
 
         while True:
@@ -31,11 +31,11 @@ class ImageStreams:
 
         thread.join()
 
-    def run_simulation(self, res, fps):
-        self.start(res, fps, rgb=True, depth=True, segmentation=True, normal=True)
+    def run_simulation(self, res, fps, rgb=True, depth=False, segmentation=False, normal=False):
+        self.start(res, fps, rgb=rgb, depth=depth, segmentation=segmentation, normal=normal)
 
         mjcf_path = Configuration.MJCF_CONFIG
-        arm = SoArm100(mjcf_path=mjcf_path, frame_handler=self, res=res, show_viewer=False)
+        arm = SoArm100(mjcf_path=mjcf_path, step_handler=self, res=res, fps=fps, show_viewer=False, rgb=rgb, depth=depth, segmentation=segmentation, normal=normal)
         arm.elemental_rotations()
 
         self.stop()
@@ -52,65 +52,38 @@ class ImageStreams:
         segmentation=False,
         normal=False
     ):
-        self.simulation_frames = []
-
         self.res = res
         self.fps = fps
-        self.period = 1.0 / fps
         self.segment_id = 0
-        self.video_timestamp = time.time()
-        self.current_frame = None
 
         self.frame_enabled = [rgb, depth, segmentation, normal]
 
     def stop(self):
-        if len(self.simulation_frames) > 0:
-            self.flush_frames()
-        
         self.queue.put(None) # add poison pill
 
-    def handle_frame(self, frame):
-        timestamp = time.time()
+    def handle_step(self, simulation_frame: SimulationFrame):
+        if simulation_frame.depth is not None:
+           # colorize depth
+           simulation_frame.depth = VideoStreams.logarithmic_depth_to_rgb(simulation_frame.depth)
 
-        rgb_arr, depth_arr, seg_arr, normal_arr = frame
-
-        if depth_arr is not None:
-           depth_arr = VideoStreams.logarithmic_depth_to_rgb(depth_arr)
-
-        simulation_frame = SimulationFrame(timestamp, rgb_arr, depth_arr, seg_arr, normal_arr)
-
-        self.simulation_frames.append(simulation_frame)
-        if self.video_timestamp + self.period <= simulation_frame.timestamp:
-            self.flush_frames()
-
-    def flush_frames(self):
-        simulation_frame_paths = self.transcode_frames()
+        simulation_frame_paths = self.transcode_frame(simulation_frame)
         self.queue.put(simulation_frame_paths)
 
-    def transcode_frames(self) -> SimulationFramePaths:
+    def transcode_frame(self, simulation_frame: SimulationFrame) -> SimulationFramePaths:
         date_time = time.strftime('%Y%m%d_%H%M%S')
-        if self.current_frame is None:
-            self.current_frame = self.simulation_frames[0]
-
-        for simulation_frame in self.simulation_frames:
-            while self.video_timestamp + self.period < simulation_frame.timestamp:
-                self.video_timestamp += self.period
-
-            self.current_frame = simulation_frame
 
         simulation_frame_images = []
         for frame_id in range(len(VideoStreams.FRAME_TYPES)):
             if not self.frame_enabled[frame_id]:
-                next
+                continue
 
             filename = self._filename(VideoStreams.FRAME_TYPES[frame_id], date_time, self.segment_id)
-            self.create_image_paths(self.current_frame.frame(frame_id), filename)
+            self.create_image_paths(simulation_frame.frame(frame_id), filename)
             simulation_frame_images.append(filename)
 
-        self.simulation_frames.clear()
         self.segment_id += 1
 
-        return SimulationFramePaths(self.current_frame.timestamp, simulation_frame_images)
+        return SimulationFramePaths(simulation_frame.timestamp, simulation_frame_images, simulation_frame.qpos)
 
     def create_image_paths(self, typed_array, filename):
         image = Image.fromarray(typed_array, mode='RGB')

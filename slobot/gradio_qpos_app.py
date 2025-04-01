@@ -1,7 +1,7 @@
 import gradio as gr
 from slobot.image_streams import ImageStreams
 
-class GradioImageApp():
+class GradioQposApp():
     def __init__(self):
         self.image_streams = ImageStreams()
 
@@ -11,13 +11,9 @@ class GradioImageApp():
                 button = gr.Button()
                 width = gr.Number(label='Width', value=640)
                 height = gr.Number(label='Height', value=480)
-                fps = gr.Slider(label='FPS', minimum=1, maximum=10, value=5, step=1)
+                fps = gr.Slider(label='FPS', minimum=1, maximum=24, value=10, step=1)
             with gr.Row():
                 rgb = gr.Image(label='RGB')
-                depth = gr.Image(label='Depth')
-            with gr.Row():
-                segmentation = gr.Image(label='Segmentation Mask')
-                normal = gr.Image(label='Surface Normal')
             with gr.Row():
                 shoulder_pan = gr.Number(label="shoulder_pan", precision=2)
                 shoulder_lift = gr.Number(label="shoulder_lift", precision=2)
@@ -26,14 +22,14 @@ class GradioImageApp():
                 wrist_roll = gr.Number(label="wrist_roll", precision=2)
                 gripper = gr.Number(label="gripper", precision=2)
 
-            button.click(self.sim_images, [width, height, fps], [rgb, depth, segmentation, normal, shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper])
+            button.click(self.sim_images, [width, height, fps], [rgb, shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper])
 
         demo.launch()
 
     def sim_images(self, width, height, fps):
         res = (width, height)
-        for simulation_frame_paths in self.image_streams.frame_filenames(res, fps, rgb=True, depth=True, segmentation=True, normal=True):
+        for simulation_frame_paths in self.image_streams.frame_filenames(res, fps, rgb=True, depth=False, segmentation=False, normal=False):
             sim_image = []
-            sim_image.extend(simulation_frame_paths.paths)
+            sim_image.append(simulation_frame_paths.paths[0])
             sim_image.extend(simulation_frame_paths.qpos)
             yield sim_image

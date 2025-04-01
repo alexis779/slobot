@@ -18,14 +18,14 @@ class GradioVideoApp():
                 depth = gr.Video(label='Depth', streaming=True)
             with gr.Row():
                 segmentation = gr.Video(label='Segmentation Mask', streaming=True)
-                surface = gr.Video(label='Surface Normal', streaming=True)
+                normal = gr.Video(label='Surface Normal', streaming=True)
 
-            button.click(self.sim_videos, [width, height, fps, segment_duration], [rgb, depth, segmentation, surface])
+            button.click(self.sim_videos, [width, height, fps, segment_duration], [rgb, depth, segmentation, normal])
 
         demo.launch()
 
     def sim_videos(self, width, height, fps, segment_duration):
         res = (width, height)
         env_id = 0
-        for simulation_frame_paths in self.video_streams.frame_filenames(res, fps, segment_duration):
+        for simulation_frame_paths in self.video_streams.frame_filenames(res, fps, segment_duration, rgb=True, depth=True, segmentation=True, normal=True):
             yield simulation_frame_paths.paths[env_id]
