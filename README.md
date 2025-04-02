@@ -251,8 +251,12 @@ PYOPENGL_PLATFORM=egl python sim_gradio_video.py
 
 The qpos app displays the joint angular position numbers.
 
+![Genesis qpos](./doc/GenesisQpos.png)
+
 ```
 python sim_gradio_qpos.py
+
+2025-04-02 00:45:17,551 - INFO - Sending qpos [1.4888898134231567, -1.8273500204086304, 2.3961710929870605, -0.5487295389175415, 1.5706498622894287, -2.59892603935441e-05]
 ```
 
 A client then connects to the server to receive the qpos updates at a predefined `fps` rate.
@@ -261,6 +265,8 @@ It can then dispatch them to the robot to control its position.
 
 ```
 python sim_to_real_client.py
+
+2025-04-02 00:45:17,764 - INFO - Received qpos (1.49, -1.83, 2.4, -0.55, 1.57, -0.0)
 ```
 
 #### Docker
