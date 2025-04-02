@@ -10,9 +10,8 @@ class SimClient():
         self.client = Client('http://127.0.0.1:7860') # 'https://alexis779-slobot-genesis-qpos.hf.space/'
         self.step_handler = kwargs['step_handler']
 
-    def run(self, res, fps):
-        width, height = res
-        job = self.client.submit(width=width, height=height, fps=fps, api_name="/sim_qpos")
+    def run(self, fps):
+        job = self.client.submit(fps=fps, api_name="/sim_qpos")
         previous_time = time.time()
         period = 1.0 / fps
         for qpos in job:

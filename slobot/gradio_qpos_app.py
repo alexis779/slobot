@@ -11,8 +11,6 @@ class GradioQposApp():
         with gr.Blocks() as demo:
             with gr.Row():
                 button = gr.Button()
-                width = gr.Number(label='Width', value=640)
-                height = gr.Number(label='Height', value=480)
                 fps = gr.Slider(label='FPS', minimum=1, maximum=24, value=3, step=1)
             with gr.Row():
                 shoulder_pan = gr.Number(label="shoulder_pan", precision=2)
@@ -22,12 +20,12 @@ class GradioQposApp():
                 wrist_roll = gr.Number(label="wrist_roll", precision=2)
                 gripper = gr.Number(label="gripper", precision=2)
 
-            button.click(self.sim_qpos, [width, height, fps], [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper])
+            button.click(self.sim_qpos, [fps], [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper])
 
         demo.launch()
 
-    def sim_qpos(self, width, height, fps):
-        res = (width, height)
+    def sim_qpos(self, fps):
+        res = Configuration.LD
         for simulation_frame_paths in self.image_streams.frame_filenames(res, fps, rgb=False, depth=False, segmentation=False, normal=False):
             self.logger.info(f"Sending qpos {simulation_frame_paths.qpos}")
             yield simulation_frame_paths.qpos
