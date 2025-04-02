@@ -6,7 +6,8 @@ from slobot.sim_client import SimClient
 
 feetech = Feetech()
 
-sim_client = SimClient(step_handler=feetech)
+url = 'http://127.0.0.1:7860' # 'https://alexis779-slobot-genesis-qpos.hf.space/'
+sim_client = SimClient(url=url, step_handler=feetech)
 
 fps = 24
 sim_client.run(fps)

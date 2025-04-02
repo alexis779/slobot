@@ -7,7 +7,8 @@ import time
 class SimClient():
     def __init__(self, **kwargs):
         self.logger = Configuration.logger(__name__)
-        self.client = Client('http://127.0.0.1:7860') # 'https://alexis779-slobot-genesis-qpos.hf.space/'
+        url = kwargs['url']
+        self.client = Client(url)
         self.step_handler = kwargs['step_handler']
 
     def run(self, fps):
