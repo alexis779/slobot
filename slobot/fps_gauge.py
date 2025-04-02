@@ -15,7 +15,7 @@ class FpsGauge():
         self.frames = 0
 
         mjcf_path = Configuration.MJCF_CONFIG
-        arm = SoArm100(mjcf_path=mjcf_path, step_handler=self, res=self.res, show_viewer=False)
+        arm = SoArm100(mjcf_path=mjcf_path, step_handler=self, res=self.res, show_viewer=True)
         arm.elemental_rotations()
 
         arm.genesis.stop()

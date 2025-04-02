@@ -11,7 +11,7 @@ class GradioImageApp():
                 button = gr.Button()
                 width = gr.Number(label='Width', value=640)
                 height = gr.Number(label='Height', value=480)
-                fps = gr.Slider(label='FPS', minimum=1, maximum=10, value=5, step=1)
+                fps = gr.Slider(label='FPS', minimum=1, maximum=10, value=3, step=1)
             with gr.Row():
                 rgb = gr.Image(label='RGB')
                 depth = gr.Image(label='Depth')

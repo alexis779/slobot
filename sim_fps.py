@@ -7,5 +7,5 @@ import signal
 
 faulthandler.register(signal.SIGUSR1)
 
-fps_gauge = FpsGauge(max_period=1, res=Configuration.LD)
+fps_gauge = FpsGauge(max_period=1, res=Configuration.FHD)
 fps_gauge.show_fps()

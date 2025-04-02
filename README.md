@@ -187,7 +187,7 @@ This example performs the 3 elemental rotations in sim and real.
 The simulation generates steps, propagating the joint positions to the Feetech motors.
 
 ```
-python sim_to_real.py
+PYOPENGL_PLATFORM=glx python sim_to_real.py
 ```
 
 
@@ -207,12 +207,14 @@ Genesis camera provides access to each frames rendered by the rasterizer. Multip
 The following script iterates through all the frames, calculating the FPS metric every second.
 
 ```
-PYOPENGL_PLATFORM=egl python sim_fps.py
+PYOPENGL_PLATFORM=glx python sim_fps.py
 ...
-FPS= FpsMetric(1741584119.3494527, 32.94385655244901)
-FPS= FpsMetric(1741584120.3504074, 34.96661988591595)
-FPS= FpsMetric(1741584121.3583934, 36.7068565211221)
-FPS= FpsMetric(1741584122.3869967, 34.998914997305455)
+FPS= FpsMetric(1743573645.3103304, 0.10412893176772242)
+FPS= FpsMetric(1743573646.3160942, 59.656155690238116)
+FPS= FpsMetric(1743573647.321373, 59.68493363485116)
+FPS= FpsMetric(1743573649.8052156, 12.078059963768446)
+FPS= FpsMetric(1743573650.8105915, 59.67917299445178)
+FPS= FpsMetric(1743573651.8152244, 59.723304924655935)
 ...
 ```
 

@@ -1,4 +1,3 @@
-from time import sleep
 from slobot.so_arm_100 import SoArm100
 from slobot.feetech import Feetech
 from slobot.configuration import Configuration
@@ -8,12 +7,7 @@ from slobot.configuration import Configuration
 feetech = Feetech()
 
 mjcf_path = Configuration.MJCF_CONFIG
-arm = SoArm100(mjcf_path=mjcf_path, qpos_handler=feetech)
+arm = SoArm100(mjcf_path=mjcf_path, step_handler=feetech, show_viewer=True)
 arm.elemental_rotations()
 
-# Move the robot to the rest position preset
-preset = 'rest'
-pos = Configuration.POS_MAP[preset]
-feetech.move(pos)
-sleep(1)
-feetech.disconnect()
+feetech.go_to_rest()

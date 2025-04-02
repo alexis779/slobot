@@ -7,6 +7,7 @@ from slobot.simulation_frame import SimulationFrame
 
 import json
 import numpy as np
+from time import sleep
 
 class Feetech():
     ROBOT_TYPE = 'so100'
@@ -41,7 +42,7 @@ class Feetech():
     def get_pos(self):
         return self.motors_bus.read('Present_Position')
 
-    def step_handler(self, frame: SimulationFrame):
+    def handle_step(self, frame: SimulationFrame):
         pos = self.qpos_to_pos(frame.qpos)
         self.set_pos(pos)
 
@@ -72,6 +73,13 @@ class Feetech():
         position = self.get_pos()
         error = np.linalg.norm(target_pos - position) / Feetech.MODEL_RESOLUTION
         print("pos error=", error)
+
+    def go_to_rest(self):
+        preset = 'rest'
+        pos = Configuration.POS_MAP[preset]
+        self.move(pos)
+        sleep(1)
+        self.disconnect()
 
     def calibrate(self, preset):
         input(f"Move the arm to the {preset} position ...")

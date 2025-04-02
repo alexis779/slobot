@@ -16,7 +16,8 @@ class Genesis():
     EXTRINSIC_SEQ = 'xyz'
 
     def __init__(self, **kwargs):
-        gs.init(backend=gs.gpu) # gs.cpu
+        backend = self.backend()
+        gs.init(backend=backend)
 
         vis_mode = 'visual' # collision
 
@@ -93,6 +94,9 @@ class Genesis():
 
         damping = self.entity.get_dofs_damping()
         print("damping", damping)
+
+    def backend(self):
+        return gs.gpu if torch.cuda.is_available() else gs.cpu
 
     def parse_morph(self, **kwargs):
         mjcf_path = kwargs['mjcf_path']
