@@ -4,6 +4,7 @@ import threading
 import queue
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
 
 from slobot.configuration import Configuration
 from slobot.so_arm_100 import SoArm100
@@ -21,7 +22,7 @@ class VideoStreams:
 
         self.video_segment_queue = queue.Queue()
 
-        self.codec = kwargs.get('codec', 'libx264')
+        self.codec = self.codec()
 
     def frame_filenames(self, res, fps, segment_duration, rgb=True, depth=False, segmentation=False, normal=False):
         # run simulation in a separate thread
@@ -153,6 +154,9 @@ class VideoStreams:
 
     def _filename(self, cam_id, env_id, frame_type, date_time, segment_id):
         return f"{Configuration.WORK_DIR}/cam_{cam_id}_env_{env_id}_{frame_type}_{date_time}_{segment_id}.ts"
+
+    def codec(self):
+        return 'h264_nvenc' if torch.cuda.is_available() else 'libx264'
 
     def logarithmic_depth_to_rgb(depth_arr):
         """

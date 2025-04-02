@@ -247,6 +247,22 @@ PYOPENGL_PLATFORM=egl python sim_gradio_video.py
 ![Genesis frame types](./doc/GenesisVideoFrameTypes.png)
 
 
+#### Qpos
+
+The qpos app displays the joint angular position numbers.
+
+```
+python sim_gradio_qpos.py
+```
+
+A client then connects to the server to receive the qpos updates at a predefined `fps` rate.
+
+It can then dispatch them to the robot to control its position.
+
+```
+python sim_to_real_client.py
+```
+
 #### Docker
 
 Build docker image:

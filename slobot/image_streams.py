@@ -22,12 +22,20 @@ class ImageStreams:
         thread = threading.Thread(target=self.run_simulation, args=(res, fps, rgb, depth, segmentation, normal))
         thread.start()
 
+        previous_time = time.time()
+        period = 1.0 / fps
         while True:
             simulation_frame_paths = self.queue.get()
             if simulation_frame_paths is None:
                 break
 
+            current_time = time.time()
+            delta = current_time - (previous_time + period)
+            if delta < 0:
+                time.sleep(-delta)
+
             yield simulation_frame_paths
+            previous_time = max(current_time, previous_time + period)
 
         thread.join()
 
