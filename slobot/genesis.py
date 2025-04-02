@@ -11,7 +11,8 @@ import pprint
 from scipy.spatial.transform import Rotation
 
 class Genesis():
-    POSITION_STEPS = 50
+    # TODO this pause should be in seconds instead of steps
+    HOLD_STEPS = 5
 
     EXTRINSIC_SEQ = 'xyz'
 
@@ -129,7 +130,7 @@ class Genesis():
             self.step()
 
         # allow more steps to the PD controller to stabilize to the target position
-        for _ in range(self.POSITION_STEPS):
+        for _ in range(self.HOLD_STEPS):
             self.step()
 
         current_error = self.qpos_error(target_qpos)
