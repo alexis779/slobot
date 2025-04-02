@@ -144,7 +144,7 @@ class VideoStreams:
         self.logger.info(f"Done transcoding video segment {self.segment_id}")
         self.segment_id += 1
 
-        return SimulationFramePaths(first_timestamp, simulation_frame_videos)
+        return SimulationFramePaths(first_timestamp, simulation_frame_videos, None)
 
     def stop(self):
         self.do_transcode(self.simulation_frames)
