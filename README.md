@@ -80,18 +80,7 @@ python -m venv .venv
 
 ```
 pip install slobot
-```
-
-Because ompl module is not available on PyPI, it needs to be installed by downloading the wheel directly.
-
-```
-pip install https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp311-cp311-manylinux_2_28_x86_64.whl
-```
-
-Because LeRobot PyPI module is not up-to-date, it needs to be installed directly from source.
-
-```
-pip install git+https://github.com/huggingface/lerobot.git
+pip install -r requirements.txt
 ```
 
 ## Robot configuration
