@@ -1,13 +1,13 @@
 Types: deb
 # http://snapshot.debian.org/archive/debian/20250224T000000Z
 URIs: http://deb.debian.org/debian
-Suites: bookworm bookworm-updates
+Suites: trixie trixie-updates
 Components: main non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 
 Types: deb
 # http://snapshot.debian.org/archive/debian-security/20250224T000000Z
 URIs: http://deb.debian.org/debian-security
-Suites: bookworm-security
+Suites: trixie-security
 Components: main
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg

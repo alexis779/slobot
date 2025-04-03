@@ -1,4 +1,4 @@
-FROM debian:bookworm
+FROM debian:trixie
 
 # add extra debian repos for proprietary packages
 COPY debian.sources /etc/apt/sources.list.d/debian.sources
@@ -12,7 +12,7 @@ RUN rm -rf /var/lib/apt/lists/*
 RUN apt clean
 
 # merge platform-specific and common headers from the kernel directories. Run uname -r to get the version
-ARG kernel=6.1.0-32
+ARG kernel=6.12.20
 
 RUN --mount=target=/tmp/merge_headers.sh,source=merge_headers.sh \
     /tmp/merge_headers.sh /usr/src/linux-headers-$kernel-cloud-amd64 /usr/src/linux-headers-$kernel-common /usr/src/linux-headers-$kernel
@@ -32,14 +32,24 @@ RUN ./$script --silent --kernel-source-path /usr/src/linux-headers-$kernel --ski
 # create user
 RUN useradd -m -s /bin/bash user
 
-RUN groupadd -g 105 render
-
 RUN usermod -aG video user
 RUN usermod -aG render user
 
 # next commands will be executed as the user
 USER user
-RUN python3 -m venv /home/user/venv
+
+ENV HOME=/home/user
+WORKDIR $HOME
+
+# python version
+ARG python_version=3.12.9
+
+RUN curl https://pyenv.run | bash
+ENV PATH="$HOME/.pyenv/bin:$PATH"
+RUN pyenv install $python_version
+ENV PATH="$HOME/.pyenv/versions/$python_version/bin:$PATH"
+
+RUN python -m venv /home/user/venv
 RUN echo "cd $HOME" >> /home/user/.bashrc
 RUN echo ". /home/user/venv/bin/activate" >> /home/user/.bashrc
 
