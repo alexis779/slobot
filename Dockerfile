@@ -11,8 +11,9 @@ RUN --mount=target=/tmp/packages.txt,source=packages.txt \
 RUN rm -rf /var/lib/apt/lists/*
 RUN apt clean
 
-# merge platform-specific and common headers from the kernel directories. Run uname -r to get the version
-ARG kernel=6.12.20
+# merge platform-specific and common headers from the kernel directories.
+# Run uname -r to get the version, then strip out the platform suffix
+ENV kernel=6.12.21
 
 RUN --mount=target=/tmp/merge_headers.sh,source=merge_headers.sh \
     /tmp/merge_headers.sh /usr/src/linux-headers-$kernel-cloud-amd64 /usr/src/linux-headers-$kernel-common /usr/src/linux-headers-$kernel
@@ -57,6 +58,12 @@ ENV PATH="/home/user/venv/bin:$PATH"
 
 RUN --mount=target=/tmp/requirements.txt,source=requirements.txt \
     pip install --no-cache-dir -r /tmp/requirements.txt
+
+RUN wget https://github.com/ompl/ompl/releases/download/1.7.0/wheels-ubuntu-latest-x86_64.zip \
+    && unzip wheels-ubuntu-latest-x86_64.zip \
+    && pip install ompl-1.7.0-cp312-cp312-manylinux_2_28_x86_64.whl \
+    && rm wheels-ubuntu-latest-x86_64.zip \
+    && rm ompl-1.7.0-*.whl
 
 WORKDIR /home/user/app
 
