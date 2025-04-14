@@ -18,22 +18,12 @@ class GradioImageApp():
             with gr.Row():
                 segmentation = gr.Image(label='Segmentation Mask')
                 normal = gr.Image(label='Surface Normal')
-            with gr.Row():
-                shoulder_pan = gr.Number(label="shoulder_pan", precision=2)
-                shoulder_lift = gr.Number(label="shoulder_lift", precision=2)
-                elbow_flex = gr.Number(label="elbow_flex", precision=2)
-                wrist_flex = gr.Number(label="wrist_flex", precision=2)
-                wrist_roll = gr.Number(label="wrist_roll", precision=2)
-                gripper = gr.Number(label="gripper", precision=2)
 
-            button.click(self.sim_images, [width, height, fps], [rgb, depth, segmentation, normal, shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper])
+            button.click(self.sim_images, [width, height, fps], [rgb, depth, segmentation, normal])
 
         demo.launch()
 
     def sim_images(self, width, height, fps):
         res = (width, height)
-        for simulation_frame_paths in self.image_streams.frame_filenames(res, fps, rgb=True, depth=True, segmentation=True, normal=True):
-            sim_image = []
-            sim_image.extend(simulation_frame_paths.paths)
-            sim_image.extend(simulation_frame_paths.qpos)
-            yield sim_image
+        for simulation_frame_paths in self.image_streams.simulation_frame_paths(res, fps, rgb=True, depth=True, segmentation=True, normal=True):
+            yield simulation_frame_paths.paths

@@ -56,14 +56,14 @@ Finally evaluate it on the eval dataset to see how well it performs.
 
 Python version should match [OMPL library](https://github.com/ompl/ompl/releases/tag/prerelease) compatible version.
 
-Following installs Python `3.11.0` with *pyenv*
+Following installs Python `3.12.9` with *pyenv*
 
 
 ```
 sudo apt install -y build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
 curl https://pyenv.run | bash
 alias pyenv=~/.pyenv/bin/pyenv
-python_version=3.11.0
+python_version=3.12.9
 pyenv install $python_version
 export PATH="$HOME/.pyenv/versions/$python_version/bin:$PATH"
 ```
@@ -80,7 +80,30 @@ python -m venv .venv
 
 ```
 pip install slobot
-pip install -r requirements.txt
+```
+
+#### Other dependencies
+
+Install following dependencies
+
+1. genesis
+
+```
+pip install git+https://github.com/Genesis-Embodied-AI/Genesis.git
+```
+
+2. lerobot
+
+```
+pip install git+https://github.com/huggingface/lerobot.git
+```
+
+3. ompl
+
+```
+wget https://github.com/ompl/ompl/releases/download/1.7.0/wheels-ubuntu-latest-x86_64.zip
+unzip wheels-ubuntu-latest-x86_64.zip
+pip install ompl-1.7.0-cp312-cp312-manylinux_2_28_x86_64.whl
 ```
 
 ## Robot configuration
@@ -108,7 +131,7 @@ LeRobot suggests 3 keys positions
 This validates that the robot is in the targetted position preset in sim.
 
 ```
-PYOPENGL_PLATFORM=glx python 0_validate_sim_qpos.py [zero|rotated|rest]
+PYOPENGL_PLATFORM=glx python scripts/validation/0_validate_sim_qpos.py [zero|rotated|rest]
 ```
 
 | zero | rotated | rest |
@@ -121,7 +144,7 @@ PYOPENGL_PLATFORM=glx python 0_validate_sim_qpos.py [zero|rotated|rest]
 Position the arm manually into the targetted position preset as displayed above. Refer to [LeRobot calibration section](https://github.com/huggingface/lerobot/blob/main/examples/10_use_so100.md#a-manual-calibration-of-follower-arm) and [manual calibration script](https://github.com/huggingface/lerobot/blob/main/lerobot/common/robot_devices/robots/feetech_calibration.py#L401).
 
 ```
-python 1_calibrate_motor_pos.py [zero|rotated|rest]
+python scripts/validation/1_calibrate_motor_pos.py [zero|rotated|rest]
 ```
 
 ### 2. Validate the preset *pos to qpos* conversion in sim
@@ -129,7 +152,7 @@ python 1_calibrate_motor_pos.py [zero|rotated|rest]
 Same as script 0, but using the calibrated motor step positions instead of angular joint positions.
 
 ```
-PYOPENGL_PLATFORM=glx python 2_validate_sim_pos.py [zero|rotated|rest]
+PYOPENGL_PLATFORM=glx python scripts/validation/2_validate_sim_pos.py [zero|rotated|rest]
 ```
 
 ### 3. Validate the preset pos in real
@@ -137,7 +160,7 @@ PYOPENGL_PLATFORM=glx python 2_validate_sim_pos.py [zero|rotated|rest]
 Similar than 2 which is in sim but now in real. It validates the robot is positioned correctly to the target pos.
 
 ```
-python 3_validate_real_pos.py [zero|rotated|rest]
+python scripts/validation/3_validate_real_pos.py [zero|rotated|rest]
 ```
 
 ### 4. Validate real to sim
@@ -145,7 +168,7 @@ python 3_validate_real_pos.py [zero|rotated|rest]
 This validates that moving the real robot also updates the rendered robot in sim.
 
 ```
-PYOPENGL_PLATFORM=glx python 4_validate_real_to_sim.py [zero|rotated|rest]
+PYOPENGL_PLATFORM=glx python scripts/validation/4_validate_real_to_sim.py [zero|rotated|rest]
 ```
 
 ### 5. Validate sim to real
@@ -153,7 +176,7 @@ PYOPENGL_PLATFORM=glx python 4_validate_real_to_sim.py [zero|rotated|rest]
 This validates the robot simulation also controls the physical robot.
 
 ```
-PYOPENGL_PLATFORM=glx python 4_validate_real_to_sim.py [zero|rotated|rest]
+PYOPENGL_PLATFORM=glx python scripts/validation/4_validate_real_to_sim.py [zero|rotated|rest]
 ```
 
 
@@ -164,7 +187,7 @@ PYOPENGL_PLATFORM=glx python 4_validate_real_to_sim.py [zero|rotated|rest]
 This example moves the robot to the 3 preset positions, waiting 1 sec in between each one.
 
 ```
-python real.py
+python scripts/real.py
 ```
 
 <video controls src="https://github.com/user-attachments/assets/857dd958-2e4c-4221-abef-563f9617385a"></video>
@@ -176,7 +199,7 @@ This example performs the 3 elemental rotations in sim and real.
 The simulation generates steps, propagating the joint positions to the Feetech motors.
 
 ```
-PYOPENGL_PLATFORM=glx python sim_to_real.py
+PYOPENGL_PLATFORM=glx python scripts/sim_to_real.py
 ```
 
 
@@ -196,7 +219,7 @@ Genesis camera provides access to each frames rendered by the rasterizer. Multip
 The following script iterates through all the frames, calculating the FPS metric every second.
 
 ```
-PYOPENGL_PLATFORM=glx python sim_fps.py
+PYOPENGL_PLATFORM=glx python scripts/sim_fps.py
 ...
 FPS= FpsMetric(1743573645.3103304, 0.10412893176772242)
 FPS= FpsMetric(1743573646.3160942, 59.656155690238116)
@@ -220,7 +243,7 @@ The [`Image` component](https://www.gradio.app/docs/gradio/image) can sample the
 The frontend receives backend events via a Server Side Event stream. For each new *frame generated* event, it downloads the image from the webserver and displays it to the user.
 
 ```
-PYOPENGL_PLATFORM=egl python sim_gradio_image.py
+PYOPENGL_PLATFORM=egl python scripts/sim_gradio_image.py
 ```
 
 ![Genesis frame types](./doc/GenesisImageFrameTypes.png)
@@ -230,7 +253,7 @@ PYOPENGL_PLATFORM=egl python sim_gradio_image.py
 The [`Video` component](https://www.gradio.app/docs/gradio/video) can play a full mp4 encoded in h264 or a stream of smaller TS files.
 
 ```
-PYOPENGL_PLATFORM=egl python sim_gradio_video.py
+PYOPENGL_PLATFORM=egl python scripts/sim_gradio_video.py
 ```
 
 ![Genesis frame types](./doc/GenesisVideoFrameTypes.png)
@@ -243,20 +266,34 @@ The qpos app displays the joint angular position numbers.
 ![Genesis qpos](./doc/GenesisQpos.png)
 
 ```
-python sim_gradio_qpos.py
+python scripts/sim_gradio_qpos.py
 
 2025-04-02 00:45:17,551 - INFO - Sending qpos [1.4888898134231567, -1.8273500204086304, 2.3961710929870605, -0.5487295389175415, 1.5706498622894287, -2.59892603935441e-05]
 ```
 
-A client then connects to the server to receive the qpos updates at a predefined `fps` rate.
+A client connects to the server to receive the qpos updates.
 
-It can then dispatch them to the robot to control its position.
+It can then dispatch them to the robot at a predefined `fps` rate to control its position.
 
 ```
-python sim_to_real_client.py
+python scripts/sim_to_real_client.py
 
 2025-04-02 00:45:17,764 - INFO - Received qpos (1.49, -1.83, 2.4, -0.55, 1.57, -0.0)
 ```
+
+#### Plot
+
+The [Plot component](https://www.gradio.app/docs/gradio/plot) can display a chart. Dashboard monitors key metrics in dedicated [Tab](https://www.gradio.app/docs/gradio/tab)s.
+- **qpos**, in *rad*
+- **velocity**, in *rad/sec*
+- **control force**, in *N.m*
+
+
+```
+python scripts/sim_gradio_dashboard.py
+```
+
+![Gradio dashboard](./doc/GradioTabPlots.png)
 
 #### Docker
 

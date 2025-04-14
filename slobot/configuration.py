@@ -24,6 +24,9 @@ class Configuration:
         "rest": [2091, 728, 3056, 2812, 2032, 1977]
     }
 
+    DOFS = 6
+    JOINT_NAMES = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
+
     def logger(logger_name):
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.INFO)

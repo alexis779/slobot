@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import time
+import genesis as gs
 
 from slobot.genesis import Genesis
 from slobot.configuration import Configuration
@@ -69,11 +70,9 @@ class SoArm100():
             quat = self.genesis.euler_to_quat(euler)
             self.genesis.move(self.fixed_jaw, pos, quat)
 
-        self.stop()
-
     def stop(self):
         #self.camera.stop_recording(save_to_filename='so_arm_100.mp4')
-        pass
+        self.genesis.stop()
 
     def go_home(self):
         target_qpos = torch.tensor(SoArm100.HOME_QPOS)
@@ -86,18 +85,27 @@ class SoArm100():
     def open_jaw(self):
         self.genesis.update_qpos(self.jaw, np.pi/2)
 
-    def handle_step(self):
+    def handle_step(self) -> SimulationFrame:
         if self.step_handler is None:
             return
 
+        simulation_frame = self.create_simulation_frame()
+        self.step_handler.handle_step(simulation_frame)
+        return simulation_frame
+
+    def create_simulation_frame(self) -> SimulationFrame:
         current_time = time.time()
 
         # convert torch tensor to a JSON serializable object
         qpos = self.entity.get_qpos().tolist()
+        control_force = self.entity.get_dofs_control_force().tolist()
+        velocity = self.entity.get_dofs_velocity().tolist()
 
         simulation_frame = SimulationFrame(
             timestamp=current_time,
             qpos=qpos,
+            velocity=velocity,
+            control_force=control_force,
         )
 
         if self.rgb or self.depth or self.segmentation or self.normal:
@@ -108,7 +116,8 @@ class SoArm100():
             simulation_frame.segmentation = seg_arr
             simulation_frame.normal = normal_arr
 
-        self.step_handler.handle_step(simulation_frame)
+        return simulation_frame
 
-    def handle_qpos(self, qpos):
-        self.entity.set_qpos(qpos)
+    def handle_qpos(self, feetech_frame):
+        self.entity.set_qpos(feetech_frame.qpos)
+        self.genesis.step()

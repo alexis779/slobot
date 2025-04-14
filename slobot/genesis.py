@@ -11,10 +11,9 @@ import pprint
 from scipy.spatial.transform import Rotation
 
 class Genesis():
-    # TODO this pause should be in seconds instead of steps
-    HOLD_STEPS = 5
-
     EXTRINSIC_SEQ = 'xyz'
+
+    HOLD_STEPS = 20
 
     def __init__(self, **kwargs):
         backend = self.backend()
@@ -35,7 +34,7 @@ class Genesis():
 
         show_viewer = kwargs.get('show_viewer', True)
 
-        fps = kwargs.get('fps', 60)
+        self.fps = kwargs.get('fps', 60)
 
         self.scene = gs.Scene(
             show_viewer=show_viewer,
@@ -43,7 +42,7 @@ class Genesis():
                 res           = res,
                 camera_lookat = lookat,
                 camera_pos    = camera_pos,
-                max_FPS       = fps,
+                max_FPS       = self.fps,
             ),
             vis_options    = gs.options.VisOptions(
                 lights          = lights,
@@ -53,13 +52,17 @@ class Genesis():
         )
 
         plane = gs.morphs.Plane()
-        self.scene.add_entity(plane, vis_mode=vis_mode)
+        self.scene.add_entity(
+            plane,
+            vis_mode=vis_mode,
+        )
 
         arm_morph = self.parse_morph(**kwargs)
 
         self.entity: RigidEntity = self.scene.add_entity(
             arm_morph,
             vis_mode=vis_mode,
+            material=gs.materials.Rigid(gravity_compensation=1)
         )
 
         # TODO errors in non-interactive mode in Docker
@@ -94,7 +97,22 @@ class Genesis():
         print("collisions=", self.entity.detect_collision())
 
         damping = self.entity.get_dofs_damping()
-        print("damping", damping)
+        print("damping=", damping)
+
+        stiffness = self.entity.get_dofs_stiffness()
+        print("stiffness=", stiffness)
+
+        armature = self.entity.get_dofs_armature()
+        print("armature=", armature)
+
+        invweight = self.entity.get_dofs_invweight()
+        print("invweight", invweight)
+
+        force = self.entity.get_dofs_force()
+        print("force=", force)
+
+        control_force = self.entity.get_dofs_control_force()
+        print("control_force=", control_force)
 
     def backend(self):
         return gs.gpu if torch.cuda.is_available() else gs.cpu
@@ -120,6 +138,7 @@ class Genesis():
         path = self.entity.plan_path(
             qpos_goal        = target_qpos,
             ignore_collision = True,
+            num_waypoints    = self.fps,
         )
 
         if len(path) == 0:
