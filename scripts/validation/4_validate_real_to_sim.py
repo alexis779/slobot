@@ -16,6 +16,6 @@ preset = sys.argv[1]
 pos = Configuration.POS_MAP[preset]
 
 feetech = Feetech(qpos_handler=arm)
-feetech.set_pos(pos)
+feetech.control_position(pos)
 
 arm.genesis.hold_entity()

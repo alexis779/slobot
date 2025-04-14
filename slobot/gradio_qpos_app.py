@@ -1,3 +1,4 @@
+import time
 import gradio as gr
 from slobot.image_streams import ImageStreams
 from slobot.configuration import Configuration
@@ -26,6 +27,8 @@ class GradioQposApp():
 
     def sim_qpos(self, fps):
         res = Configuration.LD
-        for simulation_frame_paths in self.image_streams.frame_filenames(res, fps, rgb=False, depth=False, segmentation=False, normal=False):
-            self.logger.info(f"Sending qpos {simulation_frame_paths.qpos}")
-            yield simulation_frame_paths.qpos
+        #sleep_period = 1.0 / fps
+        for simulation_frame_paths in self.image_streams.simulation_frame_paths(res, fps, rgb=False, depth=False, segmentation=False, normal=False):
+            #time.sleep(sleep_period)
+            self.logger.debug(f"Sending qpos {simulation_frame_paths.simulation_frame.qpos}")
+            yield simulation_frame_paths.simulation_frame.qpos
