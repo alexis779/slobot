@@ -62,8 +62,18 @@ class Genesis():
         self.entity: RigidEntity = self.scene.add_entity(
             arm_morph,
             vis_mode=vis_mode,
-            material=gs.materials.Rigid(gravity_compensation=1)
+            #material=gs.materials.Rigid(gravity_compensation=0)
         )
+
+        '''
+        self.target_entity = self.scene.add_entity(
+            gs.morphs.Mesh(
+                file="meshes/axis.obj",
+                scale=0.10,
+            ),
+            surface=gs.surfaces.Default(color=(1, 0.5, 0.5, 1)),
+        )
+        '''
 
         # TODO errors in non-interactive mode in Docker
         #print("Joints=", pprint.pformat(self.entity.joints))
@@ -174,10 +184,7 @@ class Genesis():
             self.step_handler.handle_step()
 
     def hold_entity(self):
-        target_qpos = self.entity.get_qpos()
-        print("sim qpos", target_qpos)
         while True:
-            self.entity.control_dofs_position(target_qpos)
             self.step()
 
     def get_qpos_idx(self, joint):

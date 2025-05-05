@@ -16,6 +16,7 @@ class Feetech():
     ARM_TYPE = 'follower'
 
     MODEL_RESOLUTION = 4096
+    RADIAN_PER_STEP = (2 * np.pi) / MODEL_RESOLUTION
     MOTOR_DIRECTION = [-1, 1, 1, 1, 1, 1]
     JOINT_IDS = [0, 1, 2, 3, 4, 5]
     PORT = '/dev/ttyACM0'
@@ -30,6 +31,9 @@ class Feetech():
 
     def __init__(self, **kwargs):
         self.qpos_handler = kwargs.get('qpos_handler', None)
+        connect = kwargs.get('connect', True)
+        if connect:
+            self.connect()
 
     def connect(self):
         self.motors_bus = self._create_motors_bus()
@@ -44,6 +48,12 @@ class Feetech():
     def get_pos(self):
         return self.motors_bus.read('Present_Position')
 
+    def get_velocity(self):
+        return self.motors_bus.read('Present_Speed')
+
+    def get_dofs_velocity(self):
+        return self.velocity_to_qvelocity(self.get_velocity())
+
     def get_dofs_control_force(self):
         return self.motors_bus.read('Present_Load')
     
@@ -55,14 +65,16 @@ class Feetech():
         self.control_position(pos)
 
     def qpos_to_pos(self, qpos):
-        pos = [ self._qpos_to_steps(qpos, i)
+        return [ self._qpos_to_steps(qpos, i)
             for i in range(Configuration.DOFS) ]
-        return pos
 
     def pos_to_qpos(self, pos):
-        qpos = [ self._steps_to_qpos(pos, i)
+        return [ self._steps_to_qpos(pos, i)
             for i in range(Configuration.DOFS) ]
-        return qpos
+
+    def velocity_to_qvelocity(self, velocity):
+        return [ self._stepvelocity_to_velocity(velocity, i)
+            for i in range(Configuration.DOFS) ]
 
     def control_position(self, pos):
         self.set_torque(True)
@@ -79,11 +91,17 @@ class Feetech():
         torque_enable = TorqueMode.ENABLED.value if is_enabled else TorqueMode.DISABLED.value
         self._write_config('Torque_Enable', torque_enable)
 
+    def set_punch(self, punch, ids=JOINT_IDS):
+        self._write_config('Minimum_Startup_Force', punch, ids)
+
     def set_dofs_kp(self, Kp, ids=JOINT_IDS):
         self._write_config('P_Coefficient', Kp, ids)
 
     def set_dofs_kv(self, Kv, ids=JOINT_IDS):
         self._write_config('D_Coefficient', Kv, ids)
+
+    def set_dofs_ki(self, Ki, ids=JOINT_IDS):
+        self._write_config('I_Coefficient', Ki, ids)
 
     def move(self, target_pos):
         self.control_position(target_pos)
@@ -107,20 +125,23 @@ class Feetech():
         print(f"Current position is {pos_json}")
 
     def _create_motors_bus(self):
-        self.robot_config = make_robot_config(Feetech.ROBOT_TYPE)
-        motors = self.robot_config.follower_arms[Feetech.ARM_NAME].motors
+        robot_config = make_robot_config(Feetech.ROBOT_TYPE)
+        motors = robot_config.follower_arms[Feetech.ARM_NAME].motors
         config = FeetechMotorsBusConfig(port=self.PORT, motors=motors)
         motors_bus = FeetechMotorsBus(config)
         motors_bus.connect()
         return motors_bus
 
     def _qpos_to_steps(self, qpos, motor_index):
-        steps = Feetech.MOTOR_DIRECTION[motor_index] * Feetech.MODEL_RESOLUTION * (qpos[motor_index] - Configuration.QPOS_MAP['rotated'][motor_index]) / (2 * np.pi)
+        steps = Feetech.MOTOR_DIRECTION[motor_index] * (qpos[motor_index] - Configuration.QPOS_MAP['rotated'][motor_index]) / Feetech.RADIAN_PER_STEP
         return Configuration.POS_MAP['rotated'][motor_index] + int(steps)
 
     def _steps_to_qpos(self, pos, motor_index):
         steps = pos[motor_index] - Configuration.POS_MAP['rotated'][motor_index]
-        return Configuration.QPOS_MAP['rotated'][motor_index] + Feetech.MOTOR_DIRECTION[motor_index] * steps * (2 * np.pi) / Feetech.MODEL_RESOLUTION
+        return Configuration.QPOS_MAP['rotated'][motor_index] + Feetech.MOTOR_DIRECTION[motor_index] * steps * Feetech.RADIAN_PER_STEP
+
+    def _stepvelocity_to_velocity(self, step_velocity, motor_index):
+        return step_velocity[motor_index] * Feetech.RADIAN_PER_STEP
 
     def _write_config(self, key, values, ids=JOINT_IDS):
         motor_names = self._motor_names(ids)
@@ -137,7 +158,7 @@ class Feetech():
 
     def create_feetech_frame(self) -> FeetechFrame:
         timestamp = time.time()
-        qpos_current = self.pos_to_qpos(self.get_pos())
-        qpos_goal = self.pos_to_qpos(self.get_pos_goal())
-        force = self.get_dofs_control_force()
-        return FeetechFrame(timestamp, qpos_current, qpos_goal, force)
+        qpos = self.pos_to_qpos(self.get_pos())
+        velocity = self.get_dofs_velocity()
+        control_force = self.get_dofs_control_force()
+        return FeetechFrame(timestamp, qpos, velocity, control_force)
