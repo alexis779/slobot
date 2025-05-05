@@ -26,6 +26,8 @@ class SoArm100():
         # overwrite step handler to delegate to this class first
         kwargs['step_handler'] = self
 
+        self.feetech = kwargs.get('feetech', None)
+
         self.genesis = Genesis(**kwargs)
 
         self.camera = self.genesis.camera
@@ -70,6 +72,40 @@ class SoArm100():
             quat = self.genesis.euler_to_quat(euler)
             self.genesis.move(self.fixed_jaw, pos, quat)
 
+    def diff_ik(self):
+        center = torch.tensor([0, -0.1, 0.3])
+        r = 0.1
+        for i in range(0, 1000):
+            target_pos = center + torch.tensor([np.cos(i / 360 * np.pi), np.sin(i / 360 * np.pi), 0]) * r
+
+            target_qpos = self.entity.inverse_kinematics(
+                link     = self.fixed_jaw,
+                pos      = target_pos,
+                quat     = None,
+            )
+
+            self.entity.control_dofs_position(target_qpos)
+            self.genesis.step()
+
+    def lift_fixed_jaw(self):
+        qpos_target = Configuration.QPOS_MAP['rotated']
+        self.entity.control_dofs_position(qpos_target)
+
+        for i in range(0, 100):
+            self.genesis.step()
+
+        print("qpos rotated=", self.entity.get_qpos())
+
+        current_pos = self.fixed_jaw.get_pos()
+        print("ee rotated", current_pos)
+        current_pos[2] += 0.1
+
+        self.genesis.move(self.fixed_jaw, current_pos, None)
+
+        print("qpos lifted=", self.entity.get_qpos())
+        current_pos = self.fixed_jaw.get_pos()
+        print("ee lifted", current_pos)
+
     def stop(self):
         #self.camera.stop_recording(save_to_filename='so_arm_100.mp4')
         self.genesis.stop()
@@ -98,13 +134,15 @@ class SoArm100():
 
         # convert torch tensor to a JSON serializable object
         qpos = self.entity.get_qpos().tolist()
-        control_force = self.entity.get_dofs_control_force().tolist()
         velocity = self.entity.get_dofs_velocity().tolist()
+        force = self.entity.get_dofs_force().tolist()
+        control_force = self.entity.get_dofs_control_force().tolist()
 
         simulation_frame = SimulationFrame(
             timestamp=current_time,
             qpos=qpos,
             velocity=velocity,
+            force=force,
             control_force=control_force,
         )
 
@@ -115,6 +153,9 @@ class SoArm100():
             simulation_frame.depth = depth_arr
             simulation_frame.segmentation = seg_arr
             simulation_frame.normal = normal_arr
+
+        if self.feetech is not None:
+            simulation_frame.feetech_frame = self.feetech.create_feetech_frame()
 
         return simulation_frame
 

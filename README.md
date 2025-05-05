@@ -101,9 +101,7 @@ pip install git+https://github.com/huggingface/lerobot.git
 3. ompl
 
 ```
-wget https://github.com/ompl/ompl/releases/download/1.7.0/wheels-ubuntu-latest-x86_64.zip
-unzip wheels-ubuntu-latest-x86_64.zip
-pip install ompl-1.7.0-cp312-cp312-manylinux_2_28_x86_64.whl
+pip install https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.7.0-cp312-cp312-manylinux_2_28_x86_64.whl
 ```
 
 ## Robot configuration

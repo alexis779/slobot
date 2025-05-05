@@ -2,24 +2,38 @@ import gradio as gr
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import numpy as np
+
 from datetime import datetime
 from slobot.image_streams import ImageStreams
+from slobot.gravity_compensation import GravityCompensation
 from slobot.configuration import Configuration
 from slobot.simulation_frame import SimulationFrame
+from slobot.feetech_frame import FeetechFrame
 
 class GradioDashboardApp():
     METRIC_CONFIG = {
         "qpos": {
             "title": "Joint Position",
-            "unit": "rad"
+            "unit": "rad",
+            "real": True
         },
         "velocity": {
             "title": "Joint Velocity",
-            "unit": "rad/sec"
+            "unit": "rad/sec",
+            "real": True
+        },
+        "force": {
+            "title": "Force",
+            "unit": "N.m",
+            "transform": True,
+            "real": False,
         },
         "control_force": {
             "title": "Control Force",
-            "unit": "N.m"
+            "unit": "N.m",
+            "transform": True,
+            "real": True
         }
     }
 
@@ -34,19 +48,18 @@ class GradioDashboardApp():
     ]
     PLOTS_PER_ROW = 1
     PLOT_WIDTH = 19
-    PLOT_HEIGHT = 4.8
+    PLOT_HEIGHT = 8
 
     def __init__(self):
         self.logger = Configuration.logger(__name__)
 
     def launch(self):
         with gr.Blocks() as demo:
-            fps = 24
-            df = self.sim_metrics(fps)
+            df = self.sim_metrics()
 
             fig_width = self.PLOT_WIDTH / self.PLOTS_PER_ROW
-            for metric_name in self.METRIC_CONFIG.keys():
-                metric_title = self.METRIC_CONFIG[metric_name]["title"]
+            for joint_metric, joint_metric_config in self.METRIC_CONFIG.items():
+                metric_title = joint_metric_config["title"]
                 with gr.Tab(metric_title):
                     # Calculate number of rows needed
                     num_rows = (Configuration.DOFS + self.PLOTS_PER_ROW - 1) // self.PLOTS_PER_ROW  # Ceiling division
@@ -58,16 +71,19 @@ class GradioDashboardApp():
                             end_idx = min((row + 1) * self.PLOTS_PER_ROW, Configuration.DOFS)
                             
                             for joint_id in range(start_idx, end_idx):
-                                fig = self.create_plot(df, metric_name, joint_id, fig_width)
+                                fig = self.create_plot(df, joint_metric, joint_id, fig_width)
                                 gr.Plot(fig)
-        
+                                if self.real and joint_metric_config['real']:
+                                    fig = self.create_plot(df, joint_metric, joint_id, fig_width, "real_")
+                                    gr.Plot(fig)
+
         demo.launch()
 
-    def create_plot(self, df, metric_name, joint_id, fig_width=6.4):
+    def create_plot(self, df, metric_name, joint_id, fig_width, metrix_prefix=""):
         joint_name = Configuration.JOINT_NAMES[joint_id]
         metric_unit = self.METRIC_CONFIG[metric_name]["unit"]
 
-        joint_metric_name = f"{metric_name}_{joint_name}"
+        joint_metric_name = f"{metrix_prefix}{metric_name}_{joint_name}"
 
         fig, ax = plt.subplots(figsize=(fig_width, self.PLOT_HEIGHT))
         
@@ -83,7 +99,7 @@ class GradioDashboardApp():
         return fig
 
     def sim_metrics(self, fps):
-        df = self._create_df()
+        df = pd.DataFrame()
 
         image_streams = ImageStreams()
         res = Configuration.LD
@@ -94,24 +110,28 @@ class GradioDashboardApp():
 
         return df
 
-    def _create_df(self):
-        df = pd.DataFrame()
-        
-        # Add columns for each metric and joint
-        for joint_metric in self.METRIC_CONFIG.keys():
-            for joint_id in range(Configuration.DOFS):
-                joint_name = Configuration.JOINT_NAMES[joint_id]
-                metric_name = f"{joint_metric}_{joint_name}"
-                df[metric_name] = None
-                
-        return df
-
     def _update_history(self, df: pd.DataFrame, simulation_frame: SimulationFrame):
         time = simulation_frame.timestamp
         df.loc[time, 'time'] = datetime.fromtimestamp(time)
-        for joint_metric in self.METRIC_CONFIG.keys():
+        for joint_metric, joint_metric_config in self.METRIC_CONFIG.items():
             for joint_id in range(Configuration.DOFS):
                 joint_name = Configuration.JOINT_NAMES[joint_id]
                 metric_name = f"{joint_metric}_{joint_name}"
                 metric_value = getattr(simulation_frame, joint_metric)[joint_id]
+
+                #if 'transform' in joint_metric_config and joint_metric_config['transform']:
+                #    metric_value = self.transform(metric_value)
+
                 df.loc[time, metric_name] = metric_value
+
+                if self.real and joint_metric_config['real']:
+                    metric_name = f"real_{metric_name}"
+                    feetech_frame: FeetechFrame = simulation_frame.feetech_frame
+                    metric_value = getattr(feetech_frame, joint_metric)[joint_id]
+                    df.loc[time, metric_name] = metric_value
+    
+    def transform(self, values):
+        return self.signed_arctan(values)
+
+    def signed_arctan(self, x, scale=1.0):
+        return np.arctan(x * scale) * (2 / np.pi)  # Scales output to [-1, 1]

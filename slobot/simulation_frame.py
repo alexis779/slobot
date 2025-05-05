@@ -1,16 +1,18 @@
 class SimulationFrame():
-    def __init__(self, timestamp, qpos, velocity, control_force):
+    def __init__(self, timestamp, qpos, velocity, force, control_force):
         self.timestamp = timestamp
         self.qpos = qpos
         self.velocity = velocity
+        self.force = force
         self.control_force = control_force
         self.rgb = None
         self.depth = None
         self.segmentation = None
         self.normal = None
+        self.feetech_frame = None
 
     def __repr__(self):
-        return f"SimulationFrame(timestamp={self.timestamp}, qpos={self.qpos}, velocity={self.velocity}, control_force={self.control_force})"
+        return f"SimulationFrame(timestamp={self.timestamp}, qpos={self.qpos}, velocity={self.velocity}, force={self.force}, control_force={self.control_force}, feetech_frame={self.feetech_frame})"
 
     def frame(self, frame_id):
         match frame_id:
