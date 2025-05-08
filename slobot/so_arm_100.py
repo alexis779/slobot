@@ -96,15 +96,24 @@ class SoArm100():
 
         print("qpos rotated=", self.entity.get_qpos())
 
+        jacobian = self.entity.get_jacobian(self.fixed_jaw)
+        print("jacobian rotated=", jacobian)
+
         current_pos = self.fixed_jaw.get_pos()
-        print("ee rotated", current_pos)
+        current_quat = self.fixed_jaw.get_quat()
+        print(f"ee rotated pos={current_pos} quat={current_quat}")
         current_pos[2] += 0.1
 
         self.genesis.move(self.fixed_jaw, current_pos, None)
 
         print("qpos lifted=", self.entity.get_qpos())
         current_pos = self.fixed_jaw.get_pos()
-        print("ee lifted", current_pos)
+        current_quat = self.fixed_jaw.get_quat()
+        print(f"ee lifted pos={current_pos} quat={current_quat}")
+
+        jacobian = self.entity.get_jacobian(self.fixed_jaw)
+        print("jacobian lifted=", jacobian)
+
 
     def stop(self):
         #self.camera.stop_recording(save_to_filename='so_arm_100.mp4')
