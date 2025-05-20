@@ -20,6 +20,7 @@ class Feetech():
     MOTOR_DIRECTION = [-1, 1, 1, 1, 1, 1]
     JOINT_IDS = [0, 1, 2, 3, 4, 5]
     PORT = '/dev/ttyACM0'
+    REFERENCE_FRAME = 'rotated'
 
     def calibrate_pos(preset):
         feetech = Feetech()
@@ -119,6 +120,7 @@ class Feetech():
         self.disconnect()
 
     def calibrate(self, preset):
+        self.set_torque(False)
         input(f"Move the arm to the {preset} position ...")
         pos = self.get_pos()
         pos_json = json.dumps(pos.tolist())
@@ -133,12 +135,12 @@ class Feetech():
         return motors_bus
 
     def _qpos_to_steps(self, qpos, motor_index):
-        steps = Feetech.MOTOR_DIRECTION[motor_index] * (qpos[motor_index] - Configuration.QPOS_MAP['rotated'][motor_index]) / Feetech.RADIAN_PER_STEP
-        return Configuration.POS_MAP['rotated'][motor_index] + int(steps)
+        steps = Feetech.MOTOR_DIRECTION[motor_index] * (qpos[motor_index] - Configuration.QPOS_MAP[Feetech.REFERENCE_FRAME][motor_index]) / Feetech.RADIAN_PER_STEP
+        return Configuration.POS_MAP[Feetech.REFERENCE_FRAME][motor_index] + int(steps)
 
     def _steps_to_qpos(self, pos, motor_index):
-        steps = pos[motor_index] - Configuration.POS_MAP['rotated'][motor_index]
-        return Configuration.QPOS_MAP['rotated'][motor_index] + Feetech.MOTOR_DIRECTION[motor_index] * steps * Feetech.RADIAN_PER_STEP
+        steps = pos[motor_index] - Configuration.POS_MAP[Feetech.REFERENCE_FRAME][motor_index]
+        return Configuration.QPOS_MAP[Feetech.REFERENCE_FRAME][motor_index] + Feetech.MOTOR_DIRECTION[motor_index] * steps * Feetech.RADIAN_PER_STEP
 
     def _stepvelocity_to_velocity(self, step_velocity, motor_index):
         return step_velocity[motor_index] * Feetech.RADIAN_PER_STEP

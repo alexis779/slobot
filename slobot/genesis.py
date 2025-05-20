@@ -22,7 +22,7 @@ class Genesis():
         vis_mode = 'visual' # collision
 
         res = kwargs.get('res', Configuration.FHD)
-        camera_pos = (0.125, -1, 0.5)
+        camera_pos = (-0.125, -1, 0.25)
 
         lookat = (0, 0, 0)
 

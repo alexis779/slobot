@@ -19,6 +19,7 @@ class SoArm100():
         mjcf_path = Configuration.MJCF_CONFIG
         arm = SoArm100(mjcf_path=mjcf_path)
         arm.genesis.entity.set_qpos(target_qpos)
+        arm.genesis.entity.control_dofs_position(target_qpos)
         arm.genesis.hold_entity()
 
     def __init__(self, **kwargs):
@@ -96,9 +97,6 @@ class SoArm100():
 
         print("qpos rotated=", self.entity.get_qpos())
 
-        jacobian = self.entity.get_jacobian(self.fixed_jaw)
-        print("jacobian rotated=", jacobian)
-
         current_pos = self.fixed_jaw.get_pos()
         current_quat = self.fixed_jaw.get_quat()
         print(f"ee rotated pos={current_pos} quat={current_quat}")
@@ -111,9 +109,8 @@ class SoArm100():
         current_quat = self.fixed_jaw.get_quat()
         print(f"ee lifted pos={current_pos} quat={current_quat}")
 
-        jacobian = self.entity.get_jacobian(self.fixed_jaw)
-        print("jacobian lifted=", jacobian)
-
+        self.entity.control_dofs_position(self.entity.get_qpos())
+        self.genesis.hold_entity()
 
     def stop(self):
         #self.camera.stop_recording(save_to_filename='so_arm_100.mp4')
