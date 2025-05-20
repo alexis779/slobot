@@ -1,51 +1,44 @@
-from time import sleep
 import numpy as np
 
-from slobot.feetech import Feetech
 from slobot.configuration import Configuration
+from slobot.so_arm_100 import SoArm100
 
-from lerobot.common.kinematics.kinematics import Robot, RobotKinematics, RobotUtils
-
-# Move the robot to the 3 preset positions.
-
-feetech = Feetech()
-
-feetech.move(Configuration.POS_MAP['zero'])
-sleep(1)
-feetech.move(Configuration.POS_MAP['rotated'])
-sleep(1)
-
+from lerobot.common.kinematics.kinematics import Robot, RobotKinematics
 
 # Move the end effector
 kin = RobotKinematics()
 robot = Robot(robot_type="so100")
 
-pos_current = feetech.get_pos()
-qpos_current = feetech.pos_to_qpos(pos_current)
-qpos_current = np.array(qpos_current)
+qpos_current0 = Configuration.QPOS_MAP['rotated']
+qpos_current = np.array(qpos_current0)
 
 print("qpos_current", qpos_current)
 
-qpos_current = qpos_current[:-1]
+qpos_current_dh = robot.from_mech_to_dh(qpos_current)
 
+world_T_tool_current = kin.forward_kinematics(robot, qpos_current_dh)
 
-ee_pos_current = kin.forward_kinematics(robot, qpos_current)
+world_T_tool_goal = world_T_tool_current.copy()
 
-ee_pos_goal = ee_pos_current.copy()
-ee_pos_goal[:3, 3] += np.array([0.0, 0.0, +0.1])
+fixed_jaw_id = 3
 
-qpos_goal = kin.inverse_kinematics(robot, qpos_current, ee_pos_goal)
+dz_goal = -0.05
 
-qpos_goal = np.append(qpos_goal, 0)
+world_T_tool_goal[:3, fixed_jaw_id] += np.array([0.0, 0.0, dz_goal])
 
-print("qpos_goal", qpos_goal)
+qpos_goal_dh = kin.inverse_kinematics(robot, qpos_current_dh, world_T_tool_goal, use_orientation=True)
 
-pos_goal = feetech.qpos_to_pos(qpos_goal)
-print("pos_goal", pos_goal)
+world_T_tool_actual = kin.forward_kinematics(robot, qpos_goal_dh)
 
-#feetech.move(pos_goal)
-#sleep(10)
+dz = world_T_tool_actual[2, fixed_jaw_id] - world_T_tool_current[2, fixed_jaw_id]
 
-feetech.move(Configuration.POS_MAP['rest'])
-sleep(1)
-feetech.set_torque(False)
+print(f"Translation of z={dz}")
+
+qpos_goal = robot.from_dh_to_mech(qpos_goal_dh)
+
+# Append mobile jaw variable
+qpos_goal0 = np.append(qpos_goal, qpos_current[Configuration.DOFS-1])
+
+print("qpos_goal", qpos_goal0)
+
+SoArm100.sim_qpos(qpos_goal0)
