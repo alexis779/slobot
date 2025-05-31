@@ -9,6 +9,7 @@ dependencies = [
     # "lerobot @ git+https://github.com/huggingface/lerobot.git",
     "feetech-servo-sdk",
     "gradio",
+    # "nvidia-gr00t-sdk" @ git+https://github.com/NVIDIA/Isaac-GR00T.git
 ]
 
 [tool.setuptools]

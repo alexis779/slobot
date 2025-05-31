@@ -50,6 +50,11 @@ Finally evaluate it on the eval dataset to see how well it performs.
 }
 ```
 
+
+### Isaac Gr00t N1
+
+[NVIDIA Isaac GR00T N1](https://github.com/NVIDIA/Isaac-GR00T) is a VLA, Visual Language Action, model.
+
 ## Setup the environment
 
 ### Python
@@ -60,9 +65,7 @@ Following installs Python `3.12.9` with *pyenv*
 
 
 ```
-sudo apt install -y build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev curl libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
-curl https://pyenv.run | bash
-alias pyenv=~/.pyenv/bin/pyenv
+sudo apt install pyenv
 python_version=3.12.9
 pyenv install $python_version
 export PATH="$HOME/.pyenv/versions/$python_version/bin:$PATH"
@@ -90,6 +93,27 @@ Install following dependencies
 
 ```
 pip install git+https://github.com/Genesis-Embodied-AI/Genesis.git
+```
+
+##### Known issue
+
+On Ubuntu, Qt5 library may be incompatible with [pymeshlab](https://github.com/cnr-isti-vclab/PyMeshLab) native library. See [reported issue](https://github.com/Genesis-Embodied-AI/Genesis/issues/189). As a workaround, give precedence to the *python module* QT library instead of the *Ubuntu system* QT library.
+
+```
+SITE_PACKAGES=`pip show pymeshlab | grep Location | sed 's|Location: ||'`
+PYMESHLAB_LIB=$SITE_PACKAGES/pymeshlab/lib
+```
+
+Make sure the symbol is found
+
+```
+strings $PYMESHLAB_LIB/libQt5Core.so.5 | grep _ZdlPvm
+```
+
+Finally, configure `LD_LIBRARY_PATH` to overwrite QT library path,
+
+```
+LD_LIBRARY_PATH=$PYMESHLAB_LIB PYOPENGL_PLATFORM=glx python <script.py>
 ```
 
 2. lerobot
@@ -292,6 +316,65 @@ python scripts/sim_gradio_dashboard.py
 ```
 
 ![Gradio dashboard](./doc/GradioTabPlots.png)
+
+### VLA
+
+#### Inference server
+
+Reset the environment to switch to Python 3.10
+
+```
+deactivate
+python_version=3.10.16
+export PATH="$HOME/.pyenv/versions/$python_version/bin:$PATH"
+python -m venv .venv3.10
+. .venv3.10/bin/activate
+```
+
+Install dependencies
+
+```
+pip install modal
+pip install feetech-servo-sdk
+pip install git+https://github.com/huggingface/lerobot.git
+pip install git+https://github.com/NVIDIA/Isaac-GR00T.git
+pip install "numpy<2"
+```
+
+```
+cd modal
+```
+
+Start inference server via an unencrypted TCP tunnel in a modal remote function, blocking on `RobotInferenceServer.run`.
+
+```
+modal run inference_server.py
+```
+
+#### Dataset
+
+Evaluate the camera calibration by replaying an episode from the dataset
+
+```
+python eval_gr00t_so100.py --dataset_path /home/alexis/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 748
+```
+
+#### Policy
+
+Evaluate the policy by running a new episode.
+
+Find dynamic `host` and `port` from modal tunnel information displayed while starting the inference server.
+
+```
+python eval_gr00t_so100.py --dataset_path /home/alexis/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 40 --action_horizon 16 --use_policy --host r19.modal.host --port 39147 --lang_instruction "pick up the golf ball and place it in the cup" --record_imgs
+```
+
+#### Record the video
+
+```
+ffmpeg -pattern_type glob -i 'eval_images/img_*.jpg' -c:v libx264 -pix_fmt yuv420p -y episode.mp4
+```
+
 
 #### Docker
 
