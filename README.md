@@ -50,6 +50,11 @@ Finally evaluate it on the eval dataset to see how well it performs.
 }
 ```
 
+## Policies
+
+### ACT
+
+Action Chunking Transformer is part of the [Aloha paper](https://tonyzhaozh.github.io/aloha/).
 
 ### Isaac Gr00t N1
 
@@ -317,9 +322,9 @@ python scripts/sim_gradio_dashboard.py
 
 ![Gradio dashboard](./doc/GradioTabPlots.png)
 
-### VLA
+## VLA
 
-#### Inference server
+### Env
 
 Reset the environment to switch to Python 3.10
 
@@ -344,6 +349,14 @@ pip install "numpy<2"
 ```
 cd modal
 ```
+
+### Gr00t
+
+#### Train
+
+Train the LeRobot dataset on https://botix.cloud/.
+
+#### Inference server
 
 Start inference server via an unencrypted TCP tunnel in a modal remote function, blocking on `RobotInferenceServer.run`.
 
@@ -376,7 +389,29 @@ ffmpeg -pattern_type glob -i 'eval_images/img_*.jpg' -c:v libx264 -pix_fmt yuv42
 ```
 
 
-#### Docker
+### ACT
+
+#### Train
+
+```
+cd lerobot
+```
+
+```
+modal secret create wandb-secret WANDB_API_KEY=...
+modal secret create hf-secret HF_TOKEN=...
+
+modal run --detach train_policy.py::train_policy --dataset-repo-id alexis779/so100_ball_cup --policy-type act
+modal run train_policy.py::upload_model --dataset-repo-id alexis779/so100_ball_cup --policy-type act
+```
+
+#### Eval
+
+```
+python eval_policy
+```
+
+## Docker
 
 Build docker image:
 
