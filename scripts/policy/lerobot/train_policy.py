@@ -13,7 +13,11 @@ image = (
         "git",
         "ffmpeg",
     )
-    .pip_install("git+https://github.com/huggingface/lerobot.git")
+    .pip_install(
+        "git+https://github.com/huggingface/lerobot.git",
+        "transformers",
+        "num2words"
+    )
 )
 
 app = modal.App("lerobot")

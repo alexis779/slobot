@@ -322,9 +322,25 @@ python scripts/sim_gradio_dashboard.py
 
 ![Gradio dashboard](./doc/GradioTabPlots.png)
 
-## VLA
+# Camera feed
 
-### Env
+Install **Webcam IP** Android app, select 640 x 480 image resolution and start server.
+
+Then create a virtual camera via:
+
+```
+ffmpeg -i http://192.168.0.102:8080/video -f v4l2 -pix_fmt yuyv422 /dev/video2
+```
+
+Make sure the camera is streamable via
+
+```
+ffplay /dev/video2
+```
+
+# VLA
+
+## Env
 
 Reset the environment to switch to Python 3.10
 
@@ -347,10 +363,29 @@ pip install "numpy<2"
 ```
 
 ```
-cd modal
+cd scripts
+```
+
+## Policy
+
+```
+cd scripts/policy
 ```
 
 ### Gr00t
+
+```
+cd gr00t
+```
+
+#### Replay episode
+
+Evaluate the camera calibration by replaying an episode from the dataset
+
+```
+python scripts/policy/gr00t/eval_gr00t_so100.py --dataset_path ~/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 748
+```
+
 
 #### Train
 
@@ -363,52 +398,56 @@ Start inference server via an unencrypted TCP tunnel in a modal remote function,
 ```
 modal run inference_server.py
 ```
-
-#### Dataset
-
-Evaluate the camera calibration by replaying an episode from the dataset
-
-```
-python eval_gr00t_so100.py --dataset_path /home/alexis/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 748
-```
-
-#### Policy
+#### Eval
 
 Evaluate the policy by running a new episode.
 
 Find dynamic `host` and `port` from modal tunnel information displayed while starting the inference server.
 
 ```
-python eval_gr00t_so100.py --dataset_path /home/alexis/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 40 --action_horizon 16 --use_policy --host r19.modal.host --port 39147 --lang_instruction "pick up the golf ball and place it in the cup" --record_imgs
+python eval_gr00t_so100.py --dataset_path ~/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 40 --action_horizon 16 --use_policy --host r19.modal.host --port 39147 --lang_instruction "pick up the golf ball and place it in the cup" --record_imgs
 ```
 
-#### Record the video
+#### Transcode the eval video
 
 ```
 ffmpeg -pattern_type glob -i 'eval_images/img_*.jpg' -c:v libx264 -pix_fmt yuv420p -y episode.mp4
 ```
 
 
-### ACT
-
-#### Train
+### LeRobot policies
 
 ```
 cd lerobot
 ```
 
+#### Train
+
+Configure secrets
+
 ```
 modal secret create wandb-secret WANDB_API_KEY=...
 modal secret create hf-secret HF_TOKEN=...
+```
 
-modal run --detach train_policy.py::train_policy --dataset-repo-id alexis779/so100_ball_cup --policy-type act
-modal run train_policy.py::upload_model --dataset-repo-id alexis779/so100_ball_cup --policy-type act
+Select policy and dataset
+
+```
+policy=act
+dataset_repo_id=alexis779/so100_ball_cup
+```
+
+Train the policy on the dataset
+
+```
+modal run --detach train_policy.py::train_policy --dataset-repo-id $dataset_repo_id --policy-type $policy
+modal run train_policy.py::upload_model --dataset-repo-id $dataset_repo_id --policy-type $policy
 ```
 
 #### Eval
 
 ```
-python eval_policy
+python scripts/policy/lerobot/eval_policy.py --robot_type so100 --policy_type $policy --model_path ~/Documents/python/robotics/so100_ball_cup_act
 ```
 
 ## Docker
