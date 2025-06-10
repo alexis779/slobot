@@ -235,6 +235,23 @@ PYOPENGL_PLATFORM=glx python scripts/sim_to_real.py
 | <video controls src="https://github.com/user-attachments/assets/eab20130-a21d-4811-bca8-07502012b8da"></video> | <video controls src="https://github.com/user-attachments/assets/a429d559-58e4-4328-a7f0-17f7477125ff"></video> |
 
 
+### Real To Sim
+
+Consider a [LeRobot dataset](https://huggingface.co/datasets/alexis779/so100_ball_cup) created via teleoperation.
+
+*Visualize Dataset* [HuggingFace space](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2Falexis779%2Fso100_ball_cup%2Fepisode_1%3Ft%3D23) is an interactive tool to visualize episodes from the dataset.
+
+Following script replays the tele-operated episode robot state `qpos` from each frame into the simulation environment, using the same FPS as the camera.
+
+```
+PYOPENGL_PLATFORM=glx python scripts/sim/replay_episode.py
+```
+
+| real | sim |
+|----------|-------------|
+| <video controls src="https://github.com/user-attachments/assets/fbaef5c9-7767-4aff-b879-4f7f59e993c4"></video> | <video controls src="https://github.com/user-attachments/assets/776bab97-bf73-46b2-a609-23b4c302f746"></video> |
+
+
 ### Image stream
 
 Genesis camera provides access to each frames rendered by the rasterizer. Multiple types of image are provided:
@@ -385,6 +402,8 @@ Evaluate the camera calibration by replaying an episode from the dataset
 ```
 python scripts/policy/gr00t/eval_gr00t_so100.py --dataset_path ~/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 748
 ```
+
+<video controls src="https://github.com/user-attachments/assets/ac5b6dc7-b900-4109-8b2c-068c95ad927e"></video>
 
 
 #### Train

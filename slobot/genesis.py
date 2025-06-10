@@ -30,7 +30,7 @@ class Genesis():
             { "type": "directional", "dir": (1, 1, -1), "color": (1.0, 1.0, 1.0), "intensity": 5.0 },
         ]
 
-        self.step_handler = kwargs['step_handler']
+        self.step_handler = kwargs.get('step_handler', None)
 
         show_viewer = kwargs.get('show_viewer', True)
 
