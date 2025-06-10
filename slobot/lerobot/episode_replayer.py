@@ -22,12 +22,10 @@ class EpisodeReplayer:
             frame = dataset[idx]
             self.replay_frame(frame)
 
-        self.arm.genesis.hold_entity()
-    
     def replay_frame(self, frame):
-        action = frame["action"]
+        action = frame["observation.state"]
         qpos = self.degrees_to_radians(action)
-        self.arm.entity.set_qpos(qpos)
+        self.arm.entity.control_dofs_position(qpos)
         self.arm.genesis.step()
     
     def degrees_to_radians(self, degrees):
