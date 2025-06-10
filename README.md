@@ -83,22 +83,27 @@ python -m venv .venv
 . .venv/bin/activate
 ```
 
-
-### slobot
-
-```
-pip install slobot
-```
-
-#### Other dependencies
-
 Install following dependencies
 
-1. genesis
+
+### 1. slobot
+
+```
+pip install git+https://github.com/alexis779/slobot.git
+```
+### 2. LeRobot
+
+```
+pip install git+https://github.com/huggingface/lerobot.git
+```
+
+### 3. Genesis
 
 ```
 pip install git+https://github.com/Genesis-Embodied-AI/Genesis.git
 ```
+
+Also refer to the [installation guide](https://genesis-world.readthedocs.io/en/latest/user_guide/overview/installation.html). Make sure to run the [hello world example](https://genesis-world.readthedocs.io/en/latest/user_guide/getting_started/hello_genesis.html) successfully.
 
 ##### Known issue
 
@@ -121,21 +126,15 @@ Finally, configure `LD_LIBRARY_PATH` to overwrite QT library path,
 LD_LIBRARY_PATH=$PYMESHLAB_LIB PYOPENGL_PLATFORM=glx python <script.py>
 ```
 
-2. lerobot
-
-```
-pip install git+https://github.com/huggingface/lerobot.git
-```
-
-3. ompl
+### 4. OMPL
 
 ```
 pip install https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.7.0-cp312-cp312-manylinux_2_28_x86_64.whl
 ```
 
-## Robot configuration
+### 5. Robot Configuration
 
-The example loads the [Mujoco XML configuration](https://github.com/google-deepmind/mujoco_menagerie/tree/main/trs_so_arm100).
+Download the [Mujoco XML configuration](https://github.com/google-deepmind/mujoco_menagerie/tree/main/trs_so_arm100).
 
 Ensure the robot configuration directory in available in the current directory.
 
