@@ -244,12 +244,12 @@ Consider a [LeRobot dataset](https://huggingface.co/datasets/alexis779/so100_bal
 Following script replays the tele-operated episode robot state `qpos` from each frame into the simulation environment, using the same FPS as the camera.
 
 ```
-PYOPENGL_PLATFORM=glx python scripts/sim/replay_episode.py
+PYOPENGL_PLATFORM=glx python scripts/sim/replay_episode.py --dataset_repo_id alexis779/so100_ball_cup --episode_id 2
 ```
 
 | real | sim |
 |----------|-------------|
-| <video controls src="https://github.com/user-attachments/assets/fbaef5c9-7767-4aff-b879-4f7f59e993c4"></video> | <video controls src="https://github.com/user-attachments/assets/776bab97-bf73-46b2-a609-23b4c302f746"></video> |
+| <video controls src="https://github.com/user-attachments/assets/fbaef5c9-7767-4aff-b879-4f7f59e993c4"></video> | <video controls src="https://github.com/user-attachments/assets/f260e84e-946b-4c74-9e06-4e36dab704a2"></video> |
 
 
 ### Image stream
