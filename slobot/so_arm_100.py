@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import time
-import genesis as gs
 
 from slobot.genesis import Genesis
 from slobot.configuration import Configuration
