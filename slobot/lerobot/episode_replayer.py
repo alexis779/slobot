@@ -30,6 +30,6 @@ class EpisodeReplayer:
     
     def degrees_to_radians(self, degrees):
         radians = torch.deg2rad(degrees)
-        radians = radians * self.SIGN
+        radians = radians * self.SIGN.to(radians.device)
         radians = torch.clamp(radians, self.qpos_limits[0], self.qpos_limits[1])
         return radians
