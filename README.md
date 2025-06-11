@@ -340,7 +340,7 @@ python scripts/sim_gradio_dashboard.py
 
 # Camera feed
 
-Install **Webcam IP** Android app, select 640 x 480 image resolution and start server.
+Install **Webcam IP** Android app on your phone, select 640 x 480 image resolution and start server.
 
 Then create a virtual camera via:
 
