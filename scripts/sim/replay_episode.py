@@ -11,5 +11,4 @@ args = parser.parse_args()
 mjcf_path = Configuration.MJCF_CONFIG
 repo_id = args.dataset_repo_id
 episode_replayer = EpisodeReplayer(repo_id=repo_id, mjcf_path=mjcf_path)
-episode_id = args.episode_id - 1
-episode_replayer.replay_episode(episode_id)
+episode_replayer.replay_episode(args.episode_id)

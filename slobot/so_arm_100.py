@@ -7,10 +7,6 @@ from slobot.configuration import Configuration
 from slobot.simulation_frame import SimulationFrame
 
 class SoArm100():
-    JAW_LENGTH = 0.107
-    JAW_WIDTH = 0.008
-    JAW_DEPTH = 0.0005
-
     # Mujoco home position
     HOME_QPOS = [0, -np.pi/2, np.pi/2, np.pi/2, -np.pi/2, 0]
 
@@ -118,10 +114,6 @@ class SoArm100():
     def go_home(self):
         target_qpos = torch.tensor(SoArm100.HOME_QPOS)
         self.genesis.follow_path(target_qpos)
-
-    def draw_fixed_jaw_arrow(self):
-        t = [self.JAW_WIDTH, -self.JAW_LENGTH, -self.JAW_DEPTH]
-        self.genesis.draw_arrow(self.fixed_jaw, t)
 
     def open_jaw(self):
         self.genesis.update_qpos(self.jaw, np.pi/2)
