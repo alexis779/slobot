@@ -342,16 +342,28 @@ python scripts/sim_gradio_dashboard.py
 
 Install **Webcam IP** Android app on your phone, select 640 x 480 image resolution and start server.
 
-Then create a virtual camera via:
+List v4l2 devices
 
 ```
-ffmpeg -i http://192.168.0.102:8080/video -f v4l2 -pix_fmt yuyv422 /dev/video2
+v4l2-ctl --list-devices
+```
+
+Create a looback device if /dev/video4 is missing in the above output.
+
+```
+sudo modprobe v4l2loopback devices=1 video_nr=4
+```
+
+Create a virtual camera via:
+
+```
+ffmpeg -i http://192.168.0.102:8080/video -f v4l2 -pix_fmt yuyv422 /dev/video4
 ```
 
 Make sure the camera is streamable via
 
 ```
-ffplay /dev/video2
+ffplay /dev/video4
 ```
 
 # VLA

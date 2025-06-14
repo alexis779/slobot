@@ -16,10 +16,16 @@ class Genesis():
     HOLD_STEPS = 20
 
     def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.start()
+
+    def start(self):
+        kwargs = self.kwargs
+
         backend = self.backend()
         gs.init(backend=backend)
 
-        vis_mode = 'visual' # collision
+        vis_mode = 'visual' # 'collision'
 
         res = kwargs.get('res', Configuration.FHD)
         camera_pos = (-0.125, -1, 0.25)
@@ -62,18 +68,7 @@ class Genesis():
         self.entity: RigidEntity = self.scene.add_entity(
             arm_morph,
             vis_mode=vis_mode,
-            #material=gs.materials.Rigid(gravity_compensation=0)
         )
-
-        '''
-        self.target_entity = self.scene.add_entity(
-            gs.morphs.Mesh(
-                file="meshes/axis.obj",
-                scale=0.10,
-            ),
-            surface=gs.surfaces.Default(color=(1, 0.5, 0.5, 1)),
-        )
-        '''
 
         # TODO errors in non-interactive mode in Docker
         #print("Joints=", pprint.pformat(self.entity.joints))
@@ -89,6 +84,11 @@ class Genesis():
             lookat = lookat,
         )
 
+        should_build = kwargs.get('should_build', True)
+        if should_build:
+            self.build()
+
+    def build(self):
         self.scene.build()
 
         #self.camera.start_recording()
@@ -139,7 +139,6 @@ class Genesis():
             return gs.morphs.URDF(
                 file  = urdf_path,
                 fixed = True,
-                convexify = False,
             )
 
         raise ValueError(f"Provide either mjcf_path or urdf_path")
@@ -243,12 +242,15 @@ class Genesis():
         quat = Rotation.from_euler(self.EXTRINSIC_SEQ, euler).as_quat(scalar_first=True)
         return torch.tensor(quat)
 
-    def draw_arrow(self, link, t):
-        self.scene.clear_debug_objects()
+    def draw_arrow(self, link, t, color):
+        #self.scene.clear_debug_objects()
+        link_pos = link.get_pos()
+        t_pos = self.link_translate(link, t)
+        arrow_vec = t_pos - link_pos
+        self.scene.draw_debug_arrow(link_pos, arrow_vec, radius = 0.003, color=color)
 
+    def link_translate(self, link, t):
         link_pos = link.get_pos()
         link_quat = link.get_quat()
         link_euler = self.quat_to_euler(link_quat)
-        t_pos = self.translate(link_pos, t, link_euler)
-        arrow_vec = t_pos - link_pos
-        self.scene.draw_debug_arrow(link_pos, arrow_vec, radius = 0.002, color=(1, 0, 0, 1))
+        return self.translate(link_pos, t, link_euler)
