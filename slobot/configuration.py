@@ -15,7 +15,7 @@ class Configuration:
     QPOS_MAP = {
         "zero": [0, 0, 0, 0, 0, 0],
         "rotated": [-np.pi/2, -np.pi/2, np.pi/2, np.pi/2, -np.pi/2, np.pi/2],
-        "rest": [0.049, -3.62, 3.19, 1.26, -0.17, -0.67]
+        "rest": [0.049, -3.32, 3.14, 1.21, -0.17, -0.17]
     }
 
     POS_MAP = {

@@ -26,10 +26,6 @@ class SoArm100():
 
         self.genesis = Genesis(**kwargs)
 
-        self.camera = self.genesis.camera
-        self.entity = self.genesis.entity
-        self.fixed_jaw = self.genesis.fixed_jaw
-
         self.rgb = kwargs.get('rgb', False)
         self.depth = kwargs.get('depth', False)
         self.segmentation = kwargs.get('segmentation', False)
@@ -37,8 +33,8 @@ class SoArm100():
 
     def elemental_rotations(self):
         self.go_home()
-        pos = self.fixed_jaw.get_pos()
-        quat = self.fixed_jaw.get_quat()
+        pos = self.genesis.fixed_jaw.get_pos()
+        quat = self.genesis.fixed_jaw.get_quat()
 
         print("pos=", pos)
         print("quat=", quat)
@@ -53,20 +49,20 @@ class SoArm100():
         for roll in np.linspace(np.pi/2, 0, steps):
             euler[0] = roll
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.fixed_jaw, pos, quat)
+            self.genesis.move(self.genesis.fixed_jaw, pos, quat)
 
         # turn the fixed jaw around the global y axis
         for pitch in np.linspace(0, np.pi, steps):
             euler[1] = pitch
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.fixed_jaw, pos, quat)
+            self.genesis.move(self.genesis.fixed_jaw, pos, quat)
 
         # turn the fixed jaw around the global z axis
         pos = None
         for yaw in np.linspace(0, np.pi/2, steps):
             euler[2] = yaw
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.fixed_jaw, pos, quat)
+            self.genesis.move(self.genesis.fixed_jaw, pos, quat)
 
     def diff_ik(self):
         center = torch.tensor([0, -0.1, 0.3])
@@ -74,41 +70,40 @@ class SoArm100():
         for i in range(0, 1000):
             target_pos = center + torch.tensor([np.cos(i / 360 * np.pi), np.sin(i / 360 * np.pi), 0]) * r
 
-            target_qpos = self.entity.inverse_kinematics(
-                link     = self.fixed_jaw,
+            target_qpos = self.genesis.entity.inverse_kinematics(
+                link     = self.genesis.fixed_jaw,
                 pos      = target_pos,
                 quat     = None,
             )
 
-            self.entity.control_dofs_position(target_qpos)
+            self.genesis.entity.control_dofs_position(target_qpos)
             self.genesis.step()
 
     def lift_fixed_jaw(self):
         qpos_target = Configuration.QPOS_MAP['rotated']
-        self.entity.control_dofs_position(qpos_target)
+        self.genesis.entity.control_dofs_position(qpos_target)
 
         for i in range(0, 100):
             self.genesis.step()
 
-        print("qpos rotated=", self.entity.get_qpos())
+        print("qpos rotated=", self.genesis.entity.get_qpos())
 
-        current_pos = self.fixed_jaw.get_pos()
-        current_quat = self.fixed_jaw.get_quat()
+        current_pos = self.genesis.fixed_jaw.get_pos()
+        current_quat = self.genesis.fixed_jaw.get_quat()
         print(f"ee rotated pos={current_pos} quat={current_quat}")
         current_pos[2] += 0.1
 
-        self.genesis.move(self.fixed_jaw, current_pos, None)
+        self.genesis.move(self.genesis.fixed_jaw, current_pos, None)
 
-        print("qpos lifted=", self.entity.get_qpos())
-        current_pos = self.fixed_jaw.get_pos()
-        current_quat = self.fixed_jaw.get_quat()
+        print("qpos lifted=", self.genesis.entity.get_qpos())
+        current_pos = self.genesis.fixed_jaw.get_pos()
+        current_quat = self.genesis.fixed_jaw.get_quat()
         print(f"ee lifted pos={current_pos} quat={current_quat}")
 
-        self.entity.control_dofs_position(self.entity.get_qpos())
+        self.genesis.entity.control_dofs_position(self.genesis.entity.get_qpos())
         self.genesis.hold_entity()
 
     def stop(self):
-        #self.camera.stop_recording(save_to_filename='so_arm_100.mp4')
         self.genesis.stop()
 
     def go_home(self):
@@ -130,10 +125,10 @@ class SoArm100():
         current_time = time.time()
 
         # convert torch tensor to a JSON serializable object
-        qpos = self.entity.get_qpos().tolist()
-        velocity = self.entity.get_dofs_velocity().tolist()
-        force = self.entity.get_dofs_force().tolist()
-        control_force = self.entity.get_dofs_control_force().tolist()
+        qpos = self.genesis.entity.get_qpos().tolist()
+        velocity = self.genesis.entity.get_dofs_velocity().tolist()
+        force = self.genesis.entity.get_dofs_force().tolist()
+        control_force = self.genesis.entity.get_dofs_control_force().tolist()
 
         simulation_frame = SimulationFrame(
             timestamp=current_time,
@@ -144,7 +139,7 @@ class SoArm100():
         )
 
         if self.rgb or self.depth or self.segmentation or self.normal:
-            frame = self.camera.render(rgb=self.rgb, depth=self.depth, segmentation=self.segmentation, colorize_seg=True, normal=self.normal)
+            frame = self.genesis.camera.render(rgb=self.rgb, depth=self.depth, segmentation=self.segmentation, colorize_seg=True, normal=self.normal)
             rbg_arr, depth_arr, seg_arr, normal_arr = frame
             simulation_frame.rgb = rbg_arr
             simulation_frame.depth = depth_arr
@@ -157,5 +152,5 @@ class SoArm100():
         return simulation_frame
 
     def handle_qpos(self, feetech_frame):
-        self.entity.set_qpos(feetech_frame.qpos)
+        self.genesis.entity.set_qpos(feetech_frame.qpos)
         self.genesis.step()
