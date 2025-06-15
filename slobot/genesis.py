@@ -17,7 +17,11 @@ class Genesis():
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
-        self.start()
+
+        # pass should_start=False to control the start and build process
+        should_start = kwargs.get('should_start', True)
+        if should_start:
+            self.start()
 
     def start(self):
         kwargs = self.kwargs
@@ -51,8 +55,8 @@ class Genesis():
                 max_FPS       = self.fps,
             ),
             vis_options    = gs.options.VisOptions(
-                lights          = lights,
-                #show_link_frame = True,
+                show_world_frame = False, # True
+                lights           = lights,
             ),
             show_FPS       = False,
         )
@@ -63,7 +67,7 @@ class Genesis():
             vis_mode=vis_mode,
         )
 
-        arm_morph = self.parse_morph(**kwargs)
+        arm_morph = self.parse_robot_configuration(**kwargs)
 
         self.entity: RigidEntity = self.scene.add_entity(
             arm_morph,
@@ -84,8 +88,8 @@ class Genesis():
             lookat = lookat,
         )
 
-        should_build = kwargs.get('should_build', True)
-        if should_build:
+        should_start = kwargs.get('should_start', True)
+        if should_start:
             self.build()
 
     def build(self):
@@ -127,7 +131,7 @@ class Genesis():
     def backend(self):
         return gs.gpu if torch.cuda.is_available() else gs.cpu
 
-    def parse_morph(self, **kwargs):
+    def parse_robot_configuration(self, **kwargs):
         mjcf_path = kwargs['mjcf_path']
         if mjcf_path is not None:
             return gs.morphs.MJCF(
