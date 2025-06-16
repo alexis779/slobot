@@ -15,6 +15,8 @@ episode_id = args.episode_id
 if episode_id is None:
     score = episode_replayer.replay_episodes()
     print("score=", score)
+    #episode_replayer.write_episodes_images()
 else:
     success = episode_replayer.replay_episode(episode_id)
     print("success=", success)
+    #episode_replayer.write_episode_images(episode_id)

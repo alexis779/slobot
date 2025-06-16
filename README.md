@@ -139,8 +139,10 @@ Download the [Mujoco XML configuration](https://github.com/google-deepmind/mujoc
 Ensure the robot configuration directory in available in the current directory.
 
 ```
-git clone -b main https://github.com/google-deepmind/mujoco_menagerie ../mujoco_menagerie
-cp -r ../mujoco_menagerie/trs_so_arm100 .
+cd ..
+git clone https://github.com/google-deepmind/mujoco_menagerie
+cd slobot
+ln -s ../mujoco_menagerie/trs_so_arm100 trs_so_arm100
 ```
 
 ## Validation & Calibration
