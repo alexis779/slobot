@@ -95,6 +95,27 @@ class EpisodeReplayer:
         distance_threshold = 0.01
         return distance < distance_threshold
 
+    def write_episodes_images(self):
+        episode_count = self.ds_meta.total_episodes
+        for episode_id in range(episode_count):
+            self.write_episode_images(episode_id)
+
+    def write_episode_images(self, episode_id):
+        dataset = LeRobotDataset(self.repo_id, episodes=[episode_id])
+
+        from_idx = dataset.episode_data_index["from"][0].item()
+        to_idx = dataset.episode_data_index["to"][0].item()
+        episode_frame_count = to_idx - from_idx
+
+        dataloader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=episode_frame_count,
+        )
+
+        episode = next(iter(dataloader))
+        for frame_id in range(episode_frame_count):
+            self.write_camera_image(episode, frame_id)
+
     def add_objects(self, episode, hold_state : HoldState):
         self.arm.genesis.kwargs["show_viewer"] = False # disable visualization
         os.environ['PYOPENGL_PLATFORM'] = 'egl' # offline mode
@@ -140,6 +161,8 @@ class EpisodeReplayer:
         if frame_id == hold_state.pick_frame_id or frame_id == hold_state.place_frame_id:
             color = (0, 1, 1, 0.4)
             #self.arm.genesis.draw_arrow(self.arm.genesis.fixed_jaw, self.fixed_jaw_t, color)
+
+        self.write_camera_image(episode, frame_id)
 
         self.arm.genesis.step()
     
@@ -187,15 +210,27 @@ class EpisodeReplayer:
         self.arm.genesis.entity.set_qpos(robot_state)
 
     def handle_step(self, simulation_frame: SimulationFrame):
-        self.write_image(simulation_frame.rgb, self.episode_id, self.step_id)
+        self.write_image("sim", simulation_frame.rgb, self.episode_id, self.step_id)
         self.step_id += 1
 
-    def write_image(self, rgb_image, episode_id, step_id):
+    def write_image(self, type, rgb_image, episode_id, step_id):
         image = Image.fromarray(rgb_image, mode='RGB')
 
-        image_path = f"img/episode_{episode_id:03d}/frame_{step_id:03d}.png"
+        image_path = f"img/{type}/episode_{episode_id:03d}/frame_{step_id:03d}.png"
 
         # Create the directory if it doesn't exist
         os.makedirs(os.path.dirname(image_path), exist_ok=True)
 
         image.save(image_path)
+
+    def write_camera_image(self, episode, frame_id):
+        camera_key = self.ds_meta.camera_keys[0]
+        camera_image = episode[camera_key][frame_id]
+        camera_image = camera_image.data.numpy()
+        camera_image = camera_image.transpose(1, 2, 0)
+
+        # convert from [0-1] floats to [0-256[ ints
+        camera_image = (camera_image * 255).astype("uint8")
+
+        episode_id = episode['episode_index'][frame_id].item()
+        self.write_image("real", camera_image, episode_id, frame_id)
