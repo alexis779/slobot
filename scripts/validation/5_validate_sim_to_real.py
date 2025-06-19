@@ -5,7 +5,7 @@ from slobot.configuration import Configuration
 import sys
 
 if len(sys.argv) < 2:
-    print("Usage: python 5_validate_sim_to_real.py [zero|rotated|rest]")
+    print("Usage: python 5_validate_sim_to_real.py [middle|zero|rotated|rest]")
     sys.exit(1)
 
 # Validate the robot is located in the position preset in sim then real
@@ -17,5 +17,5 @@ qpos = Configuration.QPOS_MAP[preset]
 
 mjcf_path = Configuration.MJCF_CONFIG
 arm = SoArm100(mjcf_path=mjcf_path, step_handler=feetech)
-arm.genesis.entity.set_qpos(qpos)
+arm.genesis.entity.control_dofs_position(qpos)
 arm.genesis.hold_entity()

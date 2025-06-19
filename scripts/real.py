@@ -7,10 +7,10 @@ from slobot.configuration import Configuration
 
 feetech = Feetech()
 
-feetech.move(Configuration.POS_MAP['zero'])
+feetech.control_position(Configuration.POS_MAP['zero'])
 sleep(1)
-feetech.move(Configuration.POS_MAP['rotated'])
+feetech.control_position(Configuration.POS_MAP['rotated'])
 sleep(1)
-feetech.move(Configuration.POS_MAP['rest'])
+feetech.control_position(Configuration.POS_MAP['rest'])
 sleep(1)
 feetech.set_torque(False)

@@ -19,7 +19,7 @@ There are 2 main use cases
 
 ### LeRobot
 
-[LeRobot](https://github.com/huggingface/lerobot) provides a SOTA library to perform *Imitation Learning* and *Reinforcement Learning* for robotics tasks.
+[LeRobot](https://github.com/huggingface/lerobot) provides SOTA policies to perform *Imitation Learning* and *Reinforcement Learning* in robotics.
 
 Curate a new dataset: have the follower arm perform a task of interest, by replicating the motion of the leader arm held a human operator.
 
@@ -56,9 +56,17 @@ Finally evaluate it on the eval dataset to see how well it performs.
 
 Action Chunking Transformer is part of the [Aloha paper](https://tonyzhaozh.github.io/aloha/).
 
+### PI0
+
+PI0 was released by Physical Intelligence to provide an OpenSource policy similar to Figure AI Helix architecture.
+
 ### Isaac Gr00t N1
 
-[NVIDIA Isaac GR00T N1](https://github.com/NVIDIA/Isaac-GR00T) is a VLA, Visual Language Action, model.
+[NVIDIA Isaac GR00T N1](https://github.com/NVIDIA/Isaac-GR00T) was released by Nvidia.
+
+### SmolVLA
+
+SmolVLA was released by HuggingFace, using LeRobot datasets for training.
 
 ## Setup the environment
 
@@ -147,40 +155,39 @@ ln -s ../mujoco_menagerie/trs_so_arm100 trs_so_arm100
 
 ## Validation & Calibration
 
-A series of scripts are provided to help with calibration.
-
-LeRobot suggests 3 keys positions
-1. zero
-2. rotated
-3. rest
+A series of scripts are provided to help with validation and calibration.
 
 ### 0. Validate the preset qpos in sim
 
-This validates that the robot is in the targetted position preset in sim.
+This validates that the robot is in the targetted position preset from the sim qpos.
 
 ```
-PYOPENGL_PLATFORM=glx python scripts/validation/0_validate_sim_qpos.py [zero|rotated|rest]
+PYOPENGL_PLATFORM=glx python scripts/validation/0_validate_sim_qpos.py [middle|zero|rotated|rest]
 ```
 
-| zero | rotated | rest |
-|----------|-------------|-------|
-| ![zero](doc/SimZero.png) | ![rotated](doc/SimRotated.png) | ![rotated](doc/SimRest.png) |
+| middle | zero | rotated | rest |
+|-|-|-|-|
+| ![middle](doc/SimMiddle.png) | ![zero](doc/SimZero.png) | ![rotated](doc/SimRotated.png) | ![rotated](doc/SimRest.png) |
 
 
-### 1. Calibrate the preset pos
+### 1. Validate the preset pos
 
-Position the arm manually into the targetted position preset as displayed above. Refer to [LeRobot calibration section](https://github.com/huggingface/lerobot/blob/main/examples/10_use_so100.md#a-manual-calibration-of-follower-arm) and [manual calibration script](https://github.com/huggingface/lerobot/blob/main/lerobot/common/robot_devices/robots/feetech_calibration.py#L401).
+For [motor calibration](https://huggingface.co/docs/lerobot/so101#calibration-video), LeRobot suggests the `middle` position, where all the joints are positioned in the middle of their range.
+
+Position the arm manually into the `middle` preset.
 
 ```
-python scripts/validation/1_calibrate_motor_pos.py [zero|rotated|rest]
+python scripts/validation/1_calibrate_motor_pos.py middle
 ```
+
+It will read the motor positions and output them. Copy the pos array in Configuration.POS_MAP in the corresponding preset.
 
 ### 2. Validate the preset *pos to qpos* conversion in sim
 
-Same as script 0, but using the calibrated motor step positions instead of angular joint positions.
+Same as script 0, but using the motor pos instead of the sim qpos.
 
 ```
-PYOPENGL_PLATFORM=glx python scripts/validation/2_validate_sim_pos.py [zero|rotated|rest]
+PYOPENGL_PLATFORM=glx python scripts/validation/2_validate_sim_pos.py [middle|zero|rotated|rest]
 ```
 
 ### 3. Validate the preset pos in real
@@ -188,7 +195,7 @@ PYOPENGL_PLATFORM=glx python scripts/validation/2_validate_sim_pos.py [zero|rota
 Similar than 2 which is in sim but now in real. It validates the robot is positioned correctly to the target pos.
 
 ```
-python scripts/validation/3_validate_real_pos.py [zero|rotated|rest]
+python scripts/validation/3_validate_real_pos.py [middle|zero|rotated|rest]
 ```
 
 ### 4. Validate real to sim
@@ -196,7 +203,7 @@ python scripts/validation/3_validate_real_pos.py [zero|rotated|rest]
 This validates that moving the real robot also updates the rendered robot in sim.
 
 ```
-PYOPENGL_PLATFORM=glx python scripts/validation/4_validate_real_to_sim.py [zero|rotated|rest]
+PYOPENGL_PLATFORM=glx python scripts/validation/4_validate_real_to_sim.py [middle|zero|rotated|rest]
 ```
 
 ### 5. Validate sim to real
@@ -204,7 +211,7 @@ PYOPENGL_PLATFORM=glx python scripts/validation/4_validate_real_to_sim.py [zero|
 This validates the robot simulation also controls the physical robot.
 
 ```
-PYOPENGL_PLATFORM=glx python scripts/validation/4_validate_real_to_sim.py [zero|rotated|rest]
+PYOPENGL_PLATFORM=glx python scripts/validation/5_validate_sim_to_real.py [middle|zero|rotated|rest]
 ```
 
 
@@ -245,7 +252,7 @@ Consider a [LeRobot dataset](https://huggingface.co/datasets/alexis779/so100_bal
 Following script replays the tele-operated episode robot state `qpos` from each frame into the simulation environment, using the same FPS as the camera.
 
 ```
-PYOPENGL_PLATFORM=glx python scripts/sim/replay_episode.py --dataset_repo_id alexis779/so100_ball_cup --episode_id 2
+PYOPENGL_PLATFORM=glx python scripts/sim/replay_episodes.py --dataset_repo_id alexis779/so100_ball_cup --episode_id 0
 ```
 
 | real | sim |

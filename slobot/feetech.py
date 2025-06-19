@@ -1,6 +1,7 @@
-from lerobot.common.robot_devices.motors.configs import FeetechMotorsBusConfig
-from lerobot.common.robot_devices.motors.feetech import FeetechMotorsBus, TorqueMode
-from lerobot.common.robot_devices.robots.utils import make_robot_config
+from lerobot.common.datasets.v2.convert_dataset_v1_to_v2 import make_robot_config
+from lerobot.common.motors.feetech import TorqueMode
+from lerobot.common.robots import make_robot_from_config
+from lerobot.common.motors import MotorsBus
 
 from slobot.configuration import Configuration
 from slobot.simulation_frame import SimulationFrame
@@ -11,16 +12,15 @@ import numpy as np
 import time
 
 class Feetech():
-    ROBOT_TYPE = 'so100'
-    ARM_NAME = 'main'
-    ARM_TYPE = 'follower'
+    ROBOT_TYPE = 'so100_follower'
+    FOLLOWER_ID = 'follower_arm'
 
     MODEL_RESOLUTION = 4096
     RADIAN_PER_STEP = (2 * np.pi) / MODEL_RESOLUTION
     MOTOR_DIRECTION = [-1, 1, 1, 1, 1, 1]
-    JOINT_IDS = [0, 1, 2, 3, 4, 5]
+    JOINT_IDS = range(Configuration.DOFS)
     PORT = '/dev/ttyACM0'
-    REFERENCE_FRAME = 'rotated'
+    REFERENCE_FRAME = 'middle'
 
     def calibrate_pos(preset):
         feetech = Feetech()
@@ -28,7 +28,7 @@ class Feetech():
 
     def move_to_pos(pos):
         feetech = Feetech()
-        feetech.move(pos)
+        feetech.control_position(pos)
 
     def __init__(self, **kwargs):
         self.qpos_handler = kwargs.get('qpos_handler', None)
@@ -37,7 +37,7 @@ class Feetech():
             self.connect()
 
     def connect(self):
-        self.motors_bus = self._create_motors_bus()
+        self.motors_bus : MotorsBus = self._create_motors_bus()
 
     def disconnect(self):
         self.set_torque(False)
@@ -47,19 +47,19 @@ class Feetech():
         return self.pos_to_qpos(self.get_pos())
 
     def get_pos(self):
-        return self.motors_bus.read('Present_Position')
+        return self._read_config('Present_Position')
 
     def get_velocity(self):
-        return self.motors_bus.read('Present_Speed')
+        return self._read_config('Present_Velocity')
 
     def get_dofs_velocity(self):
         return self.velocity_to_qvelocity(self.get_velocity())
 
     def get_dofs_control_force(self):
-        return self.motors_bus.read('Present_Load')
+        return self._read_config('Present_Load')
     
     def get_pos_goal(self):
-        return self.motors_bus.read('Goal_Position')
+        return self._read_config('Goal_Position')
 
     def handle_step(self, frame: SimulationFrame):
         pos = self.qpos_to_pos(frame.qpos)
@@ -79,7 +79,8 @@ class Feetech():
 
     def control_position(self, pos):
         self.set_torque(True)
-        self.motors_bus.write('Goal_Position', pos)
+
+        self._write_config('Goal_Position', pos, Feetech.JOINT_IDS)
         if self.qpos_handler is not None:
             feetech_frame = self.create_feetech_frame()
             self.qpos_handler.handle_qpos(feetech_frame)
@@ -90,7 +91,11 @@ class Feetech():
 
     def set_torque(self, is_enabled):
         torque_enable = TorqueMode.ENABLED.value if is_enabled else TorqueMode.DISABLED.value
-        self._write_config('Torque_Enable', torque_enable)
+        torque_enable = [
+            torque_enable
+            for joint_id in Feetech.JOINT_IDS
+        ]
+        self._write_config('Torque_Enable', torque_enable, Feetech.JOINT_IDS)
 
     def set_punch(self, punch, ids=JOINT_IDS):
         self._write_config('Minimum_Startup_Force', punch, ids)
@@ -103,12 +108,6 @@ class Feetech():
 
     def set_dofs_ki(self, Ki, ids=JOINT_IDS):
         self._write_config('I_Coefficient', Ki, ids)
-
-    def move(self, target_pos):
-        self.control_position(target_pos)
-        position = self.get_pos()
-        error = np.linalg.norm(target_pos - position) / Feetech.MODEL_RESOLUTION
-        print("pos error=", error)
 
     def go_to_rest(self):
         self.go_to_preset('rest')
@@ -123,14 +122,13 @@ class Feetech():
         self.set_torque(False)
         input(f"Move the arm to the {preset} position ...")
         pos = self.get_pos()
-        pos_json = json.dumps(pos.tolist())
+        pos_json = json.dumps(pos)
         print(f"Current position is {pos_json}")
 
     def _create_motors_bus(self):
-        robot_config = make_robot_config(Feetech.ROBOT_TYPE)
-        motors = robot_config.follower_arms[Feetech.ARM_NAME].motors
-        config = FeetechMotorsBusConfig(port=self.PORT, motors=motors)
-        motors_bus = FeetechMotorsBus(config)
+        robot_config = make_robot_config(Feetech.ROBOT_TYPE, port=self.PORT, id=Feetech.FOLLOWER_ID)
+        robot = make_robot_from_config(robot_config)
+        motors_bus = robot.bus
         motors_bus.connect()
         return motors_bus
 
@@ -145,18 +143,19 @@ class Feetech():
     def _stepvelocity_to_velocity(self, step_velocity, motor_index):
         return step_velocity[motor_index] * Feetech.RADIAN_PER_STEP
 
-    def _write_config(self, key, values, ids=JOINT_IDS):
-        motor_names = self._motor_names(ids)
-        self.motors_bus.write(key, values, motor_names)
-
-    def _motor_names(self, ids):
+    def _read_config(self, key):
+        pos = self.motors_bus.sync_read(key, normalize=False)
         return [
-            self._motor_name(id)
-            for id in ids
+            pos[joint_name]
+            for joint_name in Configuration.JOINT_NAMES
         ]
 
-    def _motor_name(self, id):
-        return Configuration.JOINT_NAMES[id]
+    def _write_config(self, key, values, ids):
+        values = {
+            Configuration.JOINT_NAMES[id] : values[id]
+            for id in ids
+        }
+        self.motors_bus.sync_write(key, values, normalize=False)
 
     def create_feetech_frame(self) -> FeetechFrame:
         timestamp = time.time()
