@@ -129,7 +129,7 @@ class EpisodeReplayer:
 
         self.arm.genesis.stop()
 
-        self.arm.genesis.kwargs["show_viewer"] = False # True
+        self.arm.genesis.kwargs["show_viewer"] = True # False
         self.arm.genesis.start()
 
         golf_ball = gs.morphs.Sphere(
@@ -148,7 +148,7 @@ class EpisodeReplayer:
         )
         self.cup : RigidEntity = self.arm.genesis.scene.add_entity(cup)
 
-        os.environ['PYOPENGL_PLATFORM'] = 'egl' # glx
+        os.environ['PYOPENGL_PLATFORM'] = 'glx' # egl
         self.arm.genesis.build()
 
     def replay_frame(self, episode, frame_id, hold_state : HoldState):
