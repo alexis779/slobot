@@ -29,15 +29,6 @@ class Configuration:
     DOFS = 6
     JOINT_NAMES = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
 
-    def index_values(l):
-        return {
-            l[id] : id + 1
-            for id in range(len(l))
-        }
-
-    LEROBOT_JOINT_IDS = index_values(JOINT_NAMES)
-
-
     def logger(logger_name):
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.INFO)

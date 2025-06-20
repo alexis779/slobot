@@ -5,8 +5,10 @@ from slobot.configuration import Configuration
 import time
 
 class SimClient():
+
+    LOGGER = Configuration.logger(__name__)
+
     def __init__(self, **kwargs):
-        self.logger = Configuration.logger(__name__)
         url = kwargs['url']
         self.client = Client(url)
         self.step_handler = kwargs['step_handler']
@@ -16,7 +18,7 @@ class SimClient():
         previous_time = time.time()
         period = 1.0 / fps
         for qpos in job:
-            self.logger.info(f"Received qpos {qpos}")
+            SimClient.LOGGER.info(f"Received qpos {qpos}")
             simulation_frame = SimulationFrame(0, qpos)
 
             current_time = time.time()

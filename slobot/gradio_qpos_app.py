@@ -4,9 +4,11 @@ from slobot.image_streams import ImageStreams
 from slobot.configuration import Configuration
 
 class GradioQposApp():
+
+    LOGGER = Configuration.logger(__name__)
+
     def __init__(self):
         self.image_streams = ImageStreams()
-        self.logger = Configuration.logger(__name__)
 
     def launch(self):
         with gr.Blocks() as demo:
@@ -30,5 +32,5 @@ class GradioQposApp():
         #sleep_period = 1.0 / fps
         for simulation_frame_paths in self.image_streams.simulation_frame_paths(res, fps, rgb=False, depth=False, segmentation=False, normal=False):
             #time.sleep(sleep_period)
-            self.logger.debug(f"Sending qpos {simulation_frame_paths.simulation_frame.qpos}")
+            GradioQposApp.LOGGER.debug(f"Sending qpos {simulation_frame_paths.simulation_frame.qpos}")
             yield simulation_frame_paths.simulation_frame.qpos

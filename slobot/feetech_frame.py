@@ -1,9 +1,10 @@
 class FeetechFrame():
-    def __init__(self, timestamp, qpos, velocity, control_force):
+    def __init__(self, timestamp, target_qpos, qpos, velocity, force):
         self.timestamp = timestamp
+        self.target_qpos = target_qpos
         self.qpos = qpos
         self.velocity = velocity
-        self.control_force = control_force
+        self.force = force
 
     def __repr__(self):
-        return f"FeetechFrame(timestamp={self.timestamp}, qpos={self.qpos}, velocity={self.velocity}, control_force={self.control_force})"
+        return f"FeetechFrame(timestamp={self.timestamp}, target_qpos={self.target_qpos}, qpos={self.qpos}, velocity={self.velocity}, force={self.force})"

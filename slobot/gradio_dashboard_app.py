@@ -50,8 +50,7 @@ class GradioDashboardApp():
     PLOT_WIDTH = 19
     PLOT_HEIGHT = 8
 
-    def __init__(self):
-        self.logger = Configuration.logger(__name__)
+    LOGGER = Configuration.logger(__name__)
 
     def launch(self):
         with gr.Blocks() as demo:
@@ -105,7 +104,7 @@ class GradioDashboardApp():
         res = Configuration.LD
         for simulation_frame_paths in image_streams.simulation_frame_paths(res, fps, rgb=False, depth=False, segmentation=False, normal=False):
             simulation_frame = simulation_frame_paths.simulation_frame
-            self.logger.debug(f"Sending frame {simulation_frame}")
+            GradioDashboardApp.LOGGER.debug(f"Sending frame {simulation_frame}")
             self._update_history(df, simulation_frame)
 
         return df

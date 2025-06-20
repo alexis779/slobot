@@ -14,11 +14,11 @@ from slobot.video_writer import VideoWriter
 
 
 class VideoStreams:
+    LOGGER = Configuration.logger(__name__)
     FRAME_TYPES = ["rgb", "depth", "segmentation", "normal"]
 
     def __init__(self, **kwargs):
         os.makedirs(Configuration.WORK_DIR, exist_ok=True)
-        self.logger = Configuration.logger(__name__)
 
         self.video_segment_queue = queue.Queue()
 
@@ -98,7 +98,7 @@ class VideoStreams:
         self.video_segment_queue.put(simulation_frame_paths)
 
     def transcode_frames(self, simulation_frames) -> SimulationFramePaths:
-        self.logger.info(f"Transcoding video segment {self.segment_id}")
+        VideoStreams.LOGGER.info(f"Transcoding video segment {self.segment_id}")
         date_time = time.strftime('%Y%m%d_%H%M%S')
 
         if self.current_frame is None:
@@ -142,7 +142,7 @@ class VideoStreams:
                 env_simulation_frame_videos.append(filename)
             simulation_frame_videos.append(env_simulation_frame_videos)
 
-        self.logger.info(f"Done transcoding video segment {self.segment_id}")
+        VideoStreams.LOGGER.info(f"Done transcoding video segment {self.segment_id}")
         self.segment_id += 1
 
         return SimulationFramePaths(first_timestamp, simulation_frame_videos, None)
