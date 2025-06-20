@@ -219,7 +219,7 @@ PYOPENGL_PLATFORM=glx python scripts/validation/5_validate_sim_to_real.py [middl
 
 ### Real
 
-This example moves the robot to the 3 preset positions, waiting 1 sec in between each one.
+This example moves the robot to the preset positions, waiting 1 sec in between each one.
 
 ```
 python scripts/real.py
@@ -346,6 +346,20 @@ python scripts/sim_gradio_dashboard.py
 ```
 
 ![Gradio dashboard](./doc/GradioTabPlots.png)
+
+# Tele-operation
+
+Run tele-operation, controlling the follower using the leader position.
+
+```
+python scripts/teleop/teleoperate.py
+```
+
+The robot state for both the leader and the follower can be visualized in rerun.io viewer.
+
+In the example below, the arm was stretched out horizontally to apply the maximal torque possible on the `shoulder_lift` joint. Notice how the follower diverges from the leader. It is not able to lift back the arm to adjust to the leader position. Proportional gain `K_p=16` is insufficient. When multiplied with the angular error, it does not compensate the higher gravity force, causing the arm to sag. Increasing `K_p` gain fixes the error. However the links start to vibrate as the joints oscillate around the target position.
+
+![Gradio dashboard](./doc/TeleopRerun.io.png)
 
 # Camera feed
 
