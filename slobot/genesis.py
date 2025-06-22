@@ -99,14 +99,17 @@ class Genesis():
 
         print("Limits=", self.entity.get_dofs_limit())
 
+        qpos = self.entity.get_qpos()
+        print("qpos=", qpos)
 
+        Kp = 32
+        kp_tensor = torch.full_like(qpos, Kp)
+        self.entity.set_dofs_kp(kp_tensor)
         print("Kp=", self.entity.get_dofs_kp())
 
         print("Kd=", self.entity.get_dofs_kv())
-        print("Force range=", self.entity.get_dofs_force_range())
 
-        qpos = self.entity.get_qpos()
-        print("qpos=", qpos)
+        print("Force range=", self.entity.get_dofs_force_range())
 
         print("collisions=", self.entity.detect_collision())
 

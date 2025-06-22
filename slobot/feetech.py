@@ -25,8 +25,6 @@ class Feetech():
 
     REFERENCE_FRAME = 'middle'
 
-    LOGGER = Configuration.logger(__name__)
-
     def calibrate_pos(preset):
         feetech = Feetech()
         feetech.calibrate(preset)
@@ -41,11 +39,13 @@ class Feetech():
         self.qpos_handler = kwargs.get('qpos_handler', None)
         connect = kwargs.get('connect', True)
         torque = kwargs.get('torque', True)
+
+        self.motors_bus : MotorsBus = self._create_motors_bus(self.port, self.robot_id)
         if connect:
             self.connect(torque)
 
     def connect(self, torque):
-        self.motors_bus : MotorsBus = self._create_motors_bus(self.port, self.robot_id)
+        self.motors_bus.connect()
         if torque:
             self.set_torque(True)
 
@@ -65,8 +65,8 @@ class Feetech():
     def get_dofs_velocity(self):
         return self.velocity_to_qvelocity(self.get_velocity())
 
-    def get_dofs_force(self):
-        return self._read_config('Present_Load')
+    def get_dofs_control_force(self, ids = JOINT_IDS):
+        return self._read_config('Present_Load', ids=ids)
     
     def get_pos_goal(self):
         return self._read_config('Goal_Position')
@@ -87,8 +87,8 @@ class Feetech():
         return [ self._stepvelocity_to_velocity(velocity, i)
             for i in Feetech.JOINT_IDS ]
 
-    def control_position(self, pos):
-        self._write_config('Goal_Position', pos, Feetech.JOINT_IDS)
+    def control_position(self, pos, ids=JOINT_IDS):
+        self._write_config('Goal_Position', pos, ids)
         if self.qpos_handler is not None:
             feetech_frame = self.create_feetech_frame(pos)
             self.qpos_handler.handle_qpos(feetech_frame)
@@ -97,13 +97,19 @@ class Feetech():
         target_pos = self.qpos_to_pos(target_qpos)
         self.control_position(target_pos)
 
-    def set_torque(self, is_enabled):
+    def get_torque(self, ids=JOINT_IDS):
+        return self._read_config('Torque_Enable', ids)
+
+    def set_torque(self, is_enabled: bool, ids=JOINT_IDS):
         torque_enable = TorqueMode.ENABLED.value if is_enabled else TorqueMode.DISABLED.value
         torque_enable = [
             torque_enable
-            for joint_id in Feetech.JOINT_IDS
+            for joint_id in ids
         ]
-        self._write_config('Torque_Enable', torque_enable, Feetech.JOINT_IDS)
+        self._write_config('Torque_Enable', torque_enable, ids)
+
+    def set_home_offset(self, home_offset, ids=JOINT_IDS):
+        self._write_config("Home_Offset", home_offset, ids)
 
     def set_punch(self, punch, ids=JOINT_IDS):
         self._write_config('Minimum_Startup_Force', punch, ids)
@@ -147,10 +153,9 @@ class Feetech():
         robot = make_robot_from_config(robot_config)
         motors_bus = robot.bus
 
-        resolution = motors_bus.model_resolution_table[Feetech.MOTOR_MODEL]
-        self.radian_per_step = (2 * np.pi) / resolution
+        self.model_resolution = motors_bus.model_resolution_table[Feetech.MOTOR_MODEL]
+        self.radian_per_step = (2 * np.pi) / self.model_resolution
 
-        motors_bus.connect()
         return motors_bus
 
     def _qpos_to_steps(self, qpos, motor_index):
@@ -177,8 +182,8 @@ class Feetech():
 
     def _write_config(self, key, values, ids):
         values = {
-            Configuration.JOINT_NAMES[id] : values[id]
-            for id in ids
+            Configuration.JOINT_NAMES[id] : values[i]
+            for i, id in enumerate(ids)
         }
         self.motors_bus.sync_write(key, values, normalize=False)
 
@@ -187,5 +192,5 @@ class Feetech():
         qpos = self.pos_to_qpos(self.get_pos())
         target_qpos = self.pos_to_qpos(target_pos)
         velocity = self.get_dofs_velocity()
-        force = self.get_dofs_force()
+        force = self.get_dofs_control_force()
         return FeetechFrame(timestamp, target_qpos, qpos, velocity, force)
