@@ -1,5 +1,8 @@
 from slobot.so_arm_100 import SoArm100
 from slobot.simulation_frame import SimulationFrame
+from slobot.feetech import Feetech
+from slobot.configuration import Configuration
+
 from lerobot.common.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
 
 import torch
@@ -27,10 +30,16 @@ class InitialState:
 
 
 class EpisodeReplayer:
-    SCALE = torch.tensor([-1, -0.92, 1, 1, -1, 0.75]) # the scaling factor of the Follower angular position
+    LOGGER = Configuration.logger(__name__)
 
-    fixed_jaw_t = torch.tensor([-2e-2, -9e-2, 0]) # the translation vector from the fixed jaw position to the ball position, in the frame relative to the link
-    golf_ball_radius = 4.27e-2 / 2
+    MIDDLE_POS_OFFSET = torch.tensor([0, 0.06, 0.03, 0.01, torch.pi/2, 0.03]) # readjust the middle position calibration
+
+    FIXED_JAW_TRANSLATE = torch.tensor([-2e-2, -9e-2, 0]) # the translation vector from the fixed jaw position to the ball position, in the frame relative to the link
+    GOLF_BALL_RADIUS = 4.27e-2 / 2
+
+    DELAY_FRAMES = 4 # the number of fps the follower takes to reflect the leader position
+
+    DIFF_THRESHOLD = 10 # the cutoff value to identify when the gripper is holding the ball and when it is releasing the ball
 
     def __init__(self, **kwargs):
         self.repo_id = kwargs["repo_id"]
@@ -50,6 +59,8 @@ class EpisodeReplayer:
         kwargs["step_handler"] = self
         kwargs["rgb"] = True
 
+        self.feetech = Feetech(connect=False)
+
         self.arm = SoArm100(**kwargs)
 
     def replay_episodes(self):
@@ -59,7 +70,10 @@ class EpisodeReplayer:
         for episode_id in range(episode_count):
             success += 1 if self.replay_episode(episode_id) else 0
 
-        return success / episode_count
+        score = success / episode_count
+
+        EpisodeReplayer.LOGGER.info(f"Dataset {self.repo_id} score = {score}")
+        return score
 
     def replay_episode(self, episode_id):
         self.step_id = 0
@@ -93,7 +107,10 @@ class EpisodeReplayer:
         distance = torch.dist(golf_ball_pos[:2], cup_pos[:2]) # project error in the XY plane
 
         distance_threshold = 0.01
-        return distance < distance_threshold
+        success = distance < distance_threshold
+        EpisodeReplayer.LOGGER.info(f"Episode {self.episode_id} success = {success}")
+
+        return success
 
     def write_episodes_images(self):
         episode_count = self.ds_meta.total_episodes
@@ -129,12 +146,12 @@ class EpisodeReplayer:
 
         self.arm.genesis.stop()
 
-        self.arm.genesis.kwargs["show_viewer"] = True # False
+        self.arm.genesis.kwargs["show_viewer"] = False # True
         self.arm.genesis.start()
 
         golf_ball = gs.morphs.Sphere(
-            radius=self.golf_ball_radius,
-            pos=(initial_state.ball_x, initial_state.ball_y, self.golf_ball_radius),
+            radius=self.GOLF_BALL_RADIUS,
+            pos=(initial_state.ball_x, initial_state.ball_y, self.GOLF_BALL_RADIUS),
         )
 
         cup = gs.morphs.Mesh(
@@ -148,7 +165,7 @@ class EpisodeReplayer:
         )
         self.cup : RigidEntity = self.arm.genesis.scene.add_entity(cup)
 
-        os.environ['PYOPENGL_PLATFORM'] = 'glx' # egl
+        os.environ['PYOPENGL_PLATFORM'] = 'egl' # glx
         self.arm.genesis.build()
 
     def replay_frame(self, episode, frame_id, hold_state : HoldState):
@@ -168,11 +185,23 @@ class EpisodeReplayer:
     
     def get_robot_state(self, episode, frame_id):
         robot_state = episode['observation.state'][frame_id]
-        return self.degrees_to_radians(robot_state)
+        return self.positions_to_radians(robot_state)
 
-    def degrees_to_radians(self, degrees):
-        radians = torch.deg2rad(degrees)
-        radians = radians * self.SCALE.to(radians.device)
+    def positions_to_radians(self, positions):
+        positions = {
+            joint_id+1 : positions[joint_id]
+            for joint_id in range(Configuration.DOFS)
+        }
+        positions = self.feetech.motors_bus._unnormalize(positions)
+        positions = [
+            positions[joint_id+1]
+            for joint_id in range(Configuration.DOFS)
+        ]
+
+        radians = self.feetech.pos_to_qpos(positions)
+        radians = torch.tensor(radians)
+
+        radians = radians + self.MIDDLE_POS_OFFSET.to(radians.device)
         radians = torch.clamp(radians, self.qpos_limits[0], self.qpos_limits[1])
         return radians
 
@@ -181,27 +210,54 @@ class EpisodeReplayer:
         follower_gripper = episode['action'][:,gripper_id].cpu()
         leader_gripper = episode['observation.state'][:,gripper_id].cpu()
 
-        delay_frames = 3 # the number of fps the follower takes to reflect the leader position
-        truncated_leader = leader_gripper[delay_frames:]
-        gripper_diff = truncated_leader - follower_gripper[:-delay_frames]
+        truncated_leader = leader_gripper[EpisodeReplayer.DELAY_FRAMES:]
+        gripper_diff = truncated_leader - follower_gripper[:-EpisodeReplayer.DELAY_FRAMES]
 
-        diff_threshold = 15 # the cutoff value to identify when the gripper is holding the ball
-        above_threshold = torch.where(gripper_diff > diff_threshold, 1, 0)
-        above_threshold_derivative = torch.diff(above_threshold, prepend=above_threshold[0:1])
+        above_threshold = torch.where(gripper_diff > EpisodeReplayer.DIFF_THRESHOLD, 1, 0)
+        return self.sustained_frame_range(above_threshold)
 
-        pick_frame_id, = torch.where(above_threshold_derivative == 1)
-        place_frame_id, = torch.where(above_threshold_derivative == -1)
-        pick_frame_id = pick_frame_id.item()
-        place_frame_id = place_frame_id.item()
+    def sustained_frame_range(self, above_threshold):
+        sustained_frames = self.ds_meta.fps # at least 1 sec of holding
 
-        return HoldState(pick_frame_id=pick_frame_id, place_frame_id=place_frame_id)
+        counter = torch.full_like(above_threshold, fill_value=0)
+
+        frame = len(above_threshold) - 1
+        counter[frame] = 1 if above_threshold[frame] == 1 else 0
+
+        hold_start_frames = []
+        hold_end_frames = []
+
+        for frame in range(frame-1, -1, -1):
+            if above_threshold[frame] == 1:
+                counter[frame] = counter[frame+1] + 1
+            else:
+                if counter[frame+1] >= sustained_frames:
+                    hold_start_frames.append(frame+1)
+                    hold_end_frame = frame + counter[frame+1]
+                    hold_end_frame = hold_end_frame.item()
+                    hold_end_frames.append(hold_end_frame)
+
+                counter[frame] = 0
+
+        frame = 0
+        if counter[frame] >= sustained_frames:
+            hold_start_frames.append(frame)
+            hold_end_frame = frame + counter[frame] - 1
+            hold_end_frame = hold_end_frame.item()
+            hold_end_frames.append(hold_end_frame)
+
+        hold_start_frames, hold_end_frames
+        if len(hold_start_frames) != 1:
+            raise Exception("Holding period detection failed")
+
+        return HoldState(pick_frame_id=hold_start_frames[0], place_frame_id=hold_end_frames[0])
 
     def get_initial_state(self, episode, hold_state: HoldState):
         self.set_robot_state(episode, hold_state.pick_frame_id)
-        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_t)
+        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.FIXED_JAW_TRANSLATE)
 
         self.set_robot_state(episode, hold_state.place_frame_id)
-        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_t)
+        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.FIXED_JAW_TRANSLATE)
 
         return InitialState(ball_x=pick_link_pos[0].item(), ball_y=pick_link_pos[1].item(), cup_x=place_link_pos[0].item(), cup_y=place_link_pos[1].item())
 
@@ -216,7 +272,7 @@ class EpisodeReplayer:
     def write_image(self, type, rgb_image, episode_id, step_id):
         image = Image.fromarray(rgb_image, mode='RGB')
 
-        image_path = f"img/{type}/episode_{episode_id:03d}/frame_{step_id:03d}.png"
+        image_path = f"img/{self.repo_id}/{type}/episode_{episode_id:03d}/frame_{step_id:03d}.png"
 
         # Create the directory if it doesn't exist
         os.makedirs(os.path.dirname(image_path), exist_ok=True)

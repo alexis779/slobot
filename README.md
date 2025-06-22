@@ -21,7 +21,7 @@ There are 2 main use cases
 
 [LeRobot](https://github.com/huggingface/lerobot) provides SOTA policies to perform *Imitation Learning* and *Reinforcement Learning* in robotics.
 
-Curate a new dataset: have the follower arm perform a task of interest, by replicating the motion of the leader arm held a human operator.
+Tele-operate to create a new dataset: have the follower arm perform a task of interest, by replicating the motion of the leader arm held a human operator.
 
 Then fine-tune a model on the training dataset.
 
@@ -49,6 +49,10 @@ Finally evaluate it on the eval dataset to see how well it performs.
   url = {https://github.com/Genesis-Embodied-AI/Genesis}
 }
 ```
+
+## Topics
+
+- [Tele-operation](doc/teleoperate.md)
 
 ## Policies
 
@@ -180,7 +184,7 @@ Position the arm manually into the `middle` preset.
 python scripts/validation/1_calibrate_motor_pos.py middle
 ```
 
-It will read the motor positions and output them. Copy the pos array in Configuration.POS_MAP in the corresponding preset.
+It will read the motor positions and output them. It should return an int vector around `[2047, 2047, 2047, 2047, 2047, 2047]`, the middle position for each motor.
 
 ### 2. Validate the preset *pos to qpos* conversion in sim
 
@@ -346,20 +350,6 @@ python scripts/sim_gradio_dashboard.py
 ```
 
 ![Gradio dashboard](./doc/GradioTabPlots.png)
-
-# Tele-operation
-
-Run tele-operation, controlling the follower using the leader position.
-
-```
-python scripts/teleop/teleoperate.py
-```
-
-The robot state for both the leader and the follower can be visualized in rerun.io viewer.
-
-In the example below, the arm was stretched out horizontally to apply the maximal torque possible on the `shoulder_lift` joint. Notice how the follower diverges from the leader. It is not able to lift back the arm to adjust to the leader position. Proportional gain `K_p=16` is insufficient. When multiplied with the angular error, it does not compensate the higher gravity force, causing the arm to sag. Increasing `K_p` gain fixes the error. However the links start to vibrate as the joints oscillate around the target position.
-
-![Gradio dashboard](./doc/TeleopRerun.io.png)
 
 # Camera feed
 
