@@ -32,7 +32,7 @@ class InitialState:
 class EpisodeReplayer:
     LOGGER = Configuration.logger(__name__)
 
-    MIDDLE_POS_OFFSET = torch.tensor([0, 0.06, 0.03, 0.01, torch.pi/2, 0.03]) # readjust the middle position calibration
+    MIDDLE_POS_OFFSET = torch.tensor([0, 0.07, 0, 0, torch.pi/2, 0.02]) # readjust the middle position calibration
 
     FIXED_JAW_TRANSLATE = torch.tensor([-2e-2, -9e-2, 0]) # the translation vector from the fixed jaw position to the ball position, in the frame relative to the link
     GOLF_BALL_RADIUS = 4.27e-2 / 2
@@ -56,8 +56,8 @@ class EpisodeReplayer:
         kwargs["res"] = (video_width, video_height)
 
         # enable RGB camera
-        kwargs["step_handler"] = self
-        kwargs["rgb"] = True
+        #kwargs["step_handler"] = self
+        #kwargs["rgb"] = True
 
         self.feetech = Feetech(connect=False)
 
@@ -146,11 +146,19 @@ class EpisodeReplayer:
 
         self.arm.genesis.stop()
 
-        self.arm.genesis.kwargs["show_viewer"] = False # True
+        self.arm.genesis.kwargs["show_viewer"] = True # True
         self.arm.genesis.start()
 
+        '''
         golf_ball = gs.morphs.Sphere(
             radius=self.GOLF_BALL_RADIUS,
+            pos=(initial_state.ball_x, initial_state.ball_y, self.GOLF_BALL_RADIUS),
+        )
+        '''
+
+        golf_ball = gs.morphs.Mesh(
+            file="meshes/sphere.obj",
+            scale=self.GOLF_BALL_RADIUS,
             pos=(initial_state.ball_x, initial_state.ball_y, self.GOLF_BALL_RADIUS),
         )
 
@@ -161,11 +169,12 @@ class EpisodeReplayer:
 
         self.golf_ball : RigidEntity = self.arm.genesis.scene.add_entity(
             golf_ball,
-            visualize_contact=False # True
+            visualize_contact=False, # True
         )
+
         self.cup : RigidEntity = self.arm.genesis.scene.add_entity(cup)
 
-        os.environ['PYOPENGL_PLATFORM'] = 'egl' # glx
+        os.environ['PYOPENGL_PLATFORM'] = 'glx' # glx
         self.arm.genesis.build()
 
     def replay_frame(self, episode, frame_id, hold_state : HoldState):
@@ -289,4 +298,4 @@ class EpisodeReplayer:
         camera_image = (camera_image * 255).astype("uint8")
 
         episode_id = episode['episode_index'][frame_id].item()
-        self.write_image("real", camera_image, episode_id, frame_id)
+        #self.write_image("real", camera_image, episode_id, frame_id)
