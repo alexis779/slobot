@@ -30,7 +30,7 @@ jobs:
       - name: Build release distributions
         run: |
           git clone -b main https://github.com/google-deepmind/mujoco_menagerie ../mujoco_menagerie
-          cp -r ../mujoco_menagerie/trs_so_arm100 .
+          cp -r ../mujoco_menagerie/trs_so_arm100 src/slobot/config/
           python -m pip install build
           pip install -e '.'
           pip install git+https://github.com/Genesis-Embodied-AI/Genesis.git

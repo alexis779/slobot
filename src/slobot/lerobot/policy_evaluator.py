@@ -4,11 +4,10 @@ import torch
 import cv2
 import numpy as np
 
-from lerobot.common.robot_devices.utils import busy_wait
-from lerobot.common.robot_devices.robots.utils import make_robot
-
+from lerobot.common.datasets.v2.convert_dataset_v1_to_v2 import make_robot_config
 from lerobot.common.policies.factory import get_policy_class
-
+from lerobot.common.robots import make_robot_from_config
+from lerobot.common.utils.robot_utils import busy_wait
 from lerobot.common.utils.utils import auto_select_torch_device
 
 
@@ -16,14 +15,16 @@ class PolicyEvaluator:
     INFERENCE_TIME_S = 60
     FPS = 25
 
-    def __init__(self, robot_type, policy_type, model_path):
+    def __init__(self, robot_type, policy_type, model_path, port):
         self.model_path = model_path
         self.policy_type = policy_type
-        self.robot_type = robot_type
+
+        robot_config = make_robot_config(robot_type, port=port)
+        self.robot = make_robot_from_config(robot_config)
+
         self.device = auto_select_torch_device()
 
     def evaluate(self):
-        self.robot = make_robot(self.robot_type)
         self.robot.connect()
 
         policy_cls = get_policy_class(self.policy_type)

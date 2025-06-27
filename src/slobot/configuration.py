@@ -1,10 +1,11 @@
 import numpy as np
 import logging
+from importlib.resources import files
 
 class Configuration:
     WORK_DIR = "/tmp/slobot"
 
-    MJCF_CONFIG = './trs_so_arm100/so_arm100.xml'
+    MJCF_CONFIG = str(files('slobot.config') / "trs_so_arm100" / "so_arm100.xml")
 
     # 16:9 aspect ratio
     LD = (426, 240)

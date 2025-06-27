@@ -101,15 +101,29 @@ Install following dependencies
 ### 1. slobot
 
 ```
-pip install git+https://github.com/alexis779/slobot.git
+git clone git+https://github.com/alexis779/slobot.git
+cd slobot
+pip install -e .
 ```
-### 2. LeRobot
+
+### 2. Robot Configuration
+
+Ensure the robot [configuration](https://github.com/google-deepmind/mujoco_menagerie/tree/main/trs_so_arm100) in available in `slobot.config` package.
+
+```
+cd ..
+git clone https://github.com/google-deepmind/mujoco_menagerie
+cd slobot
+ln -s ../mujoco_menagerie/trs_so_arm100 src/slobot/config/trs_so_arm100
+```
+
+### 3. LeRobot
 
 ```
 pip install git+https://github.com/huggingface/lerobot.git
 ```
 
-### 3. Genesis
+### 4. Genesis
 
 ```
 pip install git+https://github.com/Genesis-Embodied-AI/Genesis.git
@@ -138,24 +152,12 @@ Finally, configure `LD_LIBRARY_PATH` to overwrite QT library path,
 LD_LIBRARY_PATH=$PYMESHLAB_LIB PYOPENGL_PLATFORM=glx python <script.py>
 ```
 
-### 4. OMPL
+### 5. OMPL
 
 ```
 pip install https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp312-cp312-manylinux_2_28_x86_64.whl
 ```
 
-### 5. Robot Configuration
-
-Download the [Mujoco XML configuration](https://github.com/google-deepmind/mujoco_menagerie/tree/main/trs_so_arm100).
-
-Ensure the robot configuration directory in available in the current directory.
-
-```
-cd ..
-git clone https://github.com/google-deepmind/mujoco_menagerie
-cd slobot
-ln -s ../mujoco_menagerie/trs_so_arm100 trs_so_arm100
-```
 
 ## Validation & Calibration
 
