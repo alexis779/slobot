@@ -16,6 +16,8 @@ from dataclasses import dataclass
 
 import os
 
+from importlib.resources import files
+
 @dataclass
 class HoldState:
     pick_frame_id: int
@@ -153,8 +155,9 @@ class EpisodeReplayer:
             pos=(1, 1, self.GOLF_BALL_RADIUS)
         )
 
+        cup_filename = str(files('slobot.config') / 'assets' / 'cup.stl')
         cup = gs.morphs.Mesh(
-            file="./doc/cup.stl",
+            file=cup_filename,
             pos=(-1, -1, 0)
         )
 

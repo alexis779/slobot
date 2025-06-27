@@ -1,6 +1,6 @@
 [project]
 name = "slobot"
-version = "0.1.12"
+version = "0.1.13"
 
 dependencies = [
     # "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
@@ -23,4 +23,4 @@ dependencies = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-"slobot.config" = ["trs_so_arm100/*", "trs_so_arm100/assets/*"]
+"slobot.config" = ["trs_so_arm100/*", "trs_so_arm100/assets/*", "assets/*"]

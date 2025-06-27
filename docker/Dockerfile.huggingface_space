@@ -5,7 +5,7 @@ COPY debian.sources /etc/apt/sources.list.d/debian.sources
 RUN apt update
 
 # install packages
-RUN --mount=target=/tmp/packages.txt,source=packages.txt \
+RUN --mount=target=/tmp/packages.txt,source=docker/packages.huggingface_space.txt \
     xargs -r -a /tmp/packages.txt apt install -y
 
 RUN rm -rf /var/lib/apt/lists/*
@@ -45,8 +45,6 @@ WORKDIR $HOME
 # python version
 ARG python_version=3.12.9
 
-RUN curl https://pyenv.run | bash
-ENV PATH="$HOME/.pyenv/bin:$PATH"
 RUN pyenv install $python_version
 ENV PATH="$HOME/.pyenv/versions/$python_version/bin:$PATH"
 
@@ -56,25 +54,14 @@ RUN echo ". /home/user/venv/bin/activate" >> /home/user/.bashrc
 
 ENV PATH="/home/user/venv/bin:$PATH"
 
-RUN --mount=target=/tmp/requirements.txt,source=requirements.txt \
+RUN --mount=target=/tmp/requirements.txt,source=docker/requirements.txt \
     pip install --no-cache-dir -r /tmp/requirements.txt
-
-RUN wget https://github.com/ompl/ompl/releases/download/1.7.0/wheels-ubuntu-latest-x86_64.zip \
-    && unzip wheels-ubuntu-latest-x86_64.zip \
-    && pip install ompl-1.7.0-cp312-cp312-manylinux_2_28_x86_64.whl \
-    && rm wheels-ubuntu-latest-x86_64.zip \
-    && rm ompl-1.7.0-*.whl
 
 WORKDIR /home/user/app
 
-# deploy robot configuration
-RUN git clone -b main https://github.com/google-deepmind/mujoco_menagerie
-RUN cp -r mujoco_menagerie/trs_so_arm100 trs_so_arm100
-RUN rm -rf mujoco_menagerie
-
 # deploy application into target directory
-COPY --chown=user . /home/user/app
+COPY --chown=user scripts /home/user/app
 
 ENV GRADIO_SERVER_NAME="0.0.0.0"
 
-CMD [ "python", "sim_gradio_video.py" ]
+CMD [ "python", "scripts/sim_gradio_video.py" ]
