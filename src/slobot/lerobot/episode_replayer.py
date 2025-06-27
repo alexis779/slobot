@@ -165,7 +165,6 @@ class EpisodeReplayer:
 
         self.cup : RigidEntity = self.arm.genesis.scene.add_entity(cup)
 
-        os.environ['PYOPENGL_PLATFORM'] = 'glx' if self.show_viewer else 'egl'
         self.arm.genesis.build()
         self.qpos_limits = self.arm.genesis.entity.get_dofs_limit()
 

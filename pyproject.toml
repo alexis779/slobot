@@ -1,6 +1,6 @@
 [project]
 name = "slobot"
-version = "0.1.11"
+version = "0.1.12"
 
 dependencies = [
     # "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
@@ -19,11 +19,8 @@ dependencies = [
     "modal" # serverless GPU compute platform
 ]
 
-[tool.setuptools]
-packages = ["slobot"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
-slobot = [
-    "trs_so_arm100/*",
-    "trs_so_arm100/assets/*"
-]
+"slobot.config" = ["trs_so_arm100/*", "trs_so_arm100/assets/*"]
