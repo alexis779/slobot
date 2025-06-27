@@ -1,0 +1,6 @@
+slobot
+git+https://github.com/Genesis-Embodied-AI/Genesis.git
+https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp312-cp312-manylinux_2_28_x86_64.whl
+git+https://github.com/huggingface/lerobot.git
+gradio
+modal

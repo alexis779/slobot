@@ -1,0 +1,53 @@
+FROM debian:trixie-slim
+
+RUN apt update
+
+# install packages
+RUN --mount=target=/tmp/packages.txt,source=docker/packages.local.txt \
+    xargs -r -a /tmp/packages.txt apt install -y
+
+RUN rm -rf /var/lib/apt/lists/*
+RUN apt clean
+
+# create render group to get permission to the DRI device
+# The number should match the group actual number
+# $ grep render /etc/group
+RUN groupadd -g 105 render
+
+# create user
+RUN useradd -m -s /bin/bash user
+
+RUN usermod -aG video user
+RUN usermod -aG render user
+
+
+# next commands will be executed as the user
+USER user
+
+ENV HOME=/home/user
+WORKDIR $HOME
+
+# python version
+ARG python_version=3.12.9
+
+RUN pyenv install $python_version
+ENV PATH="$HOME/.pyenv/versions/$python_version/bin:$PATH"
+
+RUN python -m venv /home/user/venv
+RUN echo "cd $HOME" >> /home/user/.bashrc
+RUN echo ". /home/user/venv/bin/activate" >> /home/user/.bashrc
+
+ENV PATH="/home/user/venv/bin:$PATH"
+
+RUN --mount=target=/tmp/requirements.txt,source=docker/requirements.txt \
+    pip install --no-cache-dir -r /tmp/requirements.txt
+
+WORKDIR /home/user/app
+
+COPY --chown=user ./scripts /home/user/app
+
+ENV GRADIO_SERVER_NAME="0.0.0.0"
+
+ENV PYOPENGL_PLATFORM="egl"
+
+CMD [ "python", "scripts/sim_gradio_image.py" ]

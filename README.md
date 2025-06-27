@@ -497,14 +497,17 @@ python scripts/policy/lerobot/eval_policy.py --robot_type so100 --policy_type $p
 
 ## Docker
 
+
+### Local
+
 Build docker image:
 
 ```
-docker build -t slobot-genesis .
+docker build -f docker/Dockerfile.local -t slobot .
 ```
 
 Run docker container. Make sure to enable **DRI** for hardware graphics acceleration.
 
 ```
-docker run -it --security-opt no-new-privileges=true -p 7860:7860 --device=/dev/dri -v $PWD:/home/user/app slobot-genesis-image
+docker run -it --security-opt no-new-privileges=true -p 7860:7860 --device=/dev/dri -v $PWD:/home/user/app slobot
 ```
