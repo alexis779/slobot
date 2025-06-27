@@ -30,11 +30,11 @@ partition = "/data"
 def get_output_dir(dataset_repo_id: str, policy_type: str):
     return Path(partition, "outputs", "train", dataset_repo_id, policy_type)
 
-@app.function(image=image, gpu="any", timeout=86400, volumes={partition: vol}, secrets=[wandb_secret])
-def train_policy(dataset_repo_id: str, policy_type: str):
+@app.function(image=image, volumes={partition: vol}, secrets=[wandb_secret], gpu="any", timeout=86400)
+def train_policy(dataset_repo_id: str, policy_type: str, resume: bool = False):
     init_logging()
 
-    policy_config = make_policy_config(policy_type)
+    policy_config = make_policy_config(policy_type, push_to_hub=False)
 
     output_dir = get_output_dir(dataset_repo_id, policy_type)
 
@@ -46,7 +46,8 @@ def train_policy(dataset_repo_id: str, policy_type: str):
         output_dir=output_dir,
         wandb=WandBConfig(
             enable=True,
-        )
+        ),
+        resume=resume
     )
     train(cfg)
 
