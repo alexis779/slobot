@@ -48,20 +48,24 @@ class EpisodeReplayer:
         self.ds_meta = LeRobotDatasetMetadata(self.repo_id)
         kwargs["fps"] = self.ds_meta.fps
         kwargs["should_start"] = False
-        kwargs["show_viewer"] = False
+        self.show_viewer = kwargs.get("show_viewer", True)
 
         # Image Resolution of the 1st camera
         camera_key = self.ds_meta.camera_keys[0]
         video_height, video_width, channels = self.ds_meta.features[camera_key]['shape']
         kwargs["res"] = (video_width, video_height)
 
-        # enable RGB camera
-        #kwargs["step_handler"] = self
-        #kwargs["rgb"] = True
+        if self.show_viewer:
+            pass
+            # enable RGB camera
+            #kwargs["step_handler"] = self
+            #kwargs["rgb"] = True
 
         self.feetech = Feetech(connect=False)
 
         self.arm = SoArm100(**kwargs)
+
+        self.build_scene()
 
     def replay_episodes(self):
         episode_count = self.ds_meta.total_episodes
@@ -69,6 +73,8 @@ class EpisodeReplayer:
         success = 0
         for episode_id in range(episode_count):
             success += 1 if self.replay_episode(episode_id) else 0
+
+        self.arm.genesis.stop()
 
         score = success / episode_count
 
@@ -92,17 +98,22 @@ class EpisodeReplayer:
 
         episode = next(iter(dataloader))
 
-        hold_state = self.get_hold_state(episode)
+        hold_state: HoldState = self.get_hold_state(episode)
 
-        self.add_objects(episode, hold_state)
+        # compute the initial positions of the ball and the cup
+        initial_state : InitialState = self.get_initial_state(episode, hold_state)
+
+        golf_pos = [initial_state.ball_x, initial_state.ball_y, self.GOLF_BALL_RADIUS]
+        self.golf_ball.set_pos(golf_pos)
+
+        cup_pos = [initial_state.cup_x, initial_state.cup_y, 0]
+        self.cup.set_pos(cup_pos)
 
         for frame_id in range(episode_frame_count):
             self.replay_frame(episode, frame_id, hold_state)
 
         golf_ball_pos = self.golf_ball.get_pos()
         cup_pos = self.cup.get_pos()
-
-        self.arm.genesis.stop()
 
         distance = torch.dist(golf_ball_pos[:2], cup_pos[:2]) # project error in the XY plane
 
@@ -133,38 +144,18 @@ class EpisodeReplayer:
         for frame_id in range(episode_frame_count):
             self.write_camera_image(episode, frame_id)
 
-    def add_objects(self, episode, hold_state : HoldState):
-        self.arm.genesis.kwargs["show_viewer"] = False # disable visualization
-        os.environ['PYOPENGL_PLATFORM'] = 'egl' # offline mode
-
+    def build_scene(self):
         self.arm.genesis.start()
-        self.arm.genesis.build()
-        self.qpos_limits = self.arm.genesis.entity.get_dofs_limit()
-
-        # compute the initial positions of the ball and the cup
-        initial_state : InitialState = self.get_initial_state(episode, hold_state)
-
-        self.arm.genesis.stop()
-
-        self.arm.genesis.kwargs["show_viewer"] = True # True
-        self.arm.genesis.start()
-
-        '''
-        golf_ball = gs.morphs.Sphere(
-            radius=self.GOLF_BALL_RADIUS,
-            pos=(initial_state.ball_x, initial_state.ball_y, self.GOLF_BALL_RADIUS),
-        )
-        '''
 
         golf_ball = gs.morphs.Mesh(
             file="meshes/sphere.obj",
             scale=self.GOLF_BALL_RADIUS,
-            pos=(initial_state.ball_x, initial_state.ball_y, self.GOLF_BALL_RADIUS),
+            pos=(1, 1, self.GOLF_BALL_RADIUS)
         )
 
         cup = gs.morphs.Mesh(
             file="./doc/cup.stl",
-            pos=(initial_state.cup_x, initial_state.cup_y, 0),
+            pos=(-1, -1, 0)
         )
 
         self.golf_ball : RigidEntity = self.arm.genesis.scene.add_entity(
@@ -174,8 +165,9 @@ class EpisodeReplayer:
 
         self.cup : RigidEntity = self.arm.genesis.scene.add_entity(cup)
 
-        os.environ['PYOPENGL_PLATFORM'] = 'glx' # glx
+        os.environ['PYOPENGL_PLATFORM'] = 'glx' if self.show_viewer else 'egl'
         self.arm.genesis.build()
+        self.qpos_limits = self.arm.genesis.entity.get_dofs_limit()
 
     def replay_frame(self, episode, frame_id, hold_state : HoldState):
         robot_state = self.get_robot_state(episode, frame_id)
@@ -188,7 +180,9 @@ class EpisodeReplayer:
             color = (0, 1, 1, 0.4)
             #self.arm.genesis.draw_arrow(self.arm.genesis.fixed_jaw, self.fixed_jaw_t, color)
 
-        self.write_camera_image(episode, frame_id)
+        if self.show_viewer:
+            pass
+            #self.write_camera_image(episode, frame_id)
 
         self.arm.genesis.step()
     
@@ -298,4 +292,4 @@ class EpisodeReplayer:
         camera_image = (camera_image * 255).astype("uint8")
 
         episode_id = episode['episode_index'][frame_id].item()
-        #self.write_image("real", camera_image, episode_id, frame_id)
+        self.write_image("real", camera_image, episode_id, frame_id)

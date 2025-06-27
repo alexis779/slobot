@@ -141,7 +141,7 @@ LD_LIBRARY_PATH=$PYMESHLAB_LIB PYOPENGL_PLATFORM=glx python <script.py>
 ### 4. OMPL
 
 ```
-pip install https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.7.0-cp312-cp312-manylinux_2_28_x86_64.whl
+pip install https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp312-cp312-manylinux_2_28_x86_64.whl
 ```
 
 ### 5. Robot Configuration
@@ -477,7 +477,7 @@ Select policy and dataset
 
 ```
 policy=act
-dataset_repo_id=alexis779/so100_ball_cup
+dataset_repo_id=alexis779/so100_ball_cup2
 ```
 
 Train the policy on the dataset

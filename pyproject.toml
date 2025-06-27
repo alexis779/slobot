@@ -1,10 +1,10 @@
 [project]
 name = "slobot"
-version = "0.1.10"
+version = "0.1.11"
 
 dependencies = [
     # "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
-    # "ompl @ https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.7.0-cp312-cp312-manylinux_2_28_x86_64.whl",
+    # "ompl @ https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp312-cp312-manylinux_2_28_x86_64.whl",
     "torch",
     # "lerobot @ git+https://github.com/huggingface/lerobot.git",
 
@@ -14,7 +14,9 @@ dependencies = [
 
     # "nvidia-gr00t-sdk" @ git+https://github.com/NVIDIA/Isaac-GR00T.git
 
-    "ipykernel" # to run notebooks
+    "ipykernel", # to run notebooks
+
+    "modal" # serverless GPU compute platform
 ]
 
 [tool.setuptools]
