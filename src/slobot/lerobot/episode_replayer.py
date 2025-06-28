@@ -4,6 +4,7 @@ from slobot.feetech import Feetech
 from slobot.configuration import Configuration
 
 from lerobot.common.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
+from lerobot.common.utils.utils import auto_select_torch_device
 
 import torch
 
@@ -93,9 +94,11 @@ class EpisodeReplayer:
         to_idx = dataset.episode_data_index["to"][0].item()
         episode_frame_count = to_idx - from_idx
 
+        pin_memory = auto_select_torch_device() != torch.device("cpu")
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=episode_frame_count,
+            pin_memory=pin_memory
         )
 
         episode = next(iter(dataloader))
