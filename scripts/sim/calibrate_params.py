@@ -30,9 +30,6 @@ image = (
     ).add_local_file(
         f"{os.environ['HOME']}/.ssh/id_ed25519.pub", "/root/.ssh/authorized_keys", # enable ssh connection to modal container
         copy=True
-    ).add_local_file(
-        f"{os.environ['HOME']}/.cache/huggingface/lerobot/calibration/robots/so100_follower/follower_arm.json", "/root/.cache/huggingface/lerobot/calibration/robots/so100_follower/follower_arm.json",
-        copy=True
     ).add_local_python_source(
         "lerobot",
         "slobot",
@@ -41,6 +38,10 @@ image = (
 )
 
 app = modal.App("slobot")
+vol = modal.Volume.from_name("huggingface_cache", create_if_missing=True)
+cache_folder = "/root/.cache/huggingface"
+
+# modal volume put huggingface_cache ~/.cache/huggingface/lerobot/calibration/robots/so100_follower/follower_arm.json lerobot/calibration/robots/so100_follower/follower_arm.json
 
 @app.function(image=image, timeout=3600)
 def open_ssh_tunnel():
@@ -51,7 +52,7 @@ def open_ssh_tunnel():
         print(f"ssh into container using: {connection_cmd}")
         time.sleep(3600)  # keep alive for 1 hour or until killed
 
-@app.function(image=image, gpu="any", timeout=3600)
+@app.function(image=image, gpu="any", timeout=3600, volumes={cache_folder: vol})
 def replay_episodes(dataset_repo_id: str, episode_ids: str = None):
     mjcf_path = Configuration.MJCF_CONFIG
     episode_replayer = EpisodeReplayer(repo_id=dataset_repo_id, mjcf_path=mjcf_path, show_viewer=False)
