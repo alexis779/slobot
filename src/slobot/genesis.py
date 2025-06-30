@@ -239,7 +239,7 @@ class Genesis():
     def translate(self, pos, t, euler):
         r = Rotation.from_euler(self.EXTRINSIC_SEQ, euler)
         t = r.apply(t)
-        return pos + t
+        return pos + torch.from_numpy(t).to(pos.device)
 
     def quat_to_euler(self, quat):
         quat = quat.cpu()
