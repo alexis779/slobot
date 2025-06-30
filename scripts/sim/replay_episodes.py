@@ -10,7 +10,7 @@ args = parser.parse_args()
 
 mjcf_path = Configuration.MJCF_CONFIG
 repo_id = args.dataset_repo_id
-episode_replayer = EpisodeReplayer(repo_id=repo_id, mjcf_path=mjcf_path)
+episode_replayer = EpisodeReplayer(repo_id=repo_id, mjcf_path=mjcf_path, show_viewer=False)
 episode_id_str = args.episode_id
 if episode_id_str is None:
     rate = episode_replayer.replay_episodes()
