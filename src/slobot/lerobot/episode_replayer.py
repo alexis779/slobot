@@ -3,8 +3,10 @@ from slobot.simulation_frame import SimulationFrame
 from slobot.feetech import Feetech
 from slobot.configuration import Configuration
 
+from datasets import load_dataset
 from lerobot.common.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
-from lerobot.common.utils.utils import auto_select_torch_device
+from lerobot.common.datasets.utils import DEFAULT_PARQUET_PATH
+from lerobot.common.constants import HF_LEROBOT_HOME
 
 import torch
 
@@ -34,6 +36,8 @@ class InitialState:
 
 class EpisodeReplayer:
     LOGGER = Configuration.logger(__name__)
+
+    GRIPPER_ID = 5 # the id of the jaw joint
 
     MIDDLE_POS_OFFSET = torch.tensor([0, 0.07, 0, 0, torch.pi/2, 0.02]) # readjust the middle position calibration
 
@@ -88,14 +92,11 @@ class EpisodeReplayer:
         self.step_id = 0
         self.episode_id = episode_id
 
-        dataset = LeRobotDataset(self.repo_id, episodes=[episode_id])
-
-        from_idx = dataset.episode_data_index["from"][0].item()
-        to_idx = dataset.episode_data_index["to"][0].item()
-        episode_frame_count = to_idx - from_idx
+        episode_dataset = self.load_dataset(episode_id)
+        episode_frame_count = episode_dataset.num_rows
 
         dataloader = torch.utils.data.DataLoader(
-            dataset,
+            episode_dataset,
             batch_size=episode_frame_count,
         )
 
@@ -125,6 +126,14 @@ class EpisodeReplayer:
         EpisodeReplayer.LOGGER.info(f"Episode {self.episode_id} success = {success}")
 
         return success
+
+    def load_dataset(self, episode_id):
+        episode_chunk = 0
+        data_file = DEFAULT_PARQUET_PATH.format(episode_chunk=episode_chunk, episode_index=episode_id)
+
+        dataset = load_dataset(self.repo_id, data_files=[data_file], split="train")
+        dataset = dataset.select_columns(["action", "observation.state"])
+        return dataset
 
     def write_episodes_images(self):
         episode_count = self.ds_meta.total_episodes
@@ -190,7 +199,11 @@ class EpisodeReplayer:
         self.arm.genesis.step()
     
     def get_robot_state(self, episode, frame_id):
-        robot_state = episode['observation.state'][frame_id]
+        robot_state = [
+            episode['observation.state'][joint_id][frame_id]
+            for joint_id in range(Configuration.DOFS)
+        ]
+
         return self.positions_to_radians(robot_state)
 
     def positions_to_radians(self, positions):
@@ -207,14 +220,13 @@ class EpisodeReplayer:
         radians = self.feetech.pos_to_qpos(positions)
         radians = torch.tensor(radians)
 
-        radians = radians + self.MIDDLE_POS_OFFSET.to(radians.device)
+        radians = radians + EpisodeReplayer.MIDDLE_POS_OFFSET.to(radians.device)
         radians = torch.clamp(radians, self.qpos_limits[0], self.qpos_limits[1])
         return radians
 
     def get_hold_state(self, episode) -> HoldState:
-        gripper_id = 5 # the id of the jaw joint
-        follower_gripper = episode['action'][:,gripper_id].cpu()
-        leader_gripper = episode['observation.state'][:,gripper_id].cpu()
+        follower_gripper = episode['action'][EpisodeReplayer.GRIPPER_ID]
+        leader_gripper = episode['observation.state'][EpisodeReplayer.GRIPPER_ID]
 
         truncated_leader = leader_gripper[EpisodeReplayer.DELAY_FRAMES:]
         gripper_diff = truncated_leader - follower_gripper[:-EpisodeReplayer.DELAY_FRAMES]
