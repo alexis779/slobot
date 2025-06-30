@@ -10,19 +10,16 @@ args = parser.parse_args()
 
 mjcf_path = Configuration.MJCF_CONFIG
 repo_id = args.dataset_repo_id
-episode_replayer = EpisodeReplayer(repo_id=repo_id, mjcf_path=mjcf_path, show_viewer=False)
-episode_id_str = args.episode_id
-if episode_id_str is None:
-    rate = episode_replayer.replay_episodes()
-    print(f"Success rate: {rate:.2f}")
-else:
-    episode_ids = [int(eid.strip()) for eid in episode_id_str.split(',')]
-    successes = []
-    for episode_id in episode_ids:
-        success = episode_replayer.replay_episode(episode_id)
-        print(f"Episode {episode_id} success: {success}")
-        successes.append(success)
+episode_replayer = EpisodeReplayer(repo_id=repo_id, mjcf_path=mjcf_path, show_viewer=True)
 
-    if len(successes) > 1:
-        rate = sum(successes) / len(successes)
-        print(f"Success rate: {rate:.2f} ({sum(successes)}/{len(successes)})")
+
+episode_ids = None
+
+episode_id_str = args.episode_id
+if episode_id_str is not None:
+    episode_ids = [ int(episode_id)
+        for episode_id in episode_id_str.split(',')
+    ]
+
+rate = episode_replayer.replay_episodes(episode_ids)
+print(f"Success rate: {rate:.2f}")
