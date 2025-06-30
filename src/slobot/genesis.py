@@ -92,8 +92,8 @@ class Genesis():
         if should_start:
             self.build()
 
-    def build(self):
-        self.scene.build()
+    def build(self, n_envs=0):
+        self.scene.build(n_envs=n_envs, env_spacing=(0.5, 0.5))
 
         #self.camera.start_recording()
 
@@ -103,8 +103,9 @@ class Genesis():
         print("qpos=", qpos)
 
         Kp = 32
-        kp_tensor = torch.full_like(qpos, Kp)
-        self.entity.set_dofs_kp(kp_tensor)
+        Kp = torch.full((Configuration.DOFS,), Kp)
+        self.entity.set_dofs_kp(Kp)
+
         print("Kp=", self.entity.get_dofs_kp())
 
         print("Kd=", self.entity.get_dofs_kv())

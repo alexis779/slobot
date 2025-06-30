@@ -53,6 +53,7 @@ Finally evaluate it on the eval dataset to see how well it performs.
 ## Topics
 
 - [Tele-operation](doc/teleoperate.md)
+- [Real 2 Sim](doc/real2sim.md)
 
 ## Policies
 
@@ -247,23 +248,6 @@ PYOPENGL_PLATFORM=glx python scripts/sim_to_real.py
 | sim | real |
 |----------|-------------|
 | <video controls src="https://github.com/user-attachments/assets/eab20130-a21d-4811-bca8-07502012b8da"></video> | <video controls src="https://github.com/user-attachments/assets/a429d559-58e4-4328-a7f0-17f7477125ff"></video> |
-
-
-### Real To Sim
-
-Consider a [LeRobot dataset](https://huggingface.co/datasets/alexis779/so100_ball_cup) created via teleoperation.
-
-*Visualize Dataset* [HuggingFace space](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2Falexis779%2Fso100_ball_cup%2Fepisode_1%3Ft%3D23) is an interactive tool to visualize episodes from the dataset.
-
-Following script replays the tele-operated episode robot state `qpos` from each frame into the simulation environment, using the same FPS as the camera.
-
-```
-PYOPENGL_PLATFORM=glx python scripts/sim/replay_episodes.py --dataset_repo_id alexis779/so100_ball_cup2 --episode_id 0
-```
-
-| real | sim |
-|----------|-------------|
-| <video controls src="https://github.com/user-attachments/assets/fbaef5c9-7767-4aff-b879-4f7f59e993c4"></video> | <video controls src="https://github.com/user-attachments/assets/f260e84e-946b-4c74-9e06-4e36dab704a2"></video> |
 
 
 ### Image stream
