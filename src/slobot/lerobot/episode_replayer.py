@@ -4,7 +4,7 @@ from slobot.feetech import Feetech
 from slobot.configuration import Configuration
 
 from datasets import load_dataset
-from lerobot.common.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
+from lerobot.common.datasets.lerobot_dataset import LeRobotDatasetMetadata
 from lerobot.common.datasets.utils import DEFAULT_PARQUET_PATH
 from lerobot.common.constants import HF_LEROBOT_HOME
 
@@ -18,6 +18,7 @@ from PIL import Image
 from dataclasses import dataclass
 
 import os
+import itertools
 
 from importlib.resources import files
 
@@ -33,13 +34,23 @@ class InitialState:
     cup_x: int
     cup_y: int
 
+@dataclass
+class MotorRangeInput:
+    motor_id: int
+    start: float
+    end: float
+
+@dataclass
+class GridSearchInput:
+    motors: list[MotorRangeInput]  # List of MotorRangeInput
+    step: float = 0.01  # Step size for all motors
 
 class EpisodeReplayer:
     LOGGER = Configuration.logger(__name__)
 
     GRIPPER_ID = 5 # the id of the jaw joint
 
-    MIDDLE_POS_OFFSET = torch.tensor([0, 0.07, 0, 0, torch.pi/2, 0.02]) # readjust the middle position calibration
+    MIDDLE_POS_OFFSET = torch.tensor([0, 0.07, 0, 0, torch.pi/2, -0.02]) # readjust the middle position calibration
 
     FIXED_JAW_TRANSLATE = torch.tensor([-2e-2, -9e-2, 0]) # the translation vector from the fixed jaw position to the ball position, in the frame relative to the link
     GOLF_BALL_RADIUS = 4.27e-2 / 2
@@ -62,38 +73,28 @@ class EpisodeReplayer:
         video_height, video_width, channels = self.ds_meta.features[camera_key]['shape']
         kwargs["res"] = (video_width, video_height)
 
-        if self.show_viewer:
-            pass
-            # enable RGB camera
-            #kwargs["step_handler"] = self
-            #kwargs["rgb"] = True
+        # enable RGB camera
+        #kwargs["step_handler"] = self
+        #kwargs["rgb"] = True
 
         self.feetech = Feetech(connect=False)
 
         self.arm = SoArm100(**kwargs)
 
-    def replay_episodes(self, episode_ids = None):
-        if episode_ids is None:
-            episode_count = self.ds_meta.total_episodes
-            episode_ids = range(episode_count)
+        n_envs = kwargs.get("n_envs", 1)
+        self.build_scene(n_envs=n_envs)
+
+    def load_episodes(self, episode_ids = None):
+        self.episode_ids = episode_ids
+        if self.episode_ids is None:
+            self.episode_count = self.ds_meta.total_episodes
+            self.episode_ids = range(self.episode_count)
         else:
-            episode_count = len(episode_ids)
-
-        self.build_scene(n_envs=episode_count)
-
-        success = self.replay_episode_batch(episode_ids)
-
-        score = sum(success) / episode_count
-
-        EpisodeReplayer.LOGGER.info(f"Dataset {self.repo_id} score = {score}")
-        return score
-
-    def replay_episode_batch(self, episode_ids):
-        self.step_id = 0
+            self.episode_count = len(self.episode_ids)
 
         episode_datasets = [
             self.load_dataset(episode_id)
-            for episode_id in episode_ids
+            for episode_id in self.episode_ids
         ]
 
         dataloaders = [
@@ -101,18 +102,34 @@ class EpisodeReplayer:
             for episode_dataset in episode_datasets
         ]
 
-        episodes = [
+        self.episodes = [
             next(iter(dataloader))
             for dataloader in dataloaders
         ]
 
-        hold_states = [
+        self.hold_states = [
             self.get_hold_state(episode)
-            for episode in episodes
+            for episode in self.episodes
         ]
 
+        self.episode_frame_count = min([
+            episode_dataset.num_rows
+            for episode_dataset in episode_datasets
+        ])
+
+    def replay_episodes(self):
+        success = self.replay_episode_batch()
+
+        score = sum(success) / self.episode_count
+
+        EpisodeReplayer.LOGGER.info(f"Dataset {self.repo_id} episode_ids = {self.episode_ids} score = {score}")
+        return score
+
+    def replay_episode_batch(self):
+        self.step_id = 0
+
         # compute the initial positions of the ball and the cup
-        initial_states = self.get_initial_states(episodes, hold_states)
+        initial_states = self.get_initial_states(self.episodes, self.hold_states)
 
         golf_pos = [
             [initial_state.ball_x, initial_state.ball_y, self.GOLF_BALL_RADIUS]
@@ -126,13 +143,8 @@ class EpisodeReplayer:
         ]
         self.cup.set_pos(cup_pos)
 
-        episode_frame_count = min([
-            episode_dataset.num_rows
-            for episode_dataset in episode_datasets
-        ])
-
-        for frame_id in range(episode_frame_count):
-            self.replay_frame(episodes, episode_ids, frame_id)
+        for frame_id in range(self.episode_frame_count):
+            self.replay_frame(self.episodes, self.episode_ids, frame_id)
 
         golf_ball_pos = self.golf_ball.get_pos()
         cup_pos = self.cup.get_pos()
@@ -146,9 +158,10 @@ class EpisodeReplayer:
         distance_threshold = 0.01
         successes = distances < distance_threshold
 
-        self.arm.genesis.stop()
-
         return successes
+
+    def stop(self):
+        self.arm.genesis.stop()
 
     def load_dataset(self, episode_id):
         episode_chunk = 0
@@ -159,10 +172,9 @@ class EpisodeReplayer:
         return dataset
 
     def get_dataloader(self, episode_dataset):
-        episode_frame_count = episode_dataset.num_rows
         return torch.utils.data.DataLoader(
-                episode_dataset,
-                batch_size=episode_frame_count,
+            episode_dataset,
+            batch_size=episode_dataset.num_rows,
         )
 
     def write_episodes_images(self):
@@ -223,6 +235,7 @@ class EpisodeReplayer:
                 pass
                 #self.write_camera_image(episode, episode_id, frame_id)
 
+        #EpisodeReplayer.LOGGER.info(f"frame_id = {frame_id}")
         self.arm.genesis.step()
     
     def get_robot_states(self, episodes, frame_ids):
@@ -330,6 +343,7 @@ class EpisodeReplayer:
         self.arm.genesis.entity.set_qpos(robot_states)
 
     def handle_step(self, simulation_frame: SimulationFrame):
+        episode_id = 0
         self.write_image("sim", simulation_frame.rgb, episode_id, self.step_id)
         self.step_id += 1
 
@@ -353,3 +367,36 @@ class EpisodeReplayer:
         camera_image = (camera_image * 255).astype("uint8")
 
         self.write_image("real", camera_image, episode_id, frame_id)
+
+    def grid_search(self, grid_input: GridSearchInput):
+        """
+        Grid search to optimize offsets in MIDDLE_POS_OFFSET for the specified motors and ranges.
+        Args:
+            grid_input (GridSearchInput): Contains motors (MotorRangeInput) and step size.
+        Returns:
+            Tuple of best offsets (in the order of grid_input.motors)
+        """
+
+        best_score = float('-inf')
+        best_offsets = None
+        # Generate value ranges for each motor
+        value_ranges = [
+            torch.arange(motor.start, motor.end + grid_input.step, grid_input.step)
+            for motor in grid_input.motors
+        ]
+        for offsets in itertools.product(*value_ranges):
+            # Update in place
+            for idx, motor in enumerate(grid_input.motors):
+                EpisodeReplayer.MIDDLE_POS_OFFSET[motor.motor_id] = offsets[idx].item()
+            score = self.replay_episodes()
+            EpisodeReplayer.LOGGER.info(
+                f"Score: {score:.4f} for " +
+                ", ".join([
+                    f"motor_id={motor.motor_id}, offset={offsets[i].item():.4f}"
+                    for i, motor in enumerate(grid_input.motors)
+                ])
+            )
+            if score > best_score:
+                best_score = score
+                best_offsets = tuple(offset.item() for offset in offsets)
+        return best_offsets
