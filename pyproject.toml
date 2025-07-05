@@ -1,6 +1,6 @@
 [project]
 name = "slobot"
-version = "0.1.15"
+version = "0.1.16"
 
 dependencies = [
     # "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",

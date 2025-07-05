@@ -4,9 +4,8 @@ from slobot.feetech import Feetech
 from slobot.configuration import Configuration
 
 from datasets import load_dataset
-from lerobot.common.datasets.lerobot_dataset import LeRobotDatasetMetadata
-from lerobot.common.datasets.utils import DEFAULT_PARQUET_PATH
-from lerobot.common.constants import HF_LEROBOT_HOME
+from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata
+from lerobot.datasets.utils import DEFAULT_PARQUET_PATH
 
 import torch
 
@@ -50,7 +49,7 @@ class EpisodeReplayer:
 
     GRIPPER_ID = 5 # the id of the jaw joint
 
-    MIDDLE_POS_OFFSET = torch.tensor([0, 0.07, 0, 0, torch.pi/2, -0.02]) # readjust the middle position calibration
+    MIDDLE_POS_OFFSET = torch.tensor([0, 0.11, 0, 0, torch.pi/2, 0.04]) # readjust the middle position calibration
 
     FIXED_JAW_TRANSLATE = torch.tensor([-2e-2, -9e-2, 0]) # the translation vector from the fixed jaw position to the ball position, in the frame relative to the link
     GOLF_BALL_RADIUS = 4.27e-2 / 2
@@ -81,7 +80,10 @@ class EpisodeReplayer:
 
         self.arm = SoArm100(**kwargs)
 
-        n_envs = kwargs.get("n_envs", 1)
+        n_envs = kwargs.get("n_envs", None)
+        if n_envs is None:
+            n_envs = self.ds_meta.total_episodes
+
         self.build_scene(n_envs=n_envs)
 
     def load_episodes(self, episode_ids = None):
@@ -225,6 +227,8 @@ class EpisodeReplayer:
         ]
         robot_states = self.get_robot_states(episodes, frame_ids)
 
+        #EpisodeReplayer.LOGGER.info(f"frame_id = {frame_id}")
+
         if frame_id == 0:
             self.arm.genesis.entity.set_qpos(robot_states)
         else:
@@ -235,7 +239,6 @@ class EpisodeReplayer:
                 pass
                 #self.write_camera_image(episode, episode_id, frame_id)
 
-        #EpisodeReplayer.LOGGER.info(f"frame_id = {frame_id}")
         self.arm.genesis.step()
     
     def get_robot_states(self, episodes, frame_ids):
@@ -389,13 +392,7 @@ class EpisodeReplayer:
             for idx, motor in enumerate(grid_input.motors):
                 EpisodeReplayer.MIDDLE_POS_OFFSET[motor.motor_id] = offsets[idx].item()
             score = self.replay_episodes()
-            EpisodeReplayer.LOGGER.info(
-                f"Score: {score:.4f} for " +
-                ", ".join([
-                    f"motor_id={motor.motor_id}, offset={offsets[i].item():.4f}"
-                    for i, motor in enumerate(grid_input.motors)
-                ])
-            )
+            EpisodeReplayer.LOGGER.info(f"Score: {score:.4f} for {EpisodeReplayer.MIDDLE_POS_OFFSET}")
             if score > best_score:
                 best_score = score
                 best_offsets = tuple(offset.item() for offset in offsets)

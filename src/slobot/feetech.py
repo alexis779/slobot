@@ -1,7 +1,7 @@
-from lerobot.common.datasets.v2.convert_dataset_v1_to_v2 import make_robot_config
-from lerobot.common.motors.feetech import TorqueMode
-from lerobot.common.robots import make_robot_from_config
-from lerobot.common.motors import MotorsBus
+from lerobot.datasets.v2.convert_dataset_v1_to_v2 import make_robot_config
+from lerobot.motors.feetech import TorqueMode
+from lerobot.robots import make_robot_from_config
+from lerobot.motors import MotorsBus
 
 from slobot.configuration import Configuration
 from slobot.simulation_frame import SimulationFrame
