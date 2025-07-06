@@ -65,3 +65,14 @@ Stopping app - local entrypoint completed.
 | 4 | 9 |
 |----------|-------------|
 | <video controls src="https://github.com/user-attachments/assets/f81a4fad-8572-4b24-98b7-d60a475ce848"></video> | <video controls src="https://github.com/user-attachments/assets/b94ce651-839a-4c8e-89a9-a34d30e7de08"></video> |
+
+
+## Generate LeRobot dataset
+
+Generate the equivalent LeRobot SIM dataset from the LeRobot REAL dataset.
+
+See [SIM Example](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2Falexis779%2Fso100_ball_cup2_sim%2Fepisode_0) generated from [Real Example](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2Falexis779%2Fso100_ball_cup2%2Fepisode_0)
+
+```
+PYOPENGL_PLATFORM=egl python scripts/sim/generate_sim_dataset.py --dataset-repo-id alexis779/so100_ball_cup2 --sim-dataset-repo-id alexis779/so100_ball_cup2_sim
+```

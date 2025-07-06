@@ -49,7 +49,7 @@ class EpisodeReplayer:
 
     GRIPPER_ID = 5 # the id of the jaw joint
 
-    MIDDLE_POS_OFFSET = torch.tensor([0, 0.11, 0, 0, torch.pi/2, 0.04]) # readjust the middle position calibration
+    MIDDLE_POS_OFFSET = torch.tensor([0, 0.07, 0.06, 0, 1.57, 0.04]) # readjust the middle position calibration
 
     FIXED_JAW_TRANSLATE = torch.tensor([-2e-2, -9e-2, 0]) # the translation vector from the fixed jaw position to the ball position, in the frame relative to the link
     GOLF_BALL_RADIUS = 4.27e-2 / 2
@@ -70,11 +70,8 @@ class EpisodeReplayer:
         # Image Resolution of the 1st camera
         camera_key = self.ds_meta.camera_keys[0]
         video_height, video_width, channels = self.ds_meta.features[camera_key]['shape']
-        kwargs["res"] = (video_width, video_height)
-
-        # enable RGB camera
-        #kwargs["step_handler"] = self
-        #kwargs["rgb"] = True
+        self.res = (video_width, video_height)
+        kwargs["res"] = self.res
 
         self.feetech = Feetech(connect=False)
 
@@ -124,12 +121,29 @@ class EpisodeReplayer:
 
         score = sum(success) / self.episode_count
 
-        EpisodeReplayer.LOGGER.info(f"Dataset {self.repo_id} episode_ids = {self.episode_ids} score = {score}")
         return score
 
     def replay_episode_batch(self):
-        self.step_id = 0
+        self.set_object_initial_positions()
 
+        for frame_id in range(self.episode_frame_count):
+            self.replay_frame(frame_id)
+
+        golf_ball_pos = self.golf_ball.get_pos()
+        cup_pos = self.cup.get_pos()
+
+         # project error in the XY plane
+        golf_ball_pos_xy = golf_ball_pos[:, :2]
+        cup_pos_xy = cup_pos[:, :2]
+
+        distances = torch.norm(golf_ball_pos_xy - cup_pos_xy, dim=1)
+
+        distance_threshold = 0.01
+        successes = distances < distance_threshold
+
+        return successes
+
+    def set_object_initial_positions(self):
         # compute the initial positions of the ball and the cup
         initial_states = self.get_initial_states(self.episodes, self.hold_states)
 
@@ -145,22 +159,6 @@ class EpisodeReplayer:
         ]
         self.cup.set_pos(cup_pos)
 
-        for frame_id in range(self.episode_frame_count):
-            self.replay_frame(self.episodes, self.episode_ids, frame_id)
-
-        golf_ball_pos = self.golf_ball.get_pos()
-        cup_pos = self.cup.get_pos()
-
-         # project error in the XY plane
-        golf_ball_pos_xy = golf_ball_pos[:, :2]
-        cup_pos_xy = cup_pos[:, :2]
-
-        distances = torch.norm(golf_ball_pos_xy - cup_pos_xy, dim=1)
-
-        distance_threshold = 0.01
-        successes = distances < distance_threshold
-
-        return successes
 
     def stop(self):
         self.arm.genesis.stop()
@@ -220,12 +218,12 @@ class EpisodeReplayer:
         self.arm.genesis.build(n_envs=n_envs)
         self.qpos_limits = self.arm.genesis.entity.get_dofs_limit()
 
-    def replay_frame(self, episodes, episode_ids, frame_id):
+    def replay_frame(self, frame_id):
         frame_ids = [
             frame_id
-            for _ in range(len(episodes))
+            for _ in range(len(self.episodes))
         ]
-        robot_states = self.get_robot_states(episodes, frame_ids)
+        robot_states = self.get_robot_states(self.episodes, frame_ids)
 
         #EpisodeReplayer.LOGGER.info(f"frame_id = {frame_id}")
 
@@ -235,7 +233,7 @@ class EpisodeReplayer:
             self.arm.genesis.entity.control_dofs_position(robot_states)
 
         if self.show_viewer:
-            for episode, episode_id in zip(episodes, episode_ids):
+            for episode, episode_id in zip(self.episodes, self.episode_ids):
                 pass
                 #self.write_camera_image(episode, episode_id, frame_id)
 
@@ -344,11 +342,6 @@ class EpisodeReplayer:
     def set_robot_states(self, episodes, frame_ids):
         robot_states = self.get_robot_states(episodes, frame_ids)
         self.arm.genesis.entity.set_qpos(robot_states)
-
-    def handle_step(self, simulation_frame: SimulationFrame):
-        episode_id = 0
-        self.write_image("sim", simulation_frame.rgb, episode_id, self.step_id)
-        self.step_id += 1
 
     def write_image(self, type, rgb_image, episode_id, step_id):
         image = Image.fromarray(rgb_image, mode='RGB')
