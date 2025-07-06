@@ -350,6 +350,8 @@ v4l2-ctl --list-devices
 Create a looback device if /dev/video4 is missing in the above output.
 
 ```
+sudo apt install linux-headers-$(uname -r) v4l2loopback-dkms
+
 sudo modprobe v4l2loopback devices=1 video_nr=4
 ```
 

@@ -22,7 +22,7 @@ class VideoStreams:
 
         self.video_segment_queue = queue.Queue()
 
-        self.codec = self.codec()
+        self.codec = VideoStreams.codec()
 
     def frame_filenames(self, res, fps, segment_duration, rgb=True, depth=False, segmentation=False, normal=False):
         # run simulation in a separate thread
@@ -126,7 +126,7 @@ class VideoStreams:
 
                 filename = self._filename(self.cam_id, env_id, self.FRAME_TYPES[frame_id], date_time, self.segment_id)
 
-                video_writer = VideoWriter(filename, self.res, self.fps, codec=self.codec)
+                video_writer = VideoWriter(self.res, self.fps, codec=self.codec)
                 type_frames = [
                     simulation_frame.frame(frame_id)
                     for simulation_frame in video_frames
@@ -137,7 +137,7 @@ class VideoStreams:
                         for env_frame in type_frames
                     ]
                 type_frames = np.array(type_frames)
-                video_writer.transcode(type_frames, filename)
+                video_writer.transcode_numpy(type_frames, filename)
 
                 env_simulation_frame_videos.append(filename)
             simulation_frame_videos.append(env_simulation_frame_videos)
@@ -155,7 +155,7 @@ class VideoStreams:
     def _filename(self, cam_id, env_id, frame_type, date_time, segment_id):
         return f"{Configuration.WORK_DIR}/cam_{cam_id}_env_{env_id}_{frame_type}_{date_time}_{segment_id}.ts"
 
-    def codec(self):
+    def codec():
         return 'h264_nvenc' if torch.cuda.is_available() else 'libx264'
 
     def logarithmic_depth_to_rgb(depth_arr):
