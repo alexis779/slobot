@@ -119,6 +119,10 @@ class EpisodeReplayer:
     def replay_episodes(self):
         success = self.replay_episode_batch()
 
+        # Log failed episodes
+        failed_episode_ids = [self.episode_ids[i] for i in range(len(success)) if not success[i]]
+        EpisodeReplayer.LOGGER.info(f"Failed episodes: {','.join(map(str, failed_episode_ids))}")
+
         score = sum(success) / self.episode_count
 
         return score
