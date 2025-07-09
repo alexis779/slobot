@@ -3,6 +3,7 @@ import torch
 import genesis as gs
 from genesis.engine.entities import RigidEntity
 from genesis.engine.entities.rigid_entity import RigidLink, RigidJoint
+from genesis.utils import geom as gu
 
 from slobot.configuration import Configuration
 
@@ -237,10 +238,15 @@ class Genesis():
         error = torch.abs((current_qpos - target_qpos) / target_qpos_denominator)
         return torch.norm(error)
 
-    def translate(self, pos, t, euler):
-        r = Rotation.from_euler(self.EXTRINSIC_SEQ, euler)
-        t = r.apply(t)
-        return pos + torch.from_numpy(t).to(pos.device)
+    def link_translate(self, link, t):
+        link_pos = link.get_pos()
+        link_quat = link.get_quat()
+
+        # Ensure t has shape (n_envs, 3) by stacking it n_envs times
+        t = t.unsqueeze(0).expand(self.scene.n_envs, -1)
+
+        t_world = gu.transform_by_quat(t, link_quat)
+        return link_pos + t_world
 
     def quat_to_euler(self, quat):
         quat = quat.cpu()
@@ -256,9 +262,3 @@ class Genesis():
         t_pos = self.link_translate(link, t)
         arrow_vec = t_pos - link_pos
         self.scene.draw_debug_arrow(link_pos, arrow_vec, radius = 0.003, color=color)
-
-    def link_translate(self, link, t):
-        link_pos = link.get_pos()
-        link_quat = link.get_quat()
-        link_euler = self.quat_to_euler(link_quat)
-        return self.translate(link_pos, t, link_euler)

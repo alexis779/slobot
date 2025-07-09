@@ -1,6 +1,5 @@
 from slobot.lerobot.episode_replayer import EpisodeReplayer
 from slobot.simulation_frame import SimulationFrame
-from slobot.video_writer import VideoWriter
 from slobot.feetech import Feetech
 
 from lerobot.datasets.v2.convert_dataset_v1_to_v2 import make_robot_config
@@ -27,6 +26,8 @@ class SimDatasetGenerator:
         camera_config = {"sim": OpenCVCameraConfig(index_or_path=self.video_filename, width=self.episode_replayer.res[0], height=self.episode_replayer.res[1], fps=self.episode_replayer.ds_meta.fps)}
         robot_config = make_robot_config(Feetech.ROBOT_TYPE, port=Feetech.PORT0, id=Feetech.FOLLOWER_ID, cameras=camera_config)
         self.robot = make_robot_from_config(robot_config)
+
+        self.cam_key = next(self.robot.cameras.keys())
 
         action_features = hw_to_dataset_features(self.robot.action_features, "action")
         obs_features = hw_to_dataset_features(self.robot.observation_features, "observation")
@@ -72,8 +73,7 @@ class SimDatasetGenerator:
 
         action = build_dataset_frame(self.dataset.features, action, prefix="action")
 
-        for cam_key in self.robot.cameras.keys():
-            observation_state[cam_key] =  self.current_image
+        observation_state[self.cam_key] = self.current_image
         observation_state = build_dataset_frame(self.dataset.features, observation_state, prefix="observation")
 
         frame = {**action, **observation_state}

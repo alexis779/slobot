@@ -15,5 +15,5 @@ if args.episode_ids:
 
 mjcf_path = Configuration.MJCF_CONFIG
 
-sim_dataset_generator = SimDatasetGenerator(repo_id=args.dataset_repo_id, sim_repo_id=args.sim_dataset_repo_id, mjcf_path=mjcf_path, n_envs=1)
+sim_dataset_generator = SimDatasetGenerator(repo_id=args.dataset_repo_id, sim_repo_id=args.sim_dataset_repo_id, mjcf_path=mjcf_path)
 sim_dataset_generator.generate_dataset(episode_ids=episode_ids)
