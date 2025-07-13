@@ -163,7 +163,6 @@ class EpisodeReplayer:
         ]
         self.cup.set_pos(cup_pos)
 
-
     def stop(self):
         self.arm.genesis.stop()
 
@@ -242,7 +241,7 @@ class EpisodeReplayer:
                 #self.write_camera_image(episode, episode_id, frame_id)
 
         self.arm.genesis.step()
-    
+
     def get_robot_states(self, episodes, frame_ids):
         robot_states = [
             self.get_robot_state(episode, frame_id)
@@ -328,15 +327,16 @@ class EpisodeReplayer:
             hold_state.pick_frame_id
             for hold_state in hold_states
         ]
+
         self.set_robot_states(episodes, pick_frame_ids)
-        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.FIXED_JAW_TRANSLATE)
+        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, EpisodeReplayer.FIXED_JAW_TRANSLATE)
 
         place_frame_ids = [
             hold_state.place_frame_id
             for hold_state in hold_states
         ]
         self.set_robot_states(episodes, place_frame_ids)
-        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.FIXED_JAW_TRANSLATE)
+        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, EpisodeReplayer.FIXED_JAW_TRANSLATE)
 
         return [
             InitialState(ball_x=pick_link_pos_i[0].item(), ball_y=pick_link_pos_i[1].item(), cup_x=place_link_pos_i[0].item(), cup_y=place_link_pos_i[1].item())
