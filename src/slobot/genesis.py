@@ -103,9 +103,13 @@ class Genesis():
         qpos = self.entity.get_qpos()
         print("qpos=", qpos)
 
-        Kp = 32
+        Kp = 50
         Kp = torch.full((Configuration.DOFS,), Kp)
-        self.entity.set_dofs_kp(Kp)
+        #self.entity.set_dofs_kp(Kp)
+
+        Kv = 8
+        Kv = torch.full((Configuration.DOFS,), Kv)
+        #self.entity.set_dofs_kv(Kv)
 
         print("Kp=", self.entity.get_dofs_kp())
 
@@ -256,9 +260,10 @@ class Genesis():
         quat = Rotation.from_euler(self.EXTRINSIC_SEQ, euler).as_quat(scalar_first=True)
         return torch.tensor(quat)
 
-    def draw_arrow(self, link, t, color):
-        #self.scene.clear_debug_objects()
+    def draw_arrow(self, link, arrow_t, sphere_radius, sphere_color):
         link_pos = link.get_pos()
-        t_pos = self.link_translate(link, t)
-        arrow_vec = t_pos - link_pos
-        self.scene.draw_debug_arrow(link_pos, arrow_vec, radius = 0.003, color=color)
+        sphere_pos = self.link_translate(link, arrow_t)
+        arrow_vec = sphere_pos - link_pos
+        self.scene.draw_debug_arrow(link_pos, arrow_vec, radius = 0.003, color = (1, 0, 0, 0.5))
+        self.scene.draw_debug_sphere(sphere_pos[0], sphere_radius, color = sphere_color)
+        return sphere_pos[0]
