@@ -1,5 +1,4 @@
 from slobot.so_arm_100 import SoArm100
-from slobot.simulation_frame import SimulationFrame
 from slobot.feetech import Feetech
 from slobot.configuration import Configuration
 
@@ -259,17 +258,7 @@ class EpisodeReplayer:
         return self.positions_to_radians(robot_state)
 
     def positions_to_radians(self, positions):
-        positions = {
-            joint_id+1 : positions[joint_id]
-            for joint_id in range(Configuration.DOFS)
-        }
-        positions = self.feetech.motors_bus._unnormalize(positions)
-        positions = [
-            positions[joint_id+1]
-            for joint_id in range(Configuration.DOFS)
-        ]
-
-        radians = self.feetech.pos_to_qpos(positions)
+        radians = self.feetech.sim_positions(positions)
         radians = torch.tensor(radians)
 
         radians = radians + EpisodeReplayer.MIDDLE_POS_OFFSET.to(radians.device)

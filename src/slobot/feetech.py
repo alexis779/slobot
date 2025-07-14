@@ -194,3 +194,16 @@ class Feetech():
         velocity = self.get_dofs_velocity()
         force = self.get_dofs_control_force()
         return FeetechFrame(timestamp, target_qpos, qpos, velocity, force)
+
+    def sim_positions(self, positions):
+        positions = {
+            joint_id+1 : positions[joint_id]
+            for joint_id in range(Configuration.DOFS)
+        }
+        positions = self.motors_bus._unnormalize(positions)
+        positions = [
+            positions[joint_id+1]
+            for joint_id in range(Configuration.DOFS)
+        ]
+
+        return self.pos_to_qpos(positions)
