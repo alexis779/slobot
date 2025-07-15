@@ -1,6 +1,5 @@
 from slobot.feetech import Feetech
 from slobot.metrics.metrics import Metrics
-from slobot.configuration import Configuration
 
 import time
 

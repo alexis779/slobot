@@ -1,6 +1,7 @@
 from slobot.so_arm_100 import SoArm100
 from slobot.feetech import Feetech
 from slobot.configuration import Configuration
+from slobot.metrics.metrics import Metrics
 
 from datasets import load_dataset
 from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata
@@ -46,6 +47,9 @@ class GridSearchInput:
 class EpisodeReplayer:
     LOGGER = Configuration.logger(__name__)
 
+    LEADER_STATE_COLUMN = 'action'
+    FOLLOWER_STATE_COLUMN = 'observation.state'
+
     GRIPPER_ID = 5 # the id of the jaw joint
 
     MIDDLE_POS_OFFSET = torch.tensor([0, 0.07, 0.06, 0, 1.57, 0.04]) # readjust the middle position calibration
@@ -72,9 +76,12 @@ class EpisodeReplayer:
         self.res = (video_width, video_height)
         kwargs["res"] = self.res
 
-        self.feetech = Feetech(connect=False)
+        self.metrics = Metrics()
+        kwargs["step_handler"] = self.metrics
 
         self.arm = SoArm100(**kwargs)
+
+        self.feetech = Feetech(connect=False)
 
         n_envs = kwargs.get("n_envs", None)
         if n_envs is None:
@@ -225,14 +232,14 @@ class EpisodeReplayer:
             frame_id
             for _ in range(len(self.episodes))
         ]
-        robot_states = self.get_robot_states(self.episodes, frame_ids)
+        leader_robot_states = self.get_robot_states(self.episodes, frame_ids, EpisodeReplayer.LEADER_STATE_COLUMN)
 
         #EpisodeReplayer.LOGGER.info(f"frame_id = {frame_id}")
 
         if frame_id == 0:
-            self.arm.genesis.entity.set_qpos(robot_states)
+            self.arm.genesis.entity.set_qpos(leader_robot_states)
         else:
-            self.arm.genesis.entity.control_dofs_position(robot_states)
+            self.arm.genesis.entity.control_dofs_position(leader_robot_states)
 
         if self.show_viewer:
             for episode, episode_id in zip(self.episodes, self.episode_ids):
@@ -241,17 +248,20 @@ class EpisodeReplayer:
 
         self.arm.genesis.step()
 
-    def get_robot_states(self, episodes, frame_ids):
+        follower_robot_states = self.get_robot_states(self.episodes, frame_ids, EpisodeReplayer.FOLLOWER_STATE_COLUMN)
+        self.metrics.add_metric("real.qpos", follower_robot_states)
+
+    def get_robot_states(self, episodes, frame_ids, column_name):
         robot_states = [
-            self.get_robot_state(episode, frame_id)
+            self.get_robot_state(episode, frame_id, column_name)
             for episode, frame_id in zip(episodes, frame_ids)
         ]
 
         return torch.stack(robot_states)
 
-    def get_robot_state(self, episode, frame_id):
+    def get_robot_state(self, episode, frame_id, column_name):
         robot_state = [
-            episode['observation.state'][joint_id][frame_id]
+            episode[column_name][joint_id][frame_id]
             for joint_id in range(Configuration.DOFS)
         ]
 
@@ -333,7 +343,7 @@ class EpisodeReplayer:
         ]
 
     def set_robot_states(self, episodes, frame_ids):
-        robot_states = self.get_robot_states(episodes, frame_ids)
+        robot_states = self.get_robot_states(episodes, frame_ids, EpisodeReplayer.FOLLOWER_STATE_COLUMN)
         self.arm.genesis.entity.set_qpos(robot_states)
 
     def write_image(self, type, rgb_image, episode_id, step_id):
