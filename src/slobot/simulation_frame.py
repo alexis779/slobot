@@ -1,6 +1,7 @@
 class SimulationFrame():
-    def __init__(self, timestamp, qpos, velocity, force, control_force):
+    def __init__(self, timestamp, control_pos, qpos, velocity, force, control_force):
         self.timestamp = timestamp
+        self.control_pos = control_pos
         self.qpos = qpos
         self.velocity = velocity
         self.force = force
@@ -12,7 +13,7 @@ class SimulationFrame():
         self.feetech_frame = None
 
     def __repr__(self):
-        return f"SimulationFrame(timestamp={self.timestamp}, qpos={self.qpos}, velocity={self.velocity}, force={self.force}, control_force={self.control_force}, feetech_frame={self.feetech_frame})"
+        return f"SimulationFrame(timestamp={self.timestamp}, control_pos={self.control_pos}, qpos={self.qpos}, velocity={self.velocity}, force={self.force}, control_force={self.control_force}, feetech_frame={self.feetech_frame})"
 
     def frame(self, frame_id):
         match frame_id:

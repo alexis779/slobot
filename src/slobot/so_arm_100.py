@@ -124,14 +124,19 @@ class SoArm100():
     def create_simulation_frame(self) -> SimulationFrame:
         current_time = time.time()
 
-        # convert torch tensor to a JSON serializable object
-        qpos = self.genesis.entity.get_qpos().tolist()
-        velocity = self.genesis.entity.get_dofs_velocity().tolist()
-        force = self.genesis.entity.get_dofs_force().tolist()
-        control_force = self.genesis.entity.get_dofs_control_force().tolist()
+        qpos = self.genesis.entity.get_qpos()
+        velocity = self.genesis.entity.get_dofs_velocity()
+        force = self.genesis.entity.get_dofs_force()
+        control_force = self.genesis.entity.get_dofs_control_force()
+
+        K_p = self.genesis.entity.get_dofs_kp()
+        K_v = self.genesis.entity.get_dofs_kv()
+
+        control_pos = qpos + (control_force + K_v * velocity) / K_p
 
         simulation_frame = SimulationFrame(
             timestamp=current_time,
+            control_pos=control_pos,
             qpos=qpos,
             velocity=velocity,
             force=force,
