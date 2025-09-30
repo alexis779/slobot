@@ -31,11 +31,17 @@ jobs:
         run: |
           git clone -b main https://github.com/google-deepmind/mujoco_menagerie ../mujoco_menagerie
           cp -r ../mujoco_menagerie/trs_so_arm100 src/slobot/config/
-          python -m pip install build
-          pip install -e '.'
-          pip install git+https://github.com/Genesis-Embodied-AI/Genesis.git
-          pip install git+https://github.com/huggingface/lerobot.git
+          rm -rf ../mujoco_menagerie
+          python -m pip install --no-cache-dir build
+          df -h
+          pip install --no-cache-dir -e '.'
+          df -h
+          pip install --no-cache-dir git+https://github.com/Genesis-Embodied-AI/Genesis.git
+          df -h
+          pip install --no-cache-dir git+https://github.com/huggingface/lerobot.git
+          df -h
           python -m build
+          python -m unittest discover -s tests -v
       - name: Upload distributions
         uses: actions/upload-artifact@v4
         with:

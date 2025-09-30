@@ -1,6 +1,6 @@
 [project]
 name = "slobot"
-version = "0.1.16"
+version = "0.1.17"
 
 dependencies = [
     # "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
@@ -15,7 +15,9 @@ dependencies = [
 
     "ipykernel", # to run notebooks
 
-    "modal" # serverless GPU compute platform
+    "modal", # serverless GPU compute platform
+
+    "pyscipopt" # SCIP solver
 ]
 
 [tool.setuptools.packages.find]
