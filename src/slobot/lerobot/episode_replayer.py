@@ -4,8 +4,7 @@ from slobot.configuration import Configuration
 from slobot.metrics.metrics import Metrics
 
 from datasets import load_dataset
-from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata
-from lerobot.datasets.utils import DEFAULT_PARQUET_PATH
+from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata, LeRobotDataset
 
 import torch
 
@@ -65,7 +64,7 @@ class EpisodeReplayer:
         self.repo_id = kwargs["repo_id"]
 
         # FPS
-        self.ds_meta = LeRobotDatasetMetadata(self.repo_id)
+        self.ds_meta: LeRobotDatasetMetadata = LeRobotDatasetMetadata(self.repo_id)
         kwargs["fps"] = self.ds_meta.fps
         kwargs["should_start"] = False
         self.show_viewer = kwargs.get("show_viewer", True)
@@ -118,7 +117,7 @@ class EpisodeReplayer:
         ]
 
         self.episode_frame_count = min([
-            episode_dataset.num_rows
+            episode_dataset.meta.episodes[0]["length"]
             for episode_dataset in episode_datasets
         ])
 
@@ -173,17 +172,12 @@ class EpisodeReplayer:
         self.arm.genesis.stop()
 
     def load_dataset(self, episode_id):
-        episode_chunk = 0
-        data_file = DEFAULT_PARQUET_PATH.format(episode_chunk=episode_chunk, episode_index=episode_id)
-
-        dataset = load_dataset(self.repo_id, data_files=[data_file], split="train")
-        dataset = dataset.select_columns(["action", "observation.state"])
-        return dataset
+        return LeRobotDataset(self.repo_id, episodes=[episode_id])
 
     def get_dataloader(self, episode_dataset):
         return torch.utils.data.DataLoader(
             episode_dataset,
-            batch_size=episode_dataset.num_rows,
+            batch_size=episode_dataset.meta.episodes[0]["length"],
         )
 
     def write_episodes_images(self):
@@ -198,7 +192,7 @@ class EpisodeReplayer:
 
         episode = next(iter(dataloader))
 
-        episode_frame_count = episode_dataset.num_rows
+        episode_frame_count = episode_dataset.meta.episodes[0]["length"]
         for frame_id in range(episode_frame_count):
             self.write_camera_image(episode, episode_id, frame_id)
 
@@ -261,7 +255,7 @@ class EpisodeReplayer:
 
     def get_robot_state(self, episode, frame_id, column_name):
         robot_state = [
-            episode[column_name][joint_id][frame_id]
+            episode[column_name][frame_id][joint_id]
             for joint_id in range(Configuration.DOFS)
         ]
 
@@ -276,8 +270,8 @@ class EpisodeReplayer:
         return radians
 
     def get_hold_state(self, episode) -> HoldState:
-        follower_gripper = episode['action'][EpisodeReplayer.GRIPPER_ID]
-        leader_gripper = episode['observation.state'][EpisodeReplayer.GRIPPER_ID]
+        follower_gripper = episode['action'][:, EpisodeReplayer.GRIPPER_ID]
+        leader_gripper = episode['observation.state'][:, EpisodeReplayer.GRIPPER_ID]
 
         truncated_leader = leader_gripper[EpisodeReplayer.DELAY_FRAMES:]
         gripper_diff = truncated_leader - follower_gripper[:-EpisodeReplayer.DELAY_FRAMES]
@@ -315,7 +309,6 @@ class EpisodeReplayer:
             hold_end_frame = hold_end_frame.item()
             hold_end_frames.append(hold_end_frame)
 
-        hold_start_frames, hold_end_frames
         if len(hold_start_frames) != 1:
             raise Exception("Holding period detection failed")
 

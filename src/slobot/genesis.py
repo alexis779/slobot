@@ -1,6 +1,9 @@
 import torch
 
 import genesis as gs
+
+gs.init(backend=gs.gpu if torch.cuda.is_available() else gs.cpu)
+
 from genesis.engine.entities import RigidEntity
 from genesis.engine.entities.rigid_entity import RigidLink, RigidJoint
 from genesis.utils import geom as gu
@@ -14,7 +17,7 @@ from scipy.spatial.transform import Rotation
 class Genesis():
     EXTRINSIC_SEQ = 'xyz'
 
-    HOLD_STEPS = 20
+    HOLD_STEPS = 10
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -26,9 +29,6 @@ class Genesis():
 
     def start(self):
         kwargs = self.kwargs
-
-        backend = self.backend()
-        gs.init(backend=backend)
 
         vis_mode = 'visual' # 'collision'
 
@@ -59,7 +59,9 @@ class Genesis():
                 show_world_frame = False, # True
                 lights           = lights,
             ),
-            show_FPS       = False,
+            profiling_options = gs.options.ProfilingOptions(
+                show_FPS       = False,
+            ),
         )
 
         plane = gs.morphs.Plane()
@@ -96,7 +98,7 @@ class Genesis():
     def build(self, n_envs=0):
         self.scene.build(n_envs=n_envs, env_spacing=(0.5, 0.5))
 
-        #self.camera.start_recording()
+        self.camera.start_recording()
 
         print("Limits=", self.entity.get_dofs_limit())
 
@@ -137,9 +139,6 @@ class Genesis():
         control_force = self.entity.get_dofs_control_force()
         print("control_force=", control_force)
 
-    def backend(self):
-        return gs.gpu if torch.cuda.is_available() else gs.cpu
-
     def parse_robot_configuration(self, **kwargs):
         mjcf_path = kwargs['mjcf_path']
         if mjcf_path is not None:
@@ -178,6 +177,7 @@ class Genesis():
         print("qpos error=", current_error)
 
     def stop(self):
+        self.camera.stop_recording(save_to_filename="video.mp4")
         gs.destroy()
 
     def move(self, link, target_pos, target_quat):
@@ -235,12 +235,9 @@ class Genesis():
     def qpos_error(self, target_qpos):
         current_qpos = self.entity.get_qpos()
 
-        # To avoid division by 0, create a target_qpos_denominator variable where 0 are replaced with 1
-        target_qpos_denominator = torch.where(target_qpos == 0, torch.tensor(1.0, device=target_qpos.device), target_qpos)
-
         current_qpos = current_qpos.to(target_qpos.device)
-        error = torch.abs((current_qpos - target_qpos) / target_qpos_denominator)
-        return torch.norm(error)
+        diff_qpos = current_qpos - target_qpos
+        return torch.norm(diff_qpos)
 
     def link_translate(self, link, t):
         link_pos = link.get_pos()

@@ -21,11 +21,13 @@ class Configuration:
     }
 
     POS_MAP = {
-        "middle": [2095, 2095, 2095, 2095, 2095, 2095],
-        "zero": [2097, 3143, 978, 1997, 1081, 2162],
-        "rotated": [3161, 2126, 2016, 3017, 12, 3330],
-        "rest": [2089, 965, 3063, 2822, 1035, 2030]
+        "middle": [2047, 2047, 2047, 2047, 2047, 2047],
+        "zero": [2047, 3083, 1030, 2048, 2047, 2144],
+        "rotated": [3071, 2052, 2051, 3071, 1023, 3168],
+        "rest": [2016, 907, 3070, 2831, 1937, 2035]
     }
+
+    MOTOR_DIRECTION = [-1, 1, 1, 1, 1, 1]
 
     DOFS = 6
     JOINT_NAMES = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]

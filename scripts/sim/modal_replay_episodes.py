@@ -21,7 +21,6 @@ image = (
     )
     .run_commands(
         "pip install git+https://github.com/Genesis-Embodied-AI/Genesis.git",
-        "pip install https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp312-cp312-manylinux_2_28_x86_64.whl",
         "pip install git+https://github.com/huggingface/lerobot.git",
         "pip install slobot==0.1.16",
         "mkdir -p /run/sshd",

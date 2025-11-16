@@ -45,7 +45,7 @@ class SoArm100():
 
         steps = 2
 
-        # turn the fixed jaw around the global x axis, from vertical to horizontal
+        # turn the fixed jaw around the global x axis
         for roll in np.linspace(np.pi/2, 0, steps):
             euler[0] = roll
             quat = self.genesis.euler_to_quat(euler)

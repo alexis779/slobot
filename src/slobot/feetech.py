@@ -1,6 +1,6 @@
-from lerobot.datasets.v2.convert_dataset_v1_to_v2 import make_robot_config
 from lerobot.motors.feetech import TorqueMode
-from lerobot.robots import make_robot_from_config
+from lerobot.robots.config import RobotConfig
+from lerobot.robots import make_robot_from_config, so100_follower
 from lerobot.motors import MotorsBus
 
 from slobot.configuration import Configuration
@@ -17,7 +17,6 @@ class Feetech():
     LEADER_ID = 'leader_arm'
 
     MOTOR_MODEL = 'sts3215'
-    MOTOR_DIRECTION = [-1, 1, 1, 1, 1, 1]
     JOINT_IDS = range(Configuration.DOFS)
 
     PORT0 = '/dev/ttyACM0'
@@ -137,7 +136,7 @@ class Feetech():
 
     def go_to_preset(self, preset):
         pos = Configuration.POS_MAP[preset]
-        self.move(pos)
+        self.control_position(pos)
         time.sleep(1)
         self.disconnect()
 
@@ -149,7 +148,8 @@ class Feetech():
         print(f"Current position is {pos_json}")
 
     def _create_motors_bus(self, port, robot_id) -> MotorsBus:
-        robot_config = make_robot_config(Feetech.ROBOT_TYPE, port=port, id=robot_id)
+        robot_config_class = RobotConfig.get_choice_class(Feetech.ROBOT_TYPE)
+        robot_config = robot_config_class(port=port, id=robot_id)
         robot = make_robot_from_config(robot_config)
         motors_bus = robot.bus
 
@@ -159,12 +159,12 @@ class Feetech():
         return motors_bus
 
     def _qpos_to_steps(self, qpos, motor_index):
-        steps = Feetech.MOTOR_DIRECTION[motor_index] * (qpos[motor_index] - Configuration.QPOS_MAP[Feetech.REFERENCE_FRAME][motor_index]) / self.radian_per_step
+        steps = Configuration.MOTOR_DIRECTION[motor_index] * (qpos[motor_index] - Configuration.QPOS_MAP[Feetech.REFERENCE_FRAME][motor_index]) / self.radian_per_step
         return Configuration.POS_MAP[Feetech.REFERENCE_FRAME][motor_index] + int(steps)
 
     def _steps_to_qpos(self, pos, motor_index):
         steps = pos[motor_index] - Configuration.POS_MAP[Feetech.REFERENCE_FRAME][motor_index]
-        return Configuration.QPOS_MAP[Feetech.REFERENCE_FRAME][motor_index] + Feetech.MOTOR_DIRECTION[motor_index] * steps * self.radian_per_step
+        return Configuration.QPOS_MAP[Feetech.REFERENCE_FRAME][motor_index] + Configuration.MOTOR_DIRECTION[motor_index] * steps * self.radian_per_step
 
     def _stepvelocity_to_velocity(self, step_velocity, motor_index):
         return step_velocity[motor_index] * self.radian_per_step

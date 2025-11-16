@@ -1,8 +1,8 @@
 # Real To Sim
 
-Consider a [LeRobot dataset](https://huggingface.co/datasets/alexis779/so100_ball_cup) created via teleoperation.
+Consider a [LeRobot dataset](https://huggingface.co/datasets/alexis779/so100_ball_cup2) created via teleoperation.
 
-*Visualize Dataset* [HuggingFace space](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2Falexis779%2Fso100_ball_cup%2Fepisode_1%3Ft%3D23) is an interactive tool to visualize episodes from the dataset.
+*Visualize Dataset* [HuggingFace space](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2Falexis779%2Fso100_ball_cup2%2Fepisode_1%3Ft%3D23) is an interactive tool to visualize episodes from the dataset.
 
 | real | sim |
 |----------|-------------|
@@ -20,7 +20,7 @@ The simulator executes all the environments steps in parallel.
 ## Local run
 
 ```
-PYOPENGL_PLATFORM=glx python scripts/sim/replay_episodes.py --dataset_repo_id alexis779/so100_ball_cup2 --episode_id 0,1,2,3,4,5,6,7,8
+python scripts/sim/replay_episodes.py --dataset-repo-id alexis779/so100_ball_cup2 --episode-id 0,1,2,3,4,5,6,7,8
 ```
 
 ## Remote run
