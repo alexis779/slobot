@@ -49,6 +49,12 @@ class Genesis():
 
         self.scene = gs.Scene(
             show_viewer=show_viewer,
+            sim_options = gs.options.SimOptions(
+                #requires_grad = True,
+            ),
+            rigid_options = gs.options.RigidOptions(
+                #enable_collision = False,
+            ),
             viewer_options = gs.options.ViewerOptions(
                 res           = res,
                 camera_lookat = lookat,
@@ -118,8 +124,6 @@ class Genesis():
         print("Kd=", self.entity.get_dofs_kv())
 
         print("Force range=", self.entity.get_dofs_force_range())
-
-        print("collisions=", self.entity.detect_collision())
 
         damping = self.entity.get_dofs_damping()
         print("damping=", damping)

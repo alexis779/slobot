@@ -47,4 +47,4 @@ class Metrics():
         self.step += 1
 
     def add_metric(self, metric_name, metric_value):
-        rr.log(metric_name, rr.Scalars(metric_value))
+        rr.log(metric_name, rr.Scalars(metric_value.detach().numpy()))

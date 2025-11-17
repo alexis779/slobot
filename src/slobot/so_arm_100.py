@@ -13,7 +13,7 @@ class SoArm100():
     def sim_qpos(target_qpos):
         mjcf_path = Configuration.MJCF_CONFIG
         arm = SoArm100(mjcf_path=mjcf_path)
-        arm.genesis.entity.set_qpos(target_qpos)
+        arm.genesis.entity.set_dofs_position(target_qpos)
         arm.genesis.entity.control_dofs_position(target_qpos)
         arm.genesis.hold_entity()
 

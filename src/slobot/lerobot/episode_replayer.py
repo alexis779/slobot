@@ -3,7 +3,6 @@ from slobot.feetech import Feetech
 from slobot.configuration import Configuration
 from slobot.metrics.metrics import Metrics
 
-from datasets import load_dataset
 from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata, LeRobotDataset
 
 import torch
@@ -16,7 +15,6 @@ from PIL import Image
 from dataclasses import dataclass
 
 import os
-import itertools
 
 from importlib.resources import files
 
@@ -38,11 +36,6 @@ class MotorRangeInput:
     start: float
     end: float
 
-@dataclass
-class GridSearchInput:
-    motors: list[MotorRangeInput]  # List of MotorRangeInput
-    step: float = 0.01  # Step size for all motors
-
 class EpisodeReplayer:
     LOGGER = Configuration.logger(__name__)
 
@@ -60,11 +53,16 @@ class EpisodeReplayer:
 
     DIFF_THRESHOLD = 10 # the cutoff value to identify when the gripper is holding the ball and when it is releasing the ball
 
+    DISTANCE_THRESHOLD = 0.01 # the threshold for the distance between the golf ball and the cup for the ball to be considered in the cup, or for the ball to be considered moved from the initial position
+
     def __init__(self, **kwargs):
         self.repo_id = kwargs["repo_id"]
 
+        self.dataset = LeRobotDataset(self.repo_id)
+
+        self.ds_meta: LeRobotDatasetMetadata = self.dataset.meta
+
         # FPS
-        self.ds_meta: LeRobotDatasetMetadata = LeRobotDatasetMetadata(self.repo_id)
         kwargs["fps"] = self.ds_meta.fps
         kwargs["should_start"] = False
         self.show_viewer = kwargs.get("show_viewer", True)
@@ -117,40 +115,57 @@ class EpisodeReplayer:
         ]
 
         self.episode_frame_count = min([
-            episode_dataset.meta.episodes[0]["length"]
+            episode_dataset.num_rows
             for episode_dataset in episode_datasets
         ])
 
     def replay_episodes(self):
-        success = self.replay_episode_batch()
+        moved, success = self.replay_episode_batch()
 
         # Log failed episodes
         failed_episode_ids = [self.episode_ids[i] for i in range(len(success)) if not success[i]]
         EpisodeReplayer.LOGGER.info(f"Failed episodes: {','.join(map(str, failed_episode_ids))}")
 
-        score = sum(success) / self.episode_count
+        score = (sum(moved) + sum(success)) / (2 * self.episode_count)
 
         return score
 
     def replay_episode_batch(self):
-        self.set_object_initial_positions()
+        initial_states = self.set_object_initial_positions()
 
         for frame_id in range(self.episode_frame_count):
             self.replay_frame(frame_id)
 
+        initial_golf_ball_pos = [
+            torch.tensor([initial_state.ball_x, initial_state.ball_y])
+            for initial_state in initial_states
+        ]
+        initial_golf_ball_pos = torch.stack(initial_golf_ball_pos)
+
         golf_ball_pos = self.golf_ball.get_pos()
+
+         # project to the XY plane
+        golf_ball_pos = golf_ball_pos[:, :2]
+
+        golf_ball_to_initial = torch.norm(golf_ball_pos - initial_golf_ball_pos, dim=1)
+
+        moved = golf_ball_to_initial > EpisodeReplayer.DISTANCE_THRESHOLD
+
         cup_pos = self.cup.get_pos()
 
-         # project error in the XY plane
-        golf_ball_pos_xy = golf_ball_pos[:, :2]
-        cup_pos_xy = cup_pos[:, :2]
+        cup_pos = cup_pos[:, :2]
 
-        distances = torch.norm(golf_ball_pos_xy - cup_pos_xy, dim=1)
+        golf_ball_to_cup = torch.norm(golf_ball_pos - cup_pos, dim=1)
 
-        distance_threshold = 0.01
-        successes = distances < distance_threshold
+        successes = golf_ball_to_cup < EpisodeReplayer.DISTANCE_THRESHOLD
 
-        return successes
+        return moved, successes
+
+    def replay_episode_frames(self):
+        [
+            self.replay_frame(frame_id)
+            for frame_id in range(self.episode_frame_count)
+        ]
 
     def set_object_initial_positions(self):
         # compute the initial positions of the ball and the cup
@@ -168,16 +183,19 @@ class EpisodeReplayer:
         ]
         self.cup.set_pos(cup_pos)
 
+        return initial_states
+
     def stop(self):
         self.arm.genesis.stop()
 
     def load_dataset(self, episode_id):
-        return LeRobotDataset(self.repo_id, episodes=[episode_id])
+        # TODO this should only be used when loading a single episode
+        return self.dataset.hf_dataset.filter(lambda x: x["episode_index"] == episode_id)
 
     def get_dataloader(self, episode_dataset):
         return torch.utils.data.DataLoader(
             episode_dataset,
-            batch_size=episode_dataset.meta.episodes[0]["length"],
+            batch_size=episode_dataset.num_rows,
         )
 
     def write_episodes_images(self):
@@ -192,7 +210,7 @@ class EpisodeReplayer:
 
         episode = next(iter(dataloader))
 
-        episode_frame_count = episode_dataset.meta.episodes[0]["length"]
+        episode_frame_count = episode_dataset.num_rows
         for frame_id in range(episode_frame_count):
             self.write_camera_image(episode, episode_id, frame_id)
 
@@ -231,7 +249,7 @@ class EpisodeReplayer:
         #EpisodeReplayer.LOGGER.info(f"frame_id = {frame_id}")
 
         if frame_id == 0:
-            self.arm.genesis.entity.set_qpos(leader_robot_states)
+            self.arm.genesis.entity.set_dofs_position(leader_robot_states)
         else:
             self.arm.genesis.entity.control_dofs_position(leader_robot_states)
 
@@ -337,7 +355,7 @@ class EpisodeReplayer:
 
     def set_robot_states(self, episodes, frame_ids):
         robot_states = self.get_robot_states(episodes, frame_ids, EpisodeReplayer.FOLLOWER_STATE_COLUMN)
-        self.arm.genesis.entity.set_qpos(robot_states)
+        self.arm.genesis.entity.set_dofs_position(robot_states)
 
     def write_image(self, type, rgb_image, episode_id, step_id):
         image = Image.fromarray(rgb_image, mode='RGB')
@@ -359,30 +377,3 @@ class EpisodeReplayer:
         camera_image = (camera_image * 255).astype("uint8")
 
         self.write_image("real", camera_image, episode_id, frame_id)
-
-    def grid_search(self, grid_input: GridSearchInput):
-        """
-        Grid search to optimize offsets in MIDDLE_POS_OFFSET for the specified motors and ranges.
-        Args:
-            grid_input (GridSearchInput): Contains motors (MotorRangeInput) and step size.
-        Returns:
-            Tuple of best offsets (in the order of grid_input.motors)
-        """
-
-        best_score = float('-inf')
-        best_offsets = None
-        # Generate value ranges for each motor
-        value_ranges = [
-            torch.arange(motor.start, motor.end + grid_input.step, grid_input.step)
-            for motor in grid_input.motors
-        ]
-        for offsets in itertools.product(*value_ranges):
-            # Update in place
-            for idx, motor in enumerate(grid_input.motors):
-                EpisodeReplayer.MIDDLE_POS_OFFSET[motor.motor_id] = offsets[idx].item()
-            score = self.replay_episodes()
-            EpisodeReplayer.LOGGER.info(f"Score: {score:.4f} for {EpisodeReplayer.MIDDLE_POS_OFFSET}")
-            if score > best_score:
-                best_score = score
-                best_offsets = tuple(offset.item() for offset in offsets)
-        return best_offsets
