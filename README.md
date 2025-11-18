@@ -15,4 +15,4 @@ There are 2 main use cases
 - [Tele-operation](doc/teleoperate.md)
 - [Examples](doc/examples.md)
 - [Gradio apps](doc/gradio_apps.md)
-- [LeRobot dataset EDA](./notebooks/so100_ball_cup2.ipynb)
+- [LeRobot dataset EDA](https://colab.research.google.com/drive/1Y5RTNec-6E3hS8AiLQlP9qdOQsdIPwdW?usp=sharing)
