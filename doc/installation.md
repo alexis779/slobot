@@ -78,7 +78,7 @@ LD_LIBRARY_PATH=$PYMESHLAB_LIB python <script.py>
 
 ## Camera feed
 
-Install **Webcam IP** Android app on your phone, select 640 x 480 image resolution and start server.
+If you intend to record with your Android phoen, install **Webcam IP** Android app on your phone, select 640 x 480 image resolution and start server.
 
 List v4l2 devices
 

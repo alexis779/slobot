@@ -47,13 +47,15 @@ class Genesis():
 
         self.fps = kwargs.get('fps', 60)
 
+        requires_grad = kwargs.get('requires_grad', False)
+
         self.scene = gs.Scene(
             show_viewer=show_viewer,
             sim_options = gs.options.SimOptions(
-                #requires_grad = True,
+                requires_grad = requires_grad,
             ),
             rigid_options = gs.options.RigidOptions(
-                #enable_collision = False,
+                enable_collision = not requires_grad, # TODO, collision dection is not supported with autograd
             ),
             viewer_options = gs.options.ViewerOptions(
                 res           = res,

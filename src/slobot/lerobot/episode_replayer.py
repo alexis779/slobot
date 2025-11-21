@@ -3,7 +3,7 @@ from slobot.feetech import Feetech
 from slobot.configuration import Configuration
 from slobot.metrics.metrics import Metrics
 
-from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata, LeRobotDataset
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
 import torch
 
@@ -25,19 +25,13 @@ class HoldState:
 
 @dataclass
 class InitialState:
-    ball_x: int
-    ball_y: int
-    cup_x: int
-    cup_y: int
-
-@dataclass
-class MotorRangeInput:
-    motor_id: int
-    start: float
-    end: float
+    ball: torch.Tensor  # 3D float tensor [x, y, z]
+    cup: torch.Tensor  # 3D float tensor [x, y, z]
 
 class EpisodeReplayer:
     LOGGER = Configuration.logger(__name__)
+
+    COLUMN_NAMES = [ 'frame_index', 'action', 'observation.state' ]
 
     LEADER_STATE_COLUMN = 'action'
     FOLLOWER_STATE_COLUMN = 'observation.state'
@@ -60,21 +54,24 @@ class EpisodeReplayer:
 
         self.dataset = LeRobotDataset(self.repo_id)
 
-        self.ds_meta: LeRobotDatasetMetadata = self.dataset.meta
+        self.middle_pos_offset = EpisodeReplayer.MIDDLE_POS_OFFSET
 
         # FPS
-        kwargs["fps"] = self.ds_meta.fps
+        kwargs["fps"] = self.dataset.meta.fps
         kwargs["should_start"] = False
-        self.show_viewer = kwargs.get("show_viewer", True)
+
+        kwargs["show_viewer"] = kwargs.get("show_viewer", False)
 
         # Image Resolution of the 1st camera
-        camera_key = self.ds_meta.camera_keys[0]
-        video_height, video_width, channels = self.ds_meta.features[camera_key]['shape']
+        camera_key = self.dataset.meta.camera_keys[0]
+        video_height, video_width, channels = self.dataset.meta.features[camera_key]['shape']
         self.res = (video_width, video_height)
         kwargs["res"] = self.res
 
-        self.metrics = Metrics()
-        kwargs["step_handler"] = self.metrics
+        self.add_metrics = kwargs.get("add_metrics", False)
+        if self.add_metrics:
+            self.metrics = Metrics()
+            kwargs["step_handler"] = self.metrics
 
         self.arm = SoArm100(**kwargs)
 
@@ -82,32 +79,48 @@ class EpisodeReplayer:
 
         n_envs = kwargs.get("n_envs", None)
         if n_envs is None:
-            n_envs = self.ds_meta.total_episodes
+            n_envs = self.dataset.meta.total_episodes
 
         self.build_scene(n_envs=n_envs)
 
     def load_episodes(self, episode_ids = None):
         self.episode_ids = episode_ids
         if self.episode_ids is None:
-            self.episode_count = self.ds_meta.total_episodes
+            self.episode_count = self.dataset.meta.total_episodes
             self.episode_ids = range(self.episode_count)
+            self.episode_indexes = {
+                episode_id: episode_id
+                for episode_id in self.episode_ids
+            }
         else:
             self.episode_count = len(self.episode_ids)
-
-        episode_datasets = [
-            self.load_dataset(episode_id)
-            for episode_id in self.episode_ids
-        ]
-
-        dataloaders = [
-            self.get_dataloader(episode_dataset)
-            for episode_dataset in episode_datasets
-        ]
+            self.episode_indexes = {
+                self.episode_ids[episode_id]: episode_id
+                for episode_id in range(self.episode_count)
+            }
 
         self.episodes = [
-            next(iter(dataloader))
-            for dataloader in dataloaders
+            {
+                column_name: []
+                for column_name in EpisodeReplayer.COLUMN_NAMES
+            }
+            for episode_id in range(self.episode_count)
         ]
+
+        for row in self.dataset.hf_dataset:
+            episode_id = row['episode_index'].item()
+            if episode_id not in self.episode_indexes:
+                continue
+
+            episode_index = self.episode_indexes[episode_id]
+            for column_name in EpisodeReplayer.COLUMN_NAMES:
+                self.episodes[episode_index][column_name].append(row[column_name])
+
+        for episode_id in self.episode_ids:
+            episode_index = self.episode_indexes[episode_id]
+            episode = self.episodes[episode_index]
+            for column_name in EpisodeReplayer.COLUMN_NAMES:
+                episode[column_name] = torch.vstack(episode[column_name])
 
         self.hold_states = [
             self.get_hold_state(episode)
@@ -115,8 +128,8 @@ class EpisodeReplayer:
         ]
 
         self.episode_frame_count = min([
-            episode_dataset.num_rows
-            for episode_dataset in episode_datasets
+            len(episode)
+            for episode in self.episodes
         ])
 
     def replay_episodes(self):
@@ -136,11 +149,10 @@ class EpisodeReplayer:
         for frame_id in range(self.episode_frame_count):
             self.replay_frame(frame_id)
 
-        initial_golf_ball_pos = [
-            torch.tensor([initial_state.ball_x, initial_state.ball_y])
+        initial_golf_ball_pos = torch.stack([
+            initial_state.ball[:2]
             for initial_state in initial_states
-        ]
-        initial_golf_ball_pos = torch.stack(initial_golf_ball_pos)
+        ])
 
         golf_ball_pos = self.golf_ball.get_pos()
 
@@ -169,16 +181,16 @@ class EpisodeReplayer:
 
     def set_object_initial_positions(self):
         # compute the initial positions of the ball and the cup
-        initial_states = self.get_initial_states(self.episodes, self.hold_states)
+        initial_states = self.get_initial_states()
 
         golf_pos = [
-            [initial_state.ball_x, initial_state.ball_y, self.GOLF_BALL_RADIUS]
+            [initial_state.ball[0].item(), initial_state.ball[1].item(), self.GOLF_BALL_RADIUS]
             for initial_state in initial_states
         ]
         self.golf_ball.set_pos(golf_pos)
 
         cup_pos = [
-            [initial_state.cup_x, initial_state.cup_y, 0]
+            [initial_state.cup[0].item(), initial_state.cup[1].item(), 0]
             for initial_state in initial_states
         ]
         self.cup.set_pos(cup_pos)
@@ -188,35 +200,10 @@ class EpisodeReplayer:
     def stop(self):
         self.arm.genesis.stop()
 
-    def load_dataset(self, episode_id):
-        # TODO this should only be used when loading a single episode
-        return self.dataset.hf_dataset.filter(lambda x: x["episode_index"] == episode_id)
-
-    def get_dataloader(self, episode_dataset):
-        return torch.utils.data.DataLoader(
-            episode_dataset,
-            batch_size=episode_dataset.num_rows,
-        )
-
-    def write_episodes_images(self):
-        episode_count = self.ds_meta.total_episodes
-        for episode_id in range(episode_count):
-            self.write_episode_images(episode_id)
-
-    def write_episode_images(self, episode_id):
-        episode_dataset = self.load_dataset(episode_id)
-
-        dataloader = self.get_dataloader(episode_dataset)
-
-        episode = next(iter(dataloader))
-
-        episode_frame_count = episode_dataset.num_rows
-        for frame_id in range(episode_frame_count):
-            self.write_camera_image(episode, episode_id, frame_id)
-
     def build_scene(self, n_envs):
         self.arm.genesis.start()
 
+        '''
         golf_ball = gs.morphs.Mesh(
             file="meshes/sphere.obj",
             scale=self.GOLF_BALL_RADIUS,
@@ -235,6 +222,7 @@ class EpisodeReplayer:
         )
 
         self.cup : RigidEntity = self.arm.genesis.scene.add_entity(cup)
+        '''
 
         self.arm.genesis.build(n_envs=n_envs)
         self.qpos_limits = self.arm.genesis.entity.get_dofs_limit()
@@ -253,15 +241,11 @@ class EpisodeReplayer:
         else:
             self.arm.genesis.entity.control_dofs_position(leader_robot_states)
 
-        if self.show_viewer:
-            for episode, episode_id in zip(self.episodes, self.episode_ids):
-                pass
-                #self.write_camera_image(episode, episode_id, frame_id)
-
         self.arm.genesis.step()
 
         follower_robot_states = self.get_robot_states(self.episodes, frame_ids, EpisodeReplayer.FOLLOWER_STATE_COLUMN)
-        self.metrics.add_metric("real.qpos", follower_robot_states)
+        if self.add_metrics:
+            self.metrics.add_metric("real.qpos", follower_robot_states)
 
     def get_robot_states(self, episodes, frame_ids, column_name):
         robot_states = [
@@ -281,9 +265,9 @@ class EpisodeReplayer:
 
     def positions_to_radians(self, positions):
         radians = self.feetech.sim_positions(positions)
-        radians = torch.tensor(radians)
+        radians = torch.tensor(radians, device=self.middle_pos_offset.device)
 
-        radians = radians + EpisodeReplayer.MIDDLE_POS_OFFSET.to(radians.device)
+        radians = radians + self.middle_pos_offset
         radians = torch.clamp(radians, self.qpos_limits[0], self.qpos_limits[1])
         return radians
 
@@ -298,7 +282,7 @@ class EpisodeReplayer:
         return self.sustained_frame_range(above_threshold)
 
     def sustained_frame_range(self, above_threshold):
-        sustained_frames = self.ds_meta.fps # at least 1 sec of holding
+        sustained_frames = self.dataset.meta.fps # at least 1 sec of holding
 
         counter = torch.full_like(above_threshold, fill_value=0)
 
@@ -332,26 +316,51 @@ class EpisodeReplayer:
 
         return HoldState(pick_frame_id=hold_start_frames[0], place_frame_id=hold_end_frames[0])
 
-    def get_initial_states(self, episodes, hold_states: list[HoldState]) -> list[InitialState]:
+    def get_initial_states(self) -> list[InitialState]:
         pick_frame_ids = [
             hold_state.pick_frame_id
-            for hold_state in hold_states
+            for hold_state in self.hold_states
         ]
 
-        self.set_robot_states(episodes, pick_frame_ids)
+        self.set_robot_states(self.episodes, pick_frame_ids)
         pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, EpisodeReplayer.FIXED_JAW_TRANSLATE)
 
         place_frame_ids = [
             hold_state.place_frame_id
-            for hold_state in hold_states
+            for hold_state in self.hold_states
         ]
-        self.set_robot_states(episodes, place_frame_ids)
+        self.set_robot_states(self.episodes, place_frame_ids)
         place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, EpisodeReplayer.FIXED_JAW_TRANSLATE)
 
         return [
-            InitialState(ball_x=pick_link_pos_i[0].item(), ball_y=pick_link_pos_i[1].item(), cup_x=place_link_pos_i[0].item(), cup_y=place_link_pos_i[1].item())
-            for pick_link_pos_i, place_link_pos_i in zip(pick_link_pos, place_link_pos)
+            InitialState(
+                ball=pick_link_pos_i,
+                cup=place_link_pos_i,
+            )
+            for pick_link_pos_i, place_link_pos_i, in zip(pick_link_pos, place_link_pos)
         ]
+
+    def get_initial_state_images(self, video_episode):
+        pick_frame_ids = [
+            hold_state.pick_frame_id
+            for hold_state in self.hold_states
+        ]
+
+        self.set_robot_states(self.episodes, pick_frame_ids)
+        self.arm.genesis.step()
+        sim_pick_image = self.get_sim_image()
+        real_pick_image = self.get_real_image(video_episode, pick_frame_ids[0])
+
+        place_frame_ids = [
+            hold_state.place_frame_id
+            for hold_state in self.hold_states
+        ]
+        self.set_robot_states(self.episodes, place_frame_ids)
+        self.arm.genesis.step()
+        sim_place_image = self.get_sim_image()
+        real_place_image = self.get_real_image(video_episode, place_frame_ids[0])
+
+        return sim_pick_image, real_pick_image, sim_place_image, real_place_image
 
     def set_robot_states(self, episodes, frame_ids):
         robot_states = self.get_robot_states(episodes, frame_ids, EpisodeReplayer.FOLLOWER_STATE_COLUMN)
@@ -367,13 +376,19 @@ class EpisodeReplayer:
 
         image.save(image_path)
 
-    def write_camera_image(self, episode, episode_id, frame_id):
-        camera_key = self.ds_meta.camera_keys[0]
-        camera_image = episode[camera_key][frame_id]
+    def get_real_image(self, video_episode, frame_id):
+        camera_key = self.dataset.meta.camera_keys[0]
+        camera_image = video_episode[frame_id][camera_key]
         camera_image = camera_image.data.numpy()
         camera_image = camera_image.transpose(1, 2, 0)
 
         # convert from [0-1] floats to [0-256[ ints
         camera_image = (camera_image * 255).astype("uint8")
 
-        self.write_image("real", camera_image, episode_id, frame_id)
+        #self.write_image("real", camera_image, episode_id, frame_id)
+        return camera_image
+
+    def get_sim_image(self):
+        rgb_image, _, _, _ = self.arm.genesis.camera.render(rgb=True)
+        #self.write_image("sim", rgb_image, episode_id, frame_id)
+        return rgb_image

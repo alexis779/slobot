@@ -14,7 +14,6 @@ class SoArm100():
         mjcf_path = Configuration.MJCF_CONFIG
         arm = SoArm100(mjcf_path=mjcf_path)
         arm.genesis.entity.set_dofs_position(target_qpos)
-        arm.genesis.entity.control_dofs_position(target_qpos)
         arm.genesis.hold_entity()
 
     def __init__(self, **kwargs):

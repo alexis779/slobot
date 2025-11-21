@@ -76,3 +76,10 @@ See [SIM Example](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%
 ```
 PYOPENGL_PLATFORM=egl python scripts/sim/generate_sim_dataset.py --dataset-repo-id alexis779/so100_ball_cup2 --sim-dataset-repo-id alexis779/so100_ball_cup2_sim
 ```
+
+
+## Pick & Place frames
+
+| real | sim |
+|----------|-------------|
+| ![Camera](./real_pick_place_frames.png) | ![Simulation](./sim_pick_place_frames.png) |
