@@ -1,54 +1,55 @@
 import unittest
-import csv
-import json
 
 from slobot.rigid_body.configuration import rigid_body_configuration
+from slobot.rigid_body.entity_state import VectorType
 from slobot.rigid_body.numpy_solver import NumpySolver
-
-import numpy as np
+from tests.test_pytorch_solver import TestPytorchSolver
 
 class TestNumpySolver(unittest.TestCase):
-    def load_csv_rows(self):
-        """Load rows from steps.csv file, returning tuples of (pod, vel) as numpy arrays."""
-        csv_path = './tests/steps.csv'
-        rows = []
-        
-        with open(csv_path) as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                # Parse JSON strings into float arrays
-                pod = np.array(json.loads(row['pod']), dtype=float)
-                vel = np.array(json.loads(row['vel']), dtype=float)
-                rows.append((pod, vel))
-        
-        return rows
+
+    def setUp(self):
+        self.numpy_solver = NumpySolver()
 
     def assert_almost_equal_atol(self, actual, expected, atol):
         max_error = self.numpy_solver.max_abs_error(actual, expected)
         self.assertTrue(max_error < atol, f"Max error {max_error} too large")
 
     def test_numpy(self):
-        # Load expected pos and vel from steps.csv file
-        rows = self.load_csv_rows()
+        # Load expected state from steps.csv file
+        rows = TestPytorchSolver.load_csv_rows(VectorType.NUMPY_ARRAY)
         
-        # Initialize max_step with the total number of rows in the csv
         max_step = len(rows)
-        rigid_body_configuration.max_step=max_step
+        # Initialize max_step with the total number of rows in the csv
+        rigid_body_configuration.max_step = max_step
 
-        self.numpy_solver = NumpySolver()
+        previous_entity_state = rows[0]
+        for step in range(1, max_step):
+            current_entity_state = rows[step]
+            self.assert_step(previous_entity_state, current_entity_state)
 
-        for step in range(max_step-1):
-            expected_pos0, expected_vel0 = rows[step]
-            expected_pos1, expected_vel1 = rows[step + 1]
-            self.assert_step(expected_pos0, expected_vel0, expected_pos1, expected_vel1)
+            previous_entity_state = current_entity_state
 
-    def assert_step(self, expected_pos0, expected_vel0, expected_pos1, expected_vel1):
-        acc, vel, pos, mass, force = self.numpy_solver.step(expected_pos0, expected_vel0)
+    def assert_step(self, previous_entity_state, current_entity_state):
+        # Set position and velocity using setters (will be swapped to previous_entity in step())
+        self.numpy_solver.set_pos(previous_entity_state.joint.pos)
+        self.numpy_solver.set_vel(previous_entity_state.joint.vel)
 
-        self.assert_newton_euler(acc, vel, pos, mass, force, expected_pos1, expected_vel1)
+        # Call step (no parameters, no return values)
+        self.numpy_solver.step()
 
-    def assert_newton_euler(self, acc, vel, pos, mass, force, expected_pos, expected_vel):
-        self.assert_almost_equal_atol(force, self.numpy_solver.matvec(mass, acc), atol=1e-5)
+        # Get actual values
+        vel = self.numpy_solver.get_vel()
+        pos = self.numpy_solver.get_pos()
+        link_quat = self.numpy_solver.get_link_quat()
+        link_pos = self.numpy_solver.get_link_pos()
 
-        self.assert_almost_equal_atol(pos, expected_pos, atol=1e-3)
+        # Get expected values
+        expected_vel = current_entity_state.joint.vel
+        expected_pos = current_entity_state.joint.pos
+        expected_link_quat = current_entity_state.link.quat[1:, :]
+        expected_link_pos = current_entity_state.link.pos[1:, :]
+
         self.assert_almost_equal_atol(vel, expected_vel, atol=1e-1)
+        self.assert_almost_equal_atol(pos, expected_pos, atol=1e-3)
+        self.assert_almost_equal_atol(link_quat, expected_link_quat, atol=1e-1)
+        self.assert_almost_equal_atol(link_pos, expected_link_pos, atol=1e-1)

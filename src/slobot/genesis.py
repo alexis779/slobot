@@ -245,7 +245,7 @@ class Genesis():
         diff_qpos = current_qpos - target_qpos
         return torch.norm(diff_qpos)
 
-    def link_translate(self, link, t):
+    def link_translate(self, link: RigidLink, t):
         link_pos = link.get_pos()
         link_quat = link.get_quat()
 
