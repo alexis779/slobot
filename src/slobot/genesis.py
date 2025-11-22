@@ -245,7 +245,7 @@ class Genesis():
         diff_qpos = current_qpos - target_qpos
         return torch.norm(diff_qpos)
 
-    def link_translate(self, link, t):
+    def link_translate(self, link: RigidLink, t):
         link_pos = link.get_pos()
         link_quat = link.get_quat()
 
@@ -267,6 +267,7 @@ class Genesis():
         link_pos = link.get_pos()
         sphere_pos = self.link_translate(link, arrow_t)
         arrow_vec = sphere_pos - link_pos
-        self.scene.draw_debug_arrow(link_pos, arrow_vec, radius = 0.003, color = (1, 0, 0, 0.5))
+        self.scene.clear_debug_objects()
+        self.scene.draw_debug_arrow(link_pos[0], arrow_vec[0], radius = 0.003, color = (1, 0, 0, 0.5))
         self.scene.draw_debug_sphere(sphere_pos[0], sphere_radius, color = sphere_color)
         return sphere_pos[0]

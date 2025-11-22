@@ -9,6 +9,7 @@ import torch
 
 import genesis as gs
 from genesis.engine.entities import RigidEntity
+from genesis.utils import geom as gu
 
 from PIL import Image
 
@@ -38,9 +39,9 @@ class EpisodeReplayer:
 
     GRIPPER_ID = 5 # the id of the jaw joint
 
-    MIDDLE_POS_OFFSET = torch.tensor([0, 0.07, 0.06, 0, 1.57, 0.04]) # readjust the middle position calibration
+    MIDDLE_POS_OFFSET = torch.tensor([-0.0097,  0.1134,  0.1031,  0.0426,  1.6127,  0.35]) # readjust the middle position calibration
 
-    FIXED_JAW_TRANSLATE = torch.tensor([-2e-2, -9e-2, 0]) # the translation vector from the fixed jaw position to the ball position, in the frame relative to the link
+    FIXED_JAW_TRANSLATE = torch.tensor([-1.4e-2, -9e-2, 0]) # the translation vector from the fixed jaw position to the ball position, in the frame relative to the link
     GOLF_BALL_RADIUS = 4.27e-2 / 2
 
     DELAY_FRAMES = 4 # the number of fps the follower takes to reflect the leader position
@@ -55,7 +56,7 @@ class EpisodeReplayer:
         self.dataset = LeRobotDataset(self.repo_id)
 
         self.middle_pos_offset = EpisodeReplayer.MIDDLE_POS_OFFSET
-
+        self.fixed_jaw_translate = EpisodeReplayer.FIXED_JAW_TRANSLATE
         # FPS
         kwargs["fps"] = self.dataset.meta.fps
         kwargs["should_start"] = False
@@ -128,7 +129,7 @@ class EpisodeReplayer:
         ]
 
         self.episode_frame_count = min([
-            len(episode)
+            len(episode['frame_index'])
             for episode in self.episodes
         ])
 
@@ -144,14 +145,14 @@ class EpisodeReplayer:
         return score
 
     def replay_episode_batch(self):
-        initial_states = self.set_object_initial_positions()
+        self.set_object_initial_positions()
 
         for frame_id in range(self.episode_frame_count):
             self.replay_frame(frame_id)
 
         initial_golf_ball_pos = torch.stack([
             initial_state.ball[:2]
-            for initial_state in initial_states
+            for initial_state in self.initial_states
         ])
 
         golf_ball_pos = self.golf_ball.get_pos()
@@ -181,21 +182,19 @@ class EpisodeReplayer:
 
     def set_object_initial_positions(self):
         # compute the initial positions of the ball and the cup
-        initial_states = self.get_initial_states()
+        self.initial_states = self.get_initial_states()
 
         golf_pos = [
             [initial_state.ball[0].item(), initial_state.ball[1].item(), self.GOLF_BALL_RADIUS]
-            for initial_state in initial_states
+            for initial_state in self.initial_states
         ]
         self.golf_ball.set_pos(golf_pos)
 
         cup_pos = [
             [initial_state.cup[0].item(), initial_state.cup[1].item(), 0]
-            for initial_state in initial_states
+            for initial_state in self.initial_states
         ]
         self.cup.set_pos(cup_pos)
-
-        return initial_states
 
     def stop(self):
         self.arm.genesis.stop()
@@ -203,7 +202,6 @@ class EpisodeReplayer:
     def build_scene(self, n_envs):
         self.arm.genesis.start()
 
-        '''
         golf_ball = gs.morphs.Mesh(
             file="meshes/sphere.obj",
             scale=self.GOLF_BALL_RADIUS,
@@ -219,10 +217,10 @@ class EpisodeReplayer:
         self.golf_ball : RigidEntity = self.arm.genesis.scene.add_entity(
             golf_ball,
             visualize_contact=False, # True
+            vis_mode='visual', # collision
         )
 
         self.cup : RigidEntity = self.arm.genesis.scene.add_entity(cup)
-        '''
 
         self.arm.genesis.build(n_envs=n_envs)
         self.qpos_limits = self.arm.genesis.entity.get_dofs_limit()
@@ -241,6 +239,13 @@ class EpisodeReplayer:
         else:
             self.arm.genesis.entity.control_dofs_position(leader_robot_states)
 
+        '''
+        if frame_id == self.hold_states[0].pick_frame_id:
+            for _ in range(50):
+                self.arm.genesis.draw_arrow(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate, self.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
+                self.arm.genesis.step()
+                input()
+        '''
         self.arm.genesis.step()
 
         follower_robot_states = self.get_robot_states(self.episodes, frame_ids, EpisodeReplayer.FOLLOWER_STATE_COLUMN)
@@ -363,7 +368,7 @@ class EpisodeReplayer:
         return sim_pick_image, real_pick_image, sim_place_image, real_place_image
 
     def set_robot_states(self, episodes, frame_ids):
-        robot_states = self.get_robot_states(episodes, frame_ids, EpisodeReplayer.FOLLOWER_STATE_COLUMN)
+        robot_states = self.get_robot_states(episodes, frame_ids, EpisodeReplayer.LEADER_STATE_COLUMN)
         self.arm.genesis.entity.set_dofs_position(robot_states)
 
     def write_image(self, type, rgb_image, episode_id, step_id):

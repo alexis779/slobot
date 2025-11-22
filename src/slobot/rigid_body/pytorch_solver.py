@@ -1,68 +1,133 @@
-import numpy as np
-from scipy.spatial.transform import Rotation as R
+import torch
 
 from slobot.rigid_body.configuration import Configuration, rigid_body_configuration
 from slobot.rigid_body.entity_state import create_entity_state
 
-class NumpySolver:
-    def __init__(self) -> None:
+from genesis.utils import geom as gu
+
+class PytorchSolver:
+    # Numerical epsilon threshold for detecting near-zero quaternions/vectors
+    EPS = 1e-8
+    
+    def __init__(self, device='cpu') -> None:
         self.config: Configuration = rigid_body_configuration
+        self.device = device
+        
         # Initialize entity states using factory function
         self.previous_entity = create_entity_state()
         self.current_entity = create_entity_state()
 
+        # Cache config values as tensors to avoid repeated conversions
+        self._cache_config_tensors()
+
+    def _list_to_tensor(self, x):
+        """Convert list to torch tensor."""
+        return torch.tensor(x, dtype=torch.float32, device=self.device)
+
+    def _cache_config_tensors(self):
+        """Cache config getter values as tensors for performance."""
+        self.link_initial_quat = self._list_to_tensor(self.config.get_link_initial_quat())
+        self.link_initial_pos = self._list_to_tensor(self.config.get_link_initial_pos())
+        self.link_mass = self._list_to_tensor(self.config.get_link_mass())
+        self.link_inertia = self._list_to_tensor(self.config.get_link_inertia())
+        self.link_inertial_quat = self._list_to_tensor(self.config.get_link_inertial_quat())
+        self.link_inertial_pos = self._list_to_tensor(self.config.get_link_inertial_pos())
+
     # ----------------------------- basic helpers -----------------------------
     def max_abs_error(self, actual, expected):
-        return np.max(np.abs(actual - expected))
+        return torch.max(torch.abs(actual - expected)).item()
 
     def cross_product(self, vecs1, vecs2):
-        return np.cross(vecs1, vecs2, axis=1)
+        return torch.cross(vecs1, vecs2, dim=1)
 
     def scalar_product(self, vecs1, vecs2):
-        return np.einsum('ij,ij->i', vecs1, vecs2)
+        return torch.einsum('ij,ij->i', vecs1, vecs2)
 
     def outer_product(self, vec1, vec2):
-        return np.einsum('i,j->ij', vec1, vec2)
+        return torch.einsum('i,j->ij', vec1, vec2)
 
     def cumulative_sum(self, vecs):
-        return np.cumsum(vecs, axis=0)
+        return torch.cumsum(vecs, dim=0)
 
     def reverse_cumulative_sum(self, vecs):
-        return np.flip(np.cumsum(np.flip(vecs, axis=0), axis=0), axis=0)
+        return torch.flip(torch.cumsum(torch.flip(vecs, dims=[0]), dim=0), dims=[0])
 
     def multiply_matrix_by_vector(self, m, u):
-        return np.einsum('ijk,ik->ij', m, u)
+        return torch.einsum('ijk,ik->ij', m, u)
 
     def multiply_scalar_by_vector(self, c, u):
-        return np.einsum('i,ij->ij', c, u)
+        return torch.einsum('i,ij->ij', c, u)
 
     def multiply_scalar_by_matrix(self, c, m):
-        return np.einsum('i,ijk->ijk', c, m)
+        return torch.einsum('i,ijk->ijk', c, m)
 
     def shift_bottom(self, A):
-        return np.vstack([np.zeros((1, A.shape[1])), A[:-1]])
+        return torch.vstack([torch.zeros((1, A.shape[1]), device=self.device), A[:-1]])
 
     def hhT_batch(self, vecs):
-        norms = np.einsum("ni,ni->n", vecs, vecs)
-        outers = np.einsum("ni,nj->nij", vecs, vecs)
-        return norms[:, None, None] * np.eye(3) - outers
+        norms = torch.einsum("ni,ni->n", vecs, vecs)
+        outers = torch.einsum("ni,nj->nij", vecs, vecs)
+        eye = torch.eye(3, device=self.device).unsqueeze(0)
+        return norms[:, None, None] * eye - outers
 
     def matvec(self, m, v):
         return m @ v
 
     def linalg_solve(self, m, b):
-        return np.linalg.solve(m, b)
+        return torch.linalg.solve(m, b)
 
     def clip(self, x, min_v, max_v):
-        return np.clip(x, min_v, max_v)
+        return torch.clamp(x, min_v, max_v)
 
     def tile_row(self, row):
-        return np.tile(row, (self.config.dofs, 1))
+        return row.repeat(self.config.dofs, 1)
 
     # ----------------------------- quaternion ops ----------------------------
     def transform_by_quat(self, vecs, quats):
-        r = self.quat_to_rotation_matrix(quats)
-        return r.apply(vecs)
+        """Apply quaternion rotation to vectors.
+        
+        Args:
+            vecs: Tensor of shape (N, 3) or (3,) - vectors to rotate
+            quats: Tensor of shape (N, 4) or (4,) - quaternions in (w, x, y, z) format
+        
+        Returns:
+            Rotated vectors with same shape as vecs
+        """
+        
+        # Handle single vector/quaternion case
+        vecs_was_1d = vecs.dim() == 1
+        quats_was_1d = quats.dim() == 1
+        
+        if vecs_was_1d:
+            vecs = vecs.unsqueeze(0)
+        if quats_was_1d:
+            quats = quats.unsqueeze(0)
+        
+        # Ensure same batch size for broadcasting
+        batch_size = max(vecs.shape[0], quats.shape[0])
+        if vecs.shape[0] == 1:
+            vecs = vecs.expand(batch_size, -1)
+        if quats.shape[0] == 1:
+            quats = quats.expand(batch_size, -1)
+        
+        # Normalize quaternions, handling near-zero quaternions
+        quat_norms = torch.norm(quats, dim=-1, keepdim=True)
+        zero_mask = quat_norms.squeeze(-1) < self.EPS
+        quat_norms_safe = torch.where(zero_mask.unsqueeze(-1), torch.ones_like(quat_norms), quat_norms)
+        quats = quats / quat_norms_safe
+        
+        # For near-zero quaternions, use identity quaternion [1, 0, 0, 0]
+        identity_quat = torch.tensor([1.0, 0.0, 0.0, 0.0], device=quats.device, dtype=quats.dtype)
+        quats = torch.where(zero_mask.unsqueeze(-1), identity_quat.unsqueeze(0).expand_as(quats), quats)
+        
+        # Apply the new transform implementation
+        result = gu._tc_transform_by_quat(vecs, quats)
+        
+        # Restore original shape if input was 1D
+        if vecs_was_1d and quats_was_1d:
+            result = result.squeeze(0)
+        
+        return result
 
     def compose_quat_by_quat(self, quat2, quat1):
         vu = self.outer_product(quat1, quat2)
@@ -70,7 +135,7 @@ class NumpySolver:
         x = vu[0, 1] + vu[1, 0] + vu[2, 3] - vu[3, 2]
         y = vu[0, 2] - vu[1, 3] + vu[2, 0] + vu[3, 1]
         z = vu[0, 3] + vu[1, 2] - vu[2, 1] + vu[3, 0]
-        return np.array([w, x, y, z])
+        return torch.stack([w, x, y, z])
 
     def compose_quat_by_quat_batch(self, quat2, quat1):
         w1, x1, y1, z1 = quat1.T
@@ -79,37 +144,149 @@ class NumpySolver:
         x = w2*x1 + x2*w1 + y2*z1 - z2*y1
         y = w2*y1 - x2*z1 + y2*w1 + z2*x1
         z = w2*z1 + x2*y1 - y2*x1 + z2*w1
-        return np.stack([w, x, y, z], axis=1)
+        return torch.stack([w, x, y, z], dim=1)
 
     def rotation_vector_to_quat(self, rotation_vectors):
-        r = R.from_rotvec(rotation_vectors)
-        # Return with scalar-first layout (w,x,y,z)
-        return r.as_quat(scalar_first=True)
+        """Convert rotation vectors (axis-angle representation) to quaternions.
+        
+        Args:
+            rotation_vectors: Tensor of shape (N, 3) or (3,) - rotation vectors (axis * angle)
+        
+        Returns:
+            Quaternions in (w, x, y, z) format, shape (N, 4) or (4,)
+        """
+        
+        # Handle single vector case
+        if rotation_vectors.dim() == 1:
+            rotation_vectors = rotation_vectors.unsqueeze(0)
+            single_vec = True
+        else:
+            single_vec = False
+        
+        # Compute angle (magnitude of rotation vector)
+        angles = torch.norm(rotation_vectors, dim=-1, keepdim=True)
+        
+        # Handle zero rotation case
+        zero_mask = angles.squeeze(-1) < self.EPS
+        angles_safe = torch.where(zero_mask.unsqueeze(-1), torch.ones_like(angles), angles)
+        
+        # Normalize axis
+        axes = rotation_vectors / angles_safe
+        
+        # Compute quaternion: q = [cos(θ/2), sin(θ/2) * axis]
+        half_angles = angles_safe / 2.0
+        w = torch.cos(half_angles).squeeze(-1)
+        sin_half = torch.sin(half_angles)
+        xyz = sin_half * axes
+        
+        # For zero rotations, return identity quaternion [1, 0, 0, 0]
+        w = torch.where(zero_mask, torch.ones_like(w), w)
+        xyz = torch.where(zero_mask.unsqueeze(-1), torch.zeros_like(xyz), xyz)
+        
+        # Stack into quaternions: (N, 4) in (w, x, y, z) format
+        quat = torch.cat([w.unsqueeze(-1), xyz], dim=-1)
+        
+        if single_vec:
+            quat = quat.squeeze(0)
+        
+        return quat
 
     def quat_to_rotation_matrix(self, quat):
-        return R.from_quat(quat, scalar_first=True)
+        """Convert quaternions to rotation matrices.
+        
+        Args:
+            quat: Tensor of shape (N, 4) or (4,) - quaternions in (w, x, y, z) format
+        
+        Returns:
+            Rotation matrices of shape (N, 3, 3) or (3, 3)
+        """
+        
+        # Handle single quaternion case
+        if quat.dim() == 1:
+            quat = quat.unsqueeze(0)
+            single_quat = True
+        else:
+            single_quat = False
+        
+        # Normalize quaternions, handling near-zero quaternions
+        quat_norms = torch.norm(quat, dim=-1, keepdim=True)
+        zero_mask = quat_norms.squeeze(-1) < self.EPS
+        quat_norms_safe = torch.where(zero_mask.unsqueeze(-1), torch.ones_like(quat_norms), quat_norms)
+        quat = quat / quat_norms_safe
+        
+        # For near-zero quaternions, use identity quaternion [1, 0, 0, 0]
+        identity_quat = torch.tensor([1.0, 0.0, 0.0, 0.0], device=quat.device, dtype=quat.dtype)
+        quat = torch.where(zero_mask.unsqueeze(-1), identity_quat.unsqueeze(0).expand_as(quat), quat)
+        
+        # Extract quaternion components (w, x, y, z)
+        w, x, y, z = quat[..., 0], quat[..., 1], quat[..., 2], quat[..., 3]
+        
+        # Precompute terms
+        x2, y2, z2 = x * x, y * y, z * z
+        xy, xz, yz = x * y, x * z, y * z
+        wx, wy, wz = w * x, w * y, w * z
+        
+        # Build rotation matrices
+        R00 = 1 - 2 * (y2 + z2)
+        R01 = 2 * (xy - wz)
+        R02 = 2 * (xz + wy)
+        R10 = 2 * (xy + wz)
+        R11 = 1 - 2 * (x2 + z2)
+        R12 = 2 * (yz - wx)
+        R20 = 2 * (xz - wy)
+        R21 = 2 * (yz + wx)
+        R22 = 1 - 2 * (x2 + y2)
+        
+        # Stack into rotation matrices: (N, 3, 3)
+        R = torch.stack([
+            torch.stack([R00, R01, R02], dim=-1),
+            torch.stack([R10, R11, R12], dim=-1),
+            torch.stack([R20, R21, R22], dim=-1)
+        ], dim=-2)
+        
+        if single_quat:
+            R = R.squeeze(0)
+        
+        return R
 
     # ------------------------- forward-kinematics utils ----------------------
     def compute_link_quat_pos(self, pos):
         dofs = self.config.dofs
-        link_quat = np.zeros((dofs, Configuration.NUM_DIMS_QUAT))
-        link_pos = np.zeros((dofs, Configuration.NUM_DIMS_3D))
+        # Initialize output lists to accumulate results
+        link_quat_list = []
+        link_pos_list = []
+        link_quat0_list = []
 
-        link_quat0 = np.array(self.config.get_link_initial_quat())
-        link_rel_pos = np.array(self.config.get_link_initial_pos())
-
-        joint_axis = np.array(self.config.joint_axis)
+        # Initialize base values (these are read-only references)
+        link_initial_quat = self.link_initial_quat
+        link_initial_pos = self.link_initial_pos
+        joint_axis = self._list_to_tensor(self.config.joint_axis)
         axis = self.multiply_scalar_by_vector(pos, joint_axis)
         link_rotation_vector_quat = self.rotation_vector_to_quat(axis)
 
         for i in range(dofs):
             if i == 0:
-                link_pos[i] = link_rel_pos[i]
+                # First link: use initial values directly
+                current_link_quat0 = link_initial_quat[i]
+                current_link_pos = link_initial_pos[i]
             else:
-                link_quat0[i] = self.compose_quat_by_quat(link_quat0[i], link_quat[i-1])
-                link_rel_pos[i] = self.transform_by_quat(link_rel_pos[i], link_quat[i-1])
-                link_pos[i] = link_rel_pos[i] + link_pos[i-1]
-            link_quat[i] = self.compose_quat_by_quat(link_rotation_vector_quat[i], link_quat0[i])
+                # Compute transformed values based on previous link's quaternion
+                current_link_quat0 = self.compose_quat_by_quat(link_initial_quat[i], link_quat_list[i-1])
+                current_link_rel_pos = self.transform_by_quat(link_initial_pos[i], link_quat_list[i-1])
+                current_link_pos = current_link_rel_pos + link_pos_list[i-1]
+
+            # Compute link quaternion from rotation vector quat and base quat
+            current_link_quat = self.compose_quat_by_quat(link_rotation_vector_quat[i], current_link_quat0)
+
+            # Store results
+            link_quat_list.append(current_link_quat)
+            link_pos_list.append(current_link_pos)
+            link_quat0_list.append(current_link_quat0)
+
+        # Stack results into tensors
+        link_quat = torch.stack(link_quat_list, dim=0)
+        link_pos = torch.stack(link_pos_list, dim=0)
+        link_quat0 = torch.stack(link_quat0_list, dim=0)
 
         return link_quat, link_pos, link_quat0, link_pos, link_rotation_vector_quat
 
@@ -127,8 +304,7 @@ class NumpySolver:
 
         xanchor = link_pos0
 
-        joint_axis = np.array(self.config.joint_axis)
-        xaxis = self.compute_xaxis(joint_axis, link_quat0)
+        xaxis = self.compute_xaxis(self._list_to_tensor(self.config.joint_axis), link_quat0)
 
         angular_jacobian = xaxis
 
@@ -235,16 +411,14 @@ class NumpySolver:
 
     def compute_f1(self, link_cinr_inertia, link_cinr_pos, joint_linear_jacobian_acc, joint_angular_jacobian_acc, vel0):
         link_linear_acc_individual = self.multiply_scalar_by_vector(vel0, joint_linear_jacobian_acc)
-        gravity = np.array(self.config.gravity)
-        link_linear_acc = gravity + self.cumulative_sum(link_linear_acc_individual)
+        link_linear_acc = self._list_to_tensor(self.config.gravity) + self.cumulative_sum(link_linear_acc_individual)
 
         link_angular_acc_individual = self.multiply_scalar_by_vector(vel0, joint_angular_jacobian_acc)
         link_angular_acc = self.cumulative_sum(link_angular_acc_individual)
 
         f1_ang = self.multiply_matrix_by_vector(link_cinr_inertia, link_angular_acc) + self.cross_product(link_cinr_pos, link_linear_acc)
 
-        link_mass = np.array(self.config.get_link_mass())
-        f1_vel = self.multiply_scalar_by_vector(link_mass, link_linear_acc) - self.cross_product(link_cinr_pos, link_angular_acc)
+        f1_vel = self.multiply_scalar_by_vector(self.link_mass, link_linear_acc) - self.cross_product(link_cinr_pos, link_angular_acc)
 
         return f1_vel, f1_ang, link_linear_acc, link_angular_acc, link_linear_acc_individual, link_angular_acc_individual
 
@@ -253,8 +427,7 @@ class NumpySolver:
         link_linear_vel = self.cumulative_sum(link_linear_vel_individual)
         link_angular_vel_individual = self.multiply_scalar_by_vector(vel0, angular_jacobian)
         link_angular_vel = self.cumulative_sum(link_angular_vel_individual)
-        link_mass = np.array(self.config.get_link_mass())
-        f2_vel_vel = self.multiply_scalar_by_vector(link_mass, link_linear_vel) - self.cross_product(link_cinr_pos, link_angular_vel)
+        f2_vel_vel = self.multiply_scalar_by_vector(self.link_mass, link_linear_vel) - self.cross_product(link_cinr_pos, link_angular_vel)
         f2_vel = self.cross_product(link_angular_vel, f2_vel_vel)
         f2_ang_vel = self.multiply_matrix_by_vector(link_inertia, link_angular_vel) + self.cross_product(link_cinr_pos, link_linear_vel)
         f2_ang = self.cross_product(link_angular_vel, f2_ang_vel) + self.cross_product(link_linear_vel, f2_vel_vel)
@@ -270,26 +443,21 @@ class NumpySolver:
         return link_force, link_torque
 
     def compute_link_inertia(self, link_quat, link_pos, COM):
-        link_inertial_quat = np.array(self.config.get_link_inertial_quat())
-        link_inertial_quat = self.compose_quat_by_quat_batch(link_quat, link_inertial_quat)
+        link_inertial_quat = self.compose_quat_by_quat_batch(link_quat, self.link_inertial_quat)
 
-        rotation = self.quat_to_rotation_matrix(link_inertial_quat).as_matrix()
+        rotation = self.quat_to_rotation_matrix(link_inertial_quat)
+        rotation_t = rotation.transpose(-2, -1)
 
-        rotation_t = rotation.transpose(0, 2, 1)
+        link_cinr_inertial = rotation @ self.link_inertia @ rotation_t
 
-        link_cinr_inertial = np.array(self.config.get_link_inertia())
-        link_cinr_inertial = rotation @ link_cinr_inertial @ rotation_t
-
-        link_inertial_pos = np.array(self.config.get_link_inertial_pos())
-        link_inertial_pos = self.transform_by_quat(link_inertial_pos, link_quat)
+        link_inertial_pos = self.transform_by_quat(self.link_inertial_pos, link_quat)
         link_inertial_pos = link_inertial_pos + link_pos
         link_inertial_pos = link_inertial_pos - COM
 
-        link_mass = np.array(self.config.get_link_mass())
-        link_cinr_pos = self.multiply_scalar_by_vector(link_mass, link_inertial_pos)
+        link_cinr_pos = self.multiply_scalar_by_vector(self.link_mass, link_inertial_pos)
 
         hhT = self.hhT_batch(link_inertial_pos)
-        hhT_mass = self.multiply_scalar_by_matrix(link_mass, hhT)
+        hhT_mass = self.multiply_scalar_by_matrix(self.link_mass, hhT)
         link_cinr_inertial = link_cinr_inertial + hhT_mass
 
         return link_cinr_inertial, link_cinr_pos, link_inertial_pos
@@ -303,53 +471,46 @@ class NumpySolver:
         return bias_force_angular + bias_force_linear, bias_force_angular, bias_force_linear
 
     def compute_applied_force(self, pos0, vel0):
-        Kp = np.array(self.config.Kp)
-        Kv = np.array(self.config.Kv)
-        control_pos = np.array(self.config.control_pos)
-        min_force = np.array(self.config.min_force)
-        max_force = np.array(self.config.max_force)
-        control_force = Kp * (control_pos - pos0) - Kv * vel0
-        applied_force = self.clip(control_force, min_force, max_force)
+        control_force = self._list_to_tensor(self.config.Kp) * (self._list_to_tensor(self.config.control_pos) - pos0) - self._list_to_tensor(self.config.Kv) * vel0
+        applied_force = self.clip(control_force, self._list_to_tensor(self.config.min_force), self._list_to_tensor(self.config.max_force))
         return control_force, applied_force
 
     def compute_newton_euler(self, mass, force, pos0, vel0):
         acc = self.linalg_solve(mass, force)
-        vel = vel0 + acc * self.config.step_dt
-        pos = pos0 + vel * self.config.step_dt
+        step_dt = self.config.step_dt
+        vel = vel0 + acc * step_dt
+        pos = pos0 + vel * step_dt
         return acc, vel, pos
 
     def compute_COM(self, link_quat, link_pos):
         # Prepend [1, 0, 0, 0] to link_quat and (0, 0, 0) to link_pos
-        link_quat = np.vstack([np.array([[1, 0, 0, 0]]), link_quat])
-        link_pos = np.vstack([np.array([[0, 0, 0]]), link_pos])
+        link_quat = torch.vstack([torch.tensor([[1, 0, 0, 0]], device=self.device), link_quat])
+        link_pos = torch.vstack([torch.tensor([[0, 0, 0]], device=self.device), link_pos])
 
-        link_inertial_pos = np.array(self.config.link_inertial_pos)
-        i_pos = self.transform_by_quat(link_inertial_pos, link_quat) + link_pos
-        link_mass = np.array(self.config.link_mass)
-        return np.sum(self.multiply_scalar_by_vector(link_mass, i_pos), axis=0) / np.sum(link_mass)
+        i_pos = self.transform_by_quat(self._list_to_tensor(self.config.link_inertial_pos), link_quat) + link_pos
+        link_mass_full = self._list_to_tensor(self.config.link_mass)
+        return torch.sum(self.multiply_scalar_by_vector(link_mass_full, i_pos), dim=0) / torch.sum(link_mass_full)
 
     def compute_f_ang_vel(self, expected_crb_pos, expected_crb_inertial, expected_crb_mass,
                                 expected_angular_jacobian, expected_linear_jacobian):
-        expected_f_ang = self.multiply_matrix_by_vector(expected_crb_inertial, expected_angular_jacobian) + np.cross(expected_crb_pos, expected_linear_jacobian)
-        expected_f_vel = self.multiply_scalar_by_vector(expected_crb_mass, expected_linear_jacobian) - np.cross(expected_crb_pos, expected_angular_jacobian)
+        expected_f_ang = self.multiply_matrix_by_vector(expected_crb_inertial, expected_angular_jacobian) + self.cross_product(expected_crb_pos, expected_linear_jacobian)
+        expected_f_vel = self.multiply_scalar_by_vector(expected_crb_mass, expected_linear_jacobian) - self.cross_product(expected_crb_pos, expected_angular_jacobian)
         return expected_f_ang, expected_f_vel
 
     def compute_mass_matrix(self, expected_f_ang, expected_f_vel, angular_jacobian, linear_jacobian):
         mass_matrix = expected_f_ang @ angular_jacobian.T + expected_f_vel @ linear_jacobian.T
 
         # update the lower triangular part with the upper triangular part
-        mass_matrix = np.triu(mass_matrix) + np.triu(mass_matrix, 1).T
+        mass_matrix = torch.triu(mass_matrix) + torch.triu(mass_matrix, diagonal=1).T
 
         # add armature
-        armature = np.array(self.config.armature)
-        mass_matrix += np.diag(armature)
+        mass_matrix += torch.diag(self._list_to_tensor(self.config.armature))
 
         # discount force jacobian for implicit integration
         # M @ delta_vel = force_{t+1} * delta_t
         #             = (force_t + force_jacobian @ delta_vel) * delta_t
         # (M - delta_t * force_jacobian) @ delta_vel = force_t * delta_t
-        Kv = np.array(self.config.Kv)
-        force_jacobian = -np.diag(Kv)
+        force_jacobian = -torch.diag(self._list_to_tensor(self.config.Kv))
         mass_matrix -= self.config.step_dt * force_jacobian
 
         return mass_matrix
@@ -358,7 +519,7 @@ class NumpySolver:
         expected_crb_pos = self.reverse_cumulative_sum(expected_cinr_pos)
         expected_crb_inertial = self.reverse_cumulative_sum(expected_cinr_inertial)
 
-        link_mass = np.array(self.config.get_link_mass())
-        expected_crb_mass = self.reverse_cumulative_sum(link_mass)
+        expected_crb_mass = self.reverse_cumulative_sum(self.link_mass)
 
         return expected_crb_pos, expected_crb_inertial, expected_crb_mass
+

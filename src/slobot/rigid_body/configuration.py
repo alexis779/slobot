@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import numpy as np
 
 
 @dataclass
@@ -8,6 +7,8 @@ class Configuration:
     NUM_DIMS_QUAT = 4
 
     dofs: int
+    joint_ids: dict[str, int]
+    link_ids: dict[str, int]
     step_dt: float
     max_step: int
     gravity: list[float]
@@ -25,40 +26,50 @@ class Configuration:
     link_inertial_pos: list[list[list[float]]]
     armature: list[float]
 
-    def get_link_initial_pos(self) -> np.ndarray:
-        """Return link_initial_pos as a numpy array, excluding the first row."""
-        link_initial_pos_array = np.array(self.link_initial_pos)
-        return link_initial_pos_array[1:, :]
+    def get_link_initial_pos(self) -> list[list[float]]:
+        """Return link_initial_pos as a list, excluding the first row."""
+        return self.link_initial_pos[1:]
 
-    def get_link_initial_quat(self) -> np.ndarray:
-        """Return link_initial_quat as a numpy array, excluding the first row."""
-        link_initial_quat_array = np.array(self.link_initial_quat)
-        return link_initial_quat_array[1:, :]
+    def get_link_initial_quat(self) -> list[list[float]]:
+        """Return link_initial_quat as a list, excluding the first row."""
+        return self.link_initial_quat[1:]
 
-    def get_link_mass(self) -> np.ndarray:
-        """Return link_mass as a numpy array, excluding the first element."""
-        link_mass_array = np.array(self.link_mass)
-        return link_mass_array[1:]
+    def get_link_mass(self) -> list[float]:
+        """Return link_mass as a list, excluding the first element."""
+        return self.link_mass[1:]
 
-    def get_link_inertia(self) -> np.ndarray:
-        """Return link_inertia as a numpy array, excluding the first row (per-link)."""
-        link_inertia_array = np.array(self.link_inertia)
-        return link_inertia_array[1:, :, :]
+    def get_link_inertia(self) -> list[list[list[list[float]]]]:
+        """Return link_inertia as a list, excluding the first row (per-link)."""
+        return self.link_inertia[1:]
 
-    def get_link_inertial_pos(self) -> np.ndarray:
-        """Return link_inertial_pos as a numpy array, excluding the first row."""
-        link_inertial_pos_array = np.array(self.link_inertial_pos)
-        return link_inertial_pos_array[1:, :]
+    def get_link_inertial_pos(self) -> list[list[list[float]]]:
+        """Return link_inertial_pos as a list, excluding the first row."""
+        return self.link_inertial_pos[1:]
 
-    def get_link_inertial_quat(self) -> np.ndarray:
-        """Return link_inertial_quat as a numpy array, excluding the first row."""
-        link_inertial_quat_array = np.array(self.link_inertial_quat)
-        return link_inertial_quat_array[1:, :]
+    def get_link_inertial_quat(self) -> list[list[list[float]]]:
+        """Return link_inertial_quat as a list, excluding the first row."""
+        return self.link_inertial_quat[1:]
 
 
 rigid_body_configuration = Configuration(
     max_step=0,
     dofs=6,
+    joint_ids={
+        "shoulder_pan": 0,
+        "shoulder_lift": 1,
+        "elbow_flex": 2,
+        "wrist_flex": 3,
+        "wrist_roll": 4,
+        "gripper": 5
+    },
+    link_ids={
+        "Rotation_Pitch": 0,
+        "Upper_Arm": 1,
+        "Lower_Arm": 2,
+        "Wrist_Pitch_Roll": 3,
+        "Fixed_Jaw": 4,
+        "Moving_Jaw": 5
+    },
     step_dt=1e-2,
     gravity=[0, 0, 9.81],
     min_force=[-3.5, -3.5, -3.5, -3.5, -3.5, -3.5],

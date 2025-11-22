@@ -699,9 +699,9 @@ class ScipSolver:
 
         for dof in range(self.config.dofs):
             if dof == 0:
-                self.model.addMatrixCons(self.link_quat0[step][dof] == link_initial_quat[dof])
+                self.model.addMatrixCons(self.link_quat0[step][dof] == np.array(link_initial_quat[dof]))
 
-                self.model.addMatrixCons(self.link_relative_pos[step][dof] == link_initial_pos[dof])
+                self.model.addMatrixCons(self.link_relative_pos[step][dof] == np.array(link_initial_pos[dof]))
                 self.model.addMatrixCons(self.link_pos[step][dof] == self.link_relative_pos[step][dof])
             else:
                 self._compose_quat(self.link_quat0[step][dof], link_initial_quat[dof], self.link_quat[step][dof-1])
