@@ -1,38 +1,16 @@
 import unittest
-import json
 import torch
 
 from slobot.rigid_body.configuration import rigid_body_configuration
-from slobot.rigid_body.entity_state import EntityState, VectorType, from_dict
-from slobot.rigid_body.pytorch_solver import PytorchSolver
+from slobot.rigid_body.state import load_csv_rows
+from slobot.rigid_body.pytorch_solver import PytorchSolver, make_torch_vector_factory
 
 class TestPytorchSolver(unittest.TestCase):
     CSV_PATH = './tests/steps.csv'
 
-    @staticmethod
-    def load_csv_rows(vector_type: VectorType):
-        """Load rows from steps.csv file, returning entity state
-
-        Args:
-            vector_type: How to convert lists to vector types
-
-        Returns:
-            List of EntityState objects
-        """
-        entity_states = []
-        
-        with open(TestPytorchSolver.CSV_PATH) as f:
-            for line in f:
-                # Parse JSON strings into raw values
-                data = json.loads(line)
-                # Deserialize dictionary into EntityState dataclass
-                entity_state = from_dict(EntityState, data, vector_type)
-                entity_states.append(entity_state)
-        
-        return entity_states
-
     def setUp(self):
-        self.pytorch_solver = PytorchSolver()
+        self.pytorch_solver = PytorchSolver(device=torch.device("cpu"))
+        self.vector_factory = make_torch_vector_factory(device=self.pytorch_solver.device)
 
     def assert_almost_equal_atol(self, actual, expected, atol):
         max_error = self.pytorch_solver.max_abs_error(actual, expected)
@@ -40,7 +18,7 @@ class TestPytorchSolver(unittest.TestCase):
 
     def test_pytorch(self):
         # Load expected state from steps.csv file
-        rows = TestPytorchSolver.load_csv_rows(VectorType.TORCH_TENSOR)
+        rows = load_csv_rows(self.vector_factory, self.CSV_PATH)
         
         max_step = len(rows)
         # Initialize max_step with the total number of rows in the csv

@@ -250,10 +250,10 @@ class ScipSolver:
         self.model.addMatrixCons(self.acc[0] == np.zeros(self.config.dofs))
 
     def _add_parameters(self):
-        self.model.addMatrixCons(self.min_force == np.array(self.config.min_force))
-        self.model.addMatrixCons(self.max_force == np.array(self.config.max_force))
-        self.model.addMatrixCons(self.Kp == np.array(self.config.Kp))
-        self.model.addMatrixCons(self.Kv == np.array(self.config.Kv))
+        self.model.addMatrixCons(self.min_force == np.array(self.config.config_state.min_force))
+        self.model.addMatrixCons(self.max_force == np.array(self.config.config_state.max_force))
+        self.model.addMatrixCons(self.Kp == np.array(self.config.config_state.Kp))
+        self.model.addMatrixCons(self.Kv == np.array(self.config.config_state.Kv))
 
     def _add_objective(self):
         objective = quicksum(abs(self.acc[step][dof]) for step in range(self.config.max_step) for dof in range(self.config.dofs))
@@ -543,12 +543,12 @@ class ScipSolver:
     def _COM(self, step: int):
         self.model.addMatrixCons(self.link_ipos[step] == self.link_inertial_pos_rotated[step] + self.link_pos[step])
 
-        link_mass = self.config.link_mass
+        link_mass = self.config.config_state.link_mass
         link_mass_sum = sum(link_mass)
 
         scaled_ipos0 = np.zeros(Configuration.NUM_DIMS_3D) # Center Of Mass of the base link
         for i in range(Configuration.NUM_DIMS_3D):
-            scaled_ipos0[i] = link_mass[0] * self.config.link_inertial_pos[0][i]
+            scaled_ipos0[i] = link_mass[0] * self.config.config_state.link_inertial_pos[0][i]
             self.model.addCons(self.COM[step][i] == (scaled_ipos0[i] + quicksum(link_mass[1+dof] * self.link_ipos[step][dof][i] for dof in range(self.config.dofs))) / link_mass_sum)
 
     def _forward_velocity(self, step: int):
@@ -563,7 +563,7 @@ class ScipSolver:
                 work = self.f_ang[step][dof] @ self.angular_jacobian[step][dof2].T + self.f_vel[step][dof] @ self.linear_jacobian[step][dof2].T
                 if dof == dof2:
                     # add diagonal term
-                    diagonal = self.config.armature[dof] + self.config.step_dt * self.config.Kv[dof]
+                    diagonal = self.config.config_state.armature[dof] + self.config.step_dt * self.config.config_state.Kv[dof]
                     self.model.addMatrixCons(self.mass[step][dof, dof2] == work + diagonal)
                 else:
                     self.model.addMatrixCons(self.mass[step][dof, dof2] == work)
@@ -591,12 +591,12 @@ class ScipSolver:
         self._reverse_cumulative_sum_matrix(self.crb_pos[step], self.link_cinr_pos[step])
         self._reverse_cumulative_sum_matrix(self.crb_inertial[step], self.link_cinr_inertial[step])
 
-        link_mass = self.config.get_link_mass()
+        link_mass = self.config.config_state.link_mass[1:]
         self._reverse_cumulative_sum_scalar(self.crb_mass[step], link_mass)
 
     # Link Center of INeRtia
     def _link_cinr(self, step: int):
-        link_mass = self.config.get_link_mass()
+        link_mass = self.config.config_state.link_mass[1:]
 
         self._link_cinr_pos(step, link_mass)
         self._link_inertial_pos(step)
@@ -606,7 +606,7 @@ class ScipSolver:
         self._scale(self.link_cinr_pos[step], link_mass, self.link_inertial_pos[step])
 
     def _link_inertial_pos(self, step: int):
-        link_inertial_pos = self.config.get_link_inertial_pos()
+        link_inertial_pos = self.config.config_state.link_inertial_pos[1:]
 
         for dof in range(self.config.dofs):
             self._rotate_by_quat(self.link_inertial_pos_rotated[step][dof], link_inertial_pos[dof], self.link_quat[step][dof])
@@ -617,7 +617,7 @@ class ScipSolver:
         self._link_inertial_quat_rotation(step)
         self._link_inertia_hhT_mass_product(step, link_mass)
 
-        link_inertia = self.config.get_link_inertia()
+        link_inertia = self.config.config_state.link_inertia[1:]
 
         for dof in range(self.config.dofs):
             link_inertia_rotated = self.link_inertial_quat_rotation[step][dof] @ link_inertia[dof] @ self.link_inertial_quat_rotation[step][dof].T
@@ -629,7 +629,7 @@ class ScipSolver:
             self._rotation_from_quat(self.link_inertial_quat_rotation[step][dof], self.link_inertial_quat[step][dof])
 
     def _link_inertial_quat(self, step):
-        link_inertial_quat = self.config.get_link_inertial_quat()
+        link_inertial_quat = self.config.config_state.link_inertial_quat[1:]
         for dof in range(self.config.dofs):
             # link_inertial_quat_rotation = link_quat_rotation @ link_inertial_quat_rotation
             self._compose_quat(self.link_inertial_quat[step][dof], link_inertial_quat[dof], self.link_quat[step][dof])
@@ -657,7 +657,7 @@ class ScipSolver:
         '''
         Compute the force applied by the motors on the joint, via position based PD controller and clamped to stay within min/max force range.
         '''
-        self.model.addMatrixCons(self.control_force[step] == self.Kp * (np.array(self.config.control_pos) - self.pos[step]) - self.Kv * self.vel[step])
+        self.model.addMatrixCons(self.control_force[step] == self.Kp * (np.array(self.config.config_state.control_pos) - self.pos[step]) - self.Kv * self.vel[step])
 
         for dof in range(self.config.dofs):
             self.model.addConsIndicator(self.control_force[step][dof] >= self.max_force[dof], binvar=self.control_force_higher_max[step][dof])
@@ -694,8 +694,8 @@ class ScipSolver:
         self._link_pos0(step)
         self._link_rotation_vector_quat(step)
 
-        link_initial_pos = self.config.get_link_initial_pos()
-        link_initial_quat = self.config.get_link_initial_quat()
+        link_initial_pos = self.config.config_state.link_initial_pos[1:]
+        link_initial_quat = self.config.config_state.link_initial_quat[1:]
 
         for dof in range(self.config.dofs):
             if dof == 0:
@@ -720,12 +720,12 @@ class ScipSolver:
             self._rotation_vector_quat(self.link_rotation_vector_quat[step][dof], self.link_rotation_vector[step][dof])
 
     def _link_rotation_vector(self, step: int):
-        rotation_axis = self.config.joint_axis
+        rotation_axis = self.config.config_state.joint_axis
         self._scale(self.link_rotation_vector[step], self.pos[step], rotation_axis)
 
     def _linear_angular_jacobian(self, step: int):
         for dof in range(self.config.dofs):
-            self._rotate_by_quat(self.xaxis[step][dof], self.config.joint_axis[dof], self.link_quat0[step][dof])
+            self._rotate_by_quat(self.xaxis[step][dof], self.config.config_state.joint_axis[dof], self.link_quat0[step][dof])
 
         self.model.addMatrixCons(self.xanchor[step] == self.link_pos0[step])
 
@@ -757,7 +757,7 @@ class ScipSolver:
         self._cross_product(self.f1_ang_cross_prod[step], self.link_cinr_pos[step], self.link_linear_acc[step])
         self.model.addMatrixCons(self.f1_ang[step] == self.f1_ang_mat_mul[step] + self.f1_ang_cross_prod[step])
 
-        link_mass = self.config.get_link_mass()
+        link_mass = self.config.config_state.link_mass[1:]
         self._scale(self.f1_vel_constant_prod[step], link_mass, self.link_linear_acc[step])
 
         self._cross_product(self.f1_vel_cross_prod[step], self.link_cinr_pos[step], self.link_angular_acc[step])
@@ -766,7 +766,7 @@ class ScipSolver:
     def _f2(self, step: int):
         self._link_vel(step)
 
-        link_mass = self.config.get_link_mass()
+        link_mass = self.config.config_state.link_mass[1:]
         self._scale(self.f2_vel_vel_constant_prod[step], link_mass, self.link_linear_vel[step])
         self._cross_product(self.f2_vel_vel_cross_prod[step], self.link_cinr_pos[step], self.link_angular_vel[step])
         self.model.addMatrixCons(self.f2_vel_vel[step] == self.f2_vel_vel_constant_prod[step] - self.f2_vel_vel_cross_prod[step])
@@ -789,7 +789,7 @@ class ScipSolver:
 
         for dof in range(self.config.dofs):
             if dof == 0:
-                self.model.addMatrixCons(self.link_linear_acc[step][dof] == self.link_linear_acc_individual[step][dof] + self.config.gravity)
+                self.model.addMatrixCons(self.link_linear_acc[step][dof] == self.link_linear_acc_individual[step][dof] + self.config.config_state.gravity)
                 self.model.addMatrixCons(self.link_angular_acc[step][dof] == self.link_angular_acc_individual[step][dof])
             else:
                 self.model.addMatrixCons(self.link_linear_acc[step][dof] == self.link_linear_acc_individual[step][dof] + self.link_linear_acc[step][dof-1])

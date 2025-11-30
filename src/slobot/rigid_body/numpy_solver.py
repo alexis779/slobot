@@ -1,8 +1,15 @@
+from dataclasses import asdict
+
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from slobot.rigid_body.configuration import Configuration, rigid_body_configuration
-from slobot.rigid_body.entity_state import create_entity_state
+from slobot.rigid_body.state import ConfigurationState, create_entity_state, from_dict
+
+
+def numpy_vector_factory(data: list):
+    """Convert list to numpy array for configuration loading."""
+    return np.array(data)
 
 class NumpySolver:
     def __init__(self) -> None:
@@ -10,6 +17,27 @@ class NumpySolver:
         # Initialize entity states using factory function
         self.previous_entity = create_entity_state()
         self.current_entity = create_entity_state()
+
+        # Create ConfigurationState with numpy arrays using from_dict
+        config_dict = asdict(self.config.config_state)
+        self.config_state: ConfigurationState = from_dict(ConfigurationState, config_dict, numpy_vector_factory)
+
+        # Drop base link from config_state fields (excluding first element/row)
+        self.drop_base_link()
+
+    def drop_base_link(self):
+        """Create versions without base link in config_state (excluding first element/row)."""
+        # Create versions without base link (excluding first element/row)
+        self.config_state.link_initial_quat_no_base = self.config_state.link_initial_quat[1:]
+        self.config_state.link_initial_pos_no_base = self.config_state.link_initial_pos[1:]
+        self.config_state.link_mass_no_base = self.config_state.link_mass[1:]
+        self.config_state.link_inertia_no_base = self.config_state.link_inertia[1:]
+        self.config_state.link_inertial_quat_no_base = self.config_state.link_inertial_quat[1:]
+        self.config_state.link_inertial_pos_no_base = self.config_state.link_inertial_pos[1:]
+
+    def _list_to_array(self, vec):
+        """Convert a list or vector from config to numpy array."""
+        return np.array(vec)
 
     # ----------------------------- basic helpers -----------------------------
     def max_abs_error(self, actual, expected):
@@ -95,10 +123,11 @@ class NumpySolver:
         link_quat = np.zeros((dofs, Configuration.NUM_DIMS_QUAT))
         link_pos = np.zeros((dofs, Configuration.NUM_DIMS_3D))
 
-        link_quat0 = np.array(self.config.get_link_initial_quat())
-        link_rel_pos = np.array(self.config.get_link_initial_pos())
+        # Copy arrays to avoid mutating config_state
+        link_quat0 = self.config_state.link_initial_quat_no_base.copy()
+        link_rel_pos = self.config_state.link_initial_pos_no_base.copy()
 
-        joint_axis = np.array(self.config.joint_axis)
+        joint_axis = self.config_state.joint_axis
         axis = self.multiply_scalar_by_vector(pos, joint_axis)
         link_rotation_vector_quat = self.rotation_vector_to_quat(axis)
 
@@ -127,7 +156,7 @@ class NumpySolver:
 
         xanchor = link_pos0
 
-        joint_axis = np.array(self.config.joint_axis)
+        joint_axis = self.config_state.joint_axis
         xaxis = self.compute_xaxis(joint_axis, link_quat0)
 
         angular_jacobian = xaxis
@@ -226,6 +255,10 @@ class NumpySolver:
 
         return self.current_entity.link.pos
 
+    def control_dofs_position(self, pos):
+        """Control the position of the DOFs."""
+        self.config_state.control_pos = pos
+
     def compute_joint_jacobian_acc(self, link_angular_vel, link_linear_vel, linear_jacobian, angular_jacobian):
         link_angular_vel_shifted = self.shift_bottom(link_angular_vel)
         link_linear_vel_shifted = self.shift_bottom(link_linear_vel)
@@ -235,7 +268,7 @@ class NumpySolver:
 
     def compute_f1(self, link_cinr_inertia, link_cinr_pos, joint_linear_jacobian_acc, joint_angular_jacobian_acc, vel0):
         link_linear_acc_individual = self.multiply_scalar_by_vector(vel0, joint_linear_jacobian_acc)
-        gravity = np.array(self.config.gravity)
+        gravity = self.config_state.gravity
         link_linear_acc = gravity + self.cumulative_sum(link_linear_acc_individual)
 
         link_angular_acc_individual = self.multiply_scalar_by_vector(vel0, joint_angular_jacobian_acc)
@@ -243,7 +276,7 @@ class NumpySolver:
 
         f1_ang = self.multiply_matrix_by_vector(link_cinr_inertia, link_angular_acc) + self.cross_product(link_cinr_pos, link_linear_acc)
 
-        link_mass = np.array(self.config.get_link_mass())
+        link_mass = self.config_state.link_mass_no_base
         f1_vel = self.multiply_scalar_by_vector(link_mass, link_linear_acc) - self.cross_product(link_cinr_pos, link_angular_acc)
 
         return f1_vel, f1_ang, link_linear_acc, link_angular_acc, link_linear_acc_individual, link_angular_acc_individual
@@ -253,7 +286,7 @@ class NumpySolver:
         link_linear_vel = self.cumulative_sum(link_linear_vel_individual)
         link_angular_vel_individual = self.multiply_scalar_by_vector(vel0, angular_jacobian)
         link_angular_vel = self.cumulative_sum(link_angular_vel_individual)
-        link_mass = np.array(self.config.get_link_mass())
+        link_mass = self.config_state.link_mass_no_base
         f2_vel_vel = self.multiply_scalar_by_vector(link_mass, link_linear_vel) - self.cross_product(link_cinr_pos, link_angular_vel)
         f2_vel = self.cross_product(link_angular_vel, f2_vel_vel)
         f2_ang_vel = self.multiply_matrix_by_vector(link_inertia, link_angular_vel) + self.cross_product(link_cinr_pos, link_linear_vel)
@@ -270,22 +303,22 @@ class NumpySolver:
         return link_force, link_torque
 
     def compute_link_inertia(self, link_quat, link_pos, COM):
-        link_inertial_quat = np.array(self.config.get_link_inertial_quat())
+        link_inertial_quat = self.config_state.link_inertial_quat_no_base
         link_inertial_quat = self.compose_quat_by_quat_batch(link_quat, link_inertial_quat)
 
         rotation = self.quat_to_rotation_matrix(link_inertial_quat).as_matrix()
 
         rotation_t = rotation.transpose(0, 2, 1)
 
-        link_cinr_inertial = np.array(self.config.get_link_inertia())
+        link_cinr_inertial = self.config_state.link_inertia_no_base
         link_cinr_inertial = rotation @ link_cinr_inertial @ rotation_t
 
-        link_inertial_pos = np.array(self.config.get_link_inertial_pos())
+        link_inertial_pos = self.config_state.link_inertial_pos_no_base
         link_inertial_pos = self.transform_by_quat(link_inertial_pos, link_quat)
         link_inertial_pos = link_inertial_pos + link_pos
         link_inertial_pos = link_inertial_pos - COM
 
-        link_mass = np.array(self.config.get_link_mass())
+        link_mass = self.config_state.link_mass_no_base
         link_cinr_pos = self.multiply_scalar_by_vector(link_mass, link_inertial_pos)
 
         hhT = self.hhT_batch(link_inertial_pos)
@@ -303,11 +336,11 @@ class NumpySolver:
         return bias_force_angular + bias_force_linear, bias_force_angular, bias_force_linear
 
     def compute_applied_force(self, pos0, vel0):
-        Kp = np.array(self.config.Kp)
-        Kv = np.array(self.config.Kv)
-        control_pos = np.array(self.config.control_pos)
-        min_force = np.array(self.config.min_force)
-        max_force = np.array(self.config.max_force)
+        Kp = self.config_state.Kp
+        Kv = self.config_state.Kv
+        control_pos = self.config_state.control_pos
+        min_force = self.config_state.min_force
+        max_force = self.config_state.max_force
         control_force = Kp * (control_pos - pos0) - Kv * vel0
         applied_force = self.clip(control_force, min_force, max_force)
         return control_force, applied_force
@@ -323,9 +356,9 @@ class NumpySolver:
         link_quat = np.vstack([np.array([[1, 0, 0, 0]]), link_quat])
         link_pos = np.vstack([np.array([[0, 0, 0]]), link_pos])
 
-        link_inertial_pos = np.array(self.config.link_inertial_pos)
+        link_inertial_pos = self.config_state.link_inertial_pos
         i_pos = self.transform_by_quat(link_inertial_pos, link_quat) + link_pos
-        link_mass = np.array(self.config.link_mass)
+        link_mass = self.config_state.link_mass
         return np.sum(self.multiply_scalar_by_vector(link_mass, i_pos), axis=0) / np.sum(link_mass)
 
     def compute_f_ang_vel(self, expected_crb_pos, expected_crb_inertial, expected_crb_mass,
@@ -341,14 +374,14 @@ class NumpySolver:
         mass_matrix = np.triu(mass_matrix) + np.triu(mass_matrix, 1).T
 
         # add armature
-        armature = np.array(self.config.armature)
+        armature = self.config_state.armature
         mass_matrix += np.diag(armature)
 
         # discount force jacobian for implicit integration
         # M @ delta_vel = force_{t+1} * delta_t
         #             = (force_t + force_jacobian @ delta_vel) * delta_t
         # (M - delta_t * force_jacobian) @ delta_vel = force_t * delta_t
-        Kv = np.array(self.config.Kv)
+        Kv = self.config_state.Kv
         force_jacobian = -np.diag(Kv)
         mass_matrix -= self.config.step_dt * force_jacobian
 
@@ -358,7 +391,7 @@ class NumpySolver:
         expected_crb_pos = self.reverse_cumulative_sum(expected_cinr_pos)
         expected_crb_inertial = self.reverse_cumulative_sum(expected_cinr_inertial)
 
-        link_mass = np.array(self.config.get_link_mass())
+        link_mass = self.config_state.link_mass_no_base
         expected_crb_mass = self.reverse_cumulative_sum(link_mass)
 
         return expected_crb_pos, expected_crb_inertial, expected_crb_mass

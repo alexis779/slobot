@@ -67,7 +67,7 @@ class TestScipSolver(unittest.TestCase):
         xanchor = self.scip_solver.get_xanchor(step)
         self.assert_almost_equal_atol(xanchor, expected_xanchor, atol=1e-4)
 
-        expected_xaxis = self.numpy_solver.compute_xaxis(self.numpy_solver.config.joint_axis, expected_link_quat0)
+        expected_xaxis = self.numpy_solver.compute_xaxis(self.numpy_solver.config.config_state.joint_axis, expected_link_quat0)
         xaxis = self.scip_solver.get_xaxis(step)
         self.assert_almost_equal_atol(xaxis, expected_xaxis, atol=1e-3)
 

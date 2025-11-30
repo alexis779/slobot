@@ -21,6 +21,5 @@ if episode_id_str is not None:
     episode_count = len(episode_ids)
 
 episode_replayer = EpisodeReplayer(repo_id=repo_id, mjcf_path=mjcf_path, show_viewer=True, n_envs=episode_count)
-episode_replayer.load_episodes(episode_ids=episode_ids)
-rate = episode_replayer.replay_episodes()
+rate = episode_replayer.replay_episodes(episode_ids)
 print(f"Success rate: {rate:.2f} for episode_ids = {episode_ids}")

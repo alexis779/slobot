@@ -2,20 +2,22 @@
 
 ### Python
 
-Following installs Python `3.12.9` with _pyenv_
-
-```
-sudo apt install pyenv
-python_version=3.12.9
-pyenv install $python_version
-export PATH="$HOME/.pyenv/versions/$python_version/bin:$PATH"
-```
-
 Create a virtual environment with _venv_
 
 ```
-python -m venv .venv
+sudo apt install python3.13-venv
+```
+
+```
+python3.13 -m venv .venv
 . .venv/bin/activate
+```
+
+Validate python version in the venv
+
+```
+(.venv) $ python -V
+Python 3.13.5
 ```
 
 Install following dependencies

@@ -25,3 +25,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "slobot.config" = ["trs_so_arm100/*", "trs_so_arm100/assets/*", "assets/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
