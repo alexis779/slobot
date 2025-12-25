@@ -4,7 +4,7 @@ from slobot.configuration import Configuration
 import sys
 
 if len(sys.argv) < 2:
-    print("Usage: python 2_validate_sim_pos.py [middle|zero|rotated|rest]")
+    print("Usage: python scripts/validation/2_validate_sim_pos.py [middle|zero|rotated|rest]")
     sys.exit(1)
 
 # Validate the robot is located in the position preset

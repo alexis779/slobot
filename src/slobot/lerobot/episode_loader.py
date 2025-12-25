@@ -18,7 +18,6 @@ class EpisodeLoader:
     LEADER_STATE_COLUMN = 'action'
     FOLLOWER_STATE_COLUMN = 'observation.state'
 
-    GRIPPER_ID = 5 # the id of the jaw joint
     DELAY_FRAMES = 4 # the number of fps the follower takes to reflect the leader position
     DIFF_THRESHOLD = 10 # the cutoff value to identify when the gripper is holding the ball and when it is releasing the ball
 
@@ -77,8 +76,8 @@ class EpisodeLoader:
         ])
 
     def get_hold_state(self, episode) -> HoldState:
-        follower_gripper = episode['action'][:, EpisodeLoader.GRIPPER_ID]
-        leader_gripper = episode['observation.state'][:, EpisodeLoader.GRIPPER_ID]
+        follower_gripper = episode['action'][:, Configuration.GRIPPER_ID]
+        leader_gripper = episode['observation.state'][:, Configuration.GRIPPER_ID]
 
         truncated_leader = leader_gripper[EpisodeLoader.DELAY_FRAMES:]
         gripper_diff = truncated_leader - follower_gripper[:-EpisodeLoader.DELAY_FRAMES]

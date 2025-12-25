@@ -1,14 +1,14 @@
 from slobot.so_arm_100 import SoArm100
 from slobot.configuration import Configuration
-from slobot.metrics.metrics import Metrics
+from slobot.metrics.rerun_metrics import RerunMetrics
 from slobot.lerobot.episode_loader import EpisodeLoader
+from slobot.lerobot.pytorch_optimizer import PytorchOptimizer
 
 import torch
 from dataclasses import dataclass
 
 import genesis as gs
 from genesis.engine.entities import RigidEntity
-from genesis.utils import geom as gu
 
 from PIL import Image
 
@@ -33,7 +33,9 @@ class EpisodeReplayer:
         self.repo_id = kwargs["repo_id"]
 
         device = kwargs.get("device")
-        self.episode_loader = EpisodeLoader(self.repo_id, device=device)
+
+        pytorch_optimizer = PytorchOptimizer(repo_id=self.repo_id, mjcf_path=Configuration.MJCF_CONFIG, device=device)
+        self.episode_loader = pytorch_optimizer.episode_loader
 
         self.fixed_jaw_translate = torch.tensor(EpisodeReplayer.FIXED_JAW_TRANSLATE, device=device)
         # FPS
@@ -50,7 +52,7 @@ class EpisodeReplayer:
 
         self.add_metrics = kwargs.get("add_metrics", False)
         if self.add_metrics:
-            self.metrics = Metrics()
+            self.metrics = RerunMetrics()
             kwargs["step_handler"] = self.metrics
 
         self.arm = SoArm100(**kwargs)
@@ -126,7 +128,7 @@ class EpisodeReplayer:
     def build_scene(self):
         self.arm.genesis.start()
 
-        golf_ball = gs.morphs.Mesh(
+        golf_ball_morph = gs.morphs.Mesh(
             file="meshes/sphere.obj",
             scale=self.GOLF_BALL_RADIUS,
             pos=(0.25, 0, self.GOLF_BALL_RADIUS)
@@ -139,7 +141,7 @@ class EpisodeReplayer:
         )
 
         self.golf_ball : RigidEntity = self.arm.genesis.scene.add_entity(
-            golf_ball,
+            golf_ball_morph,
             visualize_contact=False, # True
             vis_mode='visual', # collision
         )
@@ -185,14 +187,14 @@ class EpisodeReplayer:
         ]
 
         self.set_robot_states(pick_frame_ids)
-        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, EpisodeReplayer.FIXED_JAW_TRANSLATE)
+        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
 
         place_frame_ids = [
             hold_state.place_frame_id
             for hold_state in self.episode_loader.hold_states
         ]
         self.set_robot_states(place_frame_ids)
-        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, EpisodeReplayer.FIXED_JAW_TRANSLATE)
+        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
 
         return [
             InitialState(
@@ -225,7 +227,7 @@ class EpisodeReplayer:
         return sim_pick_image, real_pick_image, sim_place_image, real_place_image
 
     def set_robot_states(self, frame_ids):
-        robot_states = self.episode_loader.get_robot_states(EpisodeReplayer.LEADER_STATE_COLUMN, frame_ids)
+        robot_states = self.episode_loader.get_robot_states(EpisodeLoader.LEADER_STATE_COLUMN, frame_ids)
         self.arm.genesis.entity.set_dofs_position(robot_states)
 
     def write_image(self, type, rgb_image, episode_id, step_id):

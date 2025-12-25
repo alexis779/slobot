@@ -31,6 +31,7 @@ class Configuration:
 
     DOFS = 6
     JOINT_NAMES = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
+    GRIPPER_ID = 5 # the id of the jaw joint
 
     def logger(logger_name):
         logger = logging.getLogger(logger_name)

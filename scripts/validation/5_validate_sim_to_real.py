@@ -5,7 +5,7 @@ from slobot.configuration import Configuration
 import sys
 
 if len(sys.argv) < 2:
-    print("Usage: python 5_validate_sim_to_real.py [middle|zero|rotated|rest]")
+    print("Usage: python scripts/validation/5_validate_sim_to_real.py [middle|zero|rotated|rest]")
     sys.exit(1)
 
 # Validate the robot is located in the position preset in sim then real
