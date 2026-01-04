@@ -1,6 +1,9 @@
+import argparse
 from slobot.teleop.teleoperator import Teleoperator
 
-fps = 30
+parser = argparse.ArgumentParser()
+parser.add_argument('--fps', type=int, required=True)
+args = parser.parse_args()
 
-telepoperator = Teleoperator()
-telepoperator.teleoperate(fps)
+teleoperator = Teleoperator(fps=args.fps)
+teleoperator.teleoperate()

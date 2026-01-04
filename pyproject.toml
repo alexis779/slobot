@@ -9,6 +9,8 @@ dependencies = [
 
     "feetech-servo-sdk", # to control motors
 
+    "datafusion", # to query Rerun.io dataset
+
     "gradio", # to build webapps
 
     # "nvidia-gr00t-sdk" @ git+https://github.com/NVIDIA/Isaac-GR00T.git

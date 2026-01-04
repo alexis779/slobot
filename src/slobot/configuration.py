@@ -7,11 +7,11 @@ class Configuration:
 
     MJCF_CONFIG = str(files('slobot.config') / "trs_so_arm100" / "so_arm100.xml")
 
-    # 16:9 aspect ratio
-    LD = (426, 240)
-    SD = (854, 480)
-    HD = (1280, 720)
-    FHD = (1920, 1080)
+    # 4:3 aspect ratio
+    QVGA = (320, 240)
+    VGA = (640, 480)
+    XGA = (1024, 768)
+    UXGA = (1600, 1200)
 
     QPOS_MAP = {
         "middle": [0, -np.pi/2, np.pi/2, 0, 0, -0.15],

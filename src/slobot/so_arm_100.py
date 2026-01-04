@@ -117,5 +117,5 @@ class SoArm100():
 
     def handle_qpos(self, feetech_frame: FeetechFrame):
         self.feetech_frame = feetech_frame
-        self.genesis.entity.control_dofs_position(feetech_frame.qpos)
+        self.genesis.entity.control_dofs_position(feetech_frame.control_pos)
         self.genesis.step()

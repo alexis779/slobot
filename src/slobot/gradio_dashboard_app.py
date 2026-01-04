@@ -101,7 +101,7 @@ class GradioDashboardApp():
         df = pd.DataFrame()
 
         image_streams = ImageStreams()
-        res = Configuration.LD
+        res = Configuration.QVGA
         for simulation_frame_paths in image_streams.simulation_frame_paths(res, fps, rgb=False, depth=False, segmentation=False, normal=False):
             simulation_frame = simulation_frame_paths.simulation_frame
             GradioDashboardApp.LOGGER.debug(f"Sending frame {simulation_frame}")

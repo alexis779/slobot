@@ -1,16 +1,10 @@
 import torch
-from dataclasses import dataclass
-
 
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from slobot.feetech import Feetech
 from slobot.configuration import Configuration
-
-@dataclass
-class HoldState:
-    pick_frame_id: int
-    place_frame_id: int
-
+from slobot.lerobot.frame_delay_detector import FrameDelayDetector
+from slobot.lerobot.hold_state_detector import HoldStateDetector, HoldState
 
 class EpisodeLoader:
     COLUMN_NAMES = [ 'frame_index', 'action', 'observation.state' ]
@@ -18,15 +12,17 @@ class EpisodeLoader:
     LEADER_STATE_COLUMN = 'action'
     FOLLOWER_STATE_COLUMN = 'observation.state'
 
-    DELAY_FRAMES = 4 # the number of fps the follower takes to reflect the leader position
-    DIFF_THRESHOLD = 10 # the cutoff value to identify when the gripper is holding the ball and when it is releasing the ball
-
-    def __init__(self, repo_id, device: torch.device):
+    def __init__(self, repo_id, episode_ids):
         self.repo_id = repo_id
-        self.dataset = LeRobotDataset(repo_id=self.repo_id)
+        self.load_episodes(episode_ids)
         self.feetech = Feetech(connect=False)
+        self.middle_pos_offset = torch.tensor([0,  0.1,  0.1,  0,  torch.pi/2,  0])
 
-    def load_episodes(self, episode_ids = None):
+    def load_episodes(self, episode_ids):
+        self.episode_ids = episode_ids
+
+        self.dataset = LeRobotDataset(repo_id=self.repo_id, episodes=episode_ids)
+
         self.episode_ids = episode_ids
         if self.episode_ids is None:
             self.episode_count = self.dataset.meta.total_episodes
@@ -65,60 +61,34 @@ class EpisodeLoader:
             for column_name in EpisodeLoader.COLUMN_NAMES:
                 episode[column_name] = torch.vstack(episode[column_name])
 
-        self.hold_states = [
-            self.get_hold_state(episode)
-            for episode in self.episodes
-        ]
-
         self.episode_frame_count = min([
             len(episode['frame_index'])
             for episode in self.episodes
         ])
 
+        self.hold_states = [
+            self.get_hold_state(episode)
+            for episode in self.episodes
+        ]
+
     def get_hold_state(self, episode) -> HoldState:
-        follower_gripper = episode['action'][:, Configuration.GRIPPER_ID]
-        leader_gripper = episode['observation.state'][:, Configuration.GRIPPER_ID]
+        leader_gripper = episode['action'][:, Configuration.GRIPPER_ID]
+        follower_gripper = episode['observation.state'][:, Configuration.GRIPPER_ID]
 
-        truncated_leader = leader_gripper[EpisodeLoader.DELAY_FRAMES:]
-        gripper_diff = truncated_leader - follower_gripper[:-EpisodeLoader.DELAY_FRAMES]
+        frame_delay_detector = FrameDelayDetector(fps=self.dataset.meta.fps)
+        delay_frames = frame_delay_detector.detect_frame_delay(leader_gripper, follower_gripper)
 
-        above_threshold = torch.where(gripper_diff > EpisodeLoader.DIFF_THRESHOLD, 1, 0)
-        return self.sustained_frame_range(above_threshold)
+        leader_gripper = leader_gripper[:-delay_frames]
+        follower_gripper = follower_gripper[delay_frames:]
 
-    def sustained_frame_range(self, above_threshold):
-        sustained_frames = self.dataset.meta.fps # at least 1 sec of holding
+        hold_state_detector = HoldStateDetector()
+        hold_state_detector.replay_teleop(leader_gripper, follower_gripper)
 
-        counter = torch.full_like(above_threshold, fill_value=0)
+        hold_state = hold_state_detector.get_hold_state()
+        if hold_state.pick_frame_id is None or hold_state.place_frame_id is None:
+            raise ValueError("Hold state not found")
 
-        frame = len(above_threshold) - 1
-        counter[frame] = 1 if above_threshold[frame] == 1 else 0
-
-        hold_start_frames = []
-        hold_end_frames = []
-
-        for frame in range(frame-1, -1, -1):
-            if above_threshold[frame] == 1:
-                counter[frame] = counter[frame+1] + 1
-            else:
-                if counter[frame+1] >= sustained_frames:
-                    hold_start_frames.append(frame+1)
-                    hold_end_frame = frame + counter[frame+1]
-                    hold_end_frame = hold_end_frame.item()
-                    hold_end_frames.append(hold_end_frame)
-
-                counter[frame] = 0
-
-        frame = 0
-        if counter[frame] >= sustained_frames:
-            hold_start_frames.append(frame)
-            hold_end_frame = frame + counter[frame] - 1
-            hold_end_frame = hold_end_frame.item()
-            hold_end_frames.append(hold_end_frame)
-
-        if len(hold_start_frames) != 1:
-            raise Exception("Holding period detection failed")
-
-        return HoldState(pick_frame_id=hold_start_frames[0], place_frame_id=hold_end_frames[0])
+        return hold_state
 
     def get_robot_states(self, column_name, frame_ids):
         robot_states = [
@@ -136,7 +106,7 @@ class EpisodeLoader:
 
         return self.positions_to_radians(robot_state)
 
-    def set_middle_pos_offset(self, middle_pos_offset):
+    def set_middle_pos_offset(self, middle_pos_offset: torch.Tensor):
         self.middle_pos_offset = middle_pos_offset
 
     def set_dofs_limit(self, dofs_limit):

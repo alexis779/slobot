@@ -10,8 +10,6 @@ from genesis.utils import geom as gu
 
 from slobot.configuration import Configuration
 
-import pprint
-
 from scipy.spatial.transform import Rotation
 
 class Genesis():
@@ -32,7 +30,7 @@ class Genesis():
 
         vis_mode = 'visual' # 'collision'
 
-        res = kwargs.get('res', Configuration.FHD)
+        res = kwargs.get('res', Configuration.VGA)
         camera_pos = (-0.125, -1, 0.25)
 
         lookat = (0, 0, 0)
@@ -45,17 +43,22 @@ class Genesis():
 
         show_viewer = kwargs.get('show_viewer', True)
 
-        self.fps = kwargs.get('fps', 60)
+        self.fps = kwargs.get('fps', 24)
+
+        dt = 1 / self.fps
 
         requires_grad = kwargs.get('requires_grad', False)
 
         self.scene = gs.Scene(
             show_viewer=show_viewer,
             sim_options = gs.options.SimOptions(
+                dt = dt,
                 requires_grad = requires_grad,
+                #substeps = 1,
             ),
             rigid_options = gs.options.RigidOptions(
                 enable_collision = not requires_grad, # TODO, collision dection is not supported with autograd
+                #noslip_iterations = 0,
             ),
             viewer_options = gs.options.ViewerOptions(
                 res           = res,
@@ -116,15 +119,17 @@ class Genesis():
         Kp = 50
         Kp = torch.full((Configuration.DOFS,), Kp)
         #self.entity.set_dofs_kp(Kp)
+        print("Kp=", self.entity.get_dofs_kp())
 
         Kv = 8
         Kv = torch.full((Configuration.DOFS,), Kv)
         #self.entity.set_dofs_kv(Kv)
-
-        print("Kp=", self.entity.get_dofs_kp())
-
         print("Kd=", self.entity.get_dofs_kv())
 
+        max_force = 14
+        max_force = torch.full((Configuration.DOFS,), max_force)
+        min_force = -max_force
+        self.entity.set_dofs_force_range(min_force, max_force)
         print("Force range=", self.entity.get_dofs_force_range())
 
         damping = self.entity.get_dofs_damping()

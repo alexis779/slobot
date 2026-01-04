@@ -3,7 +3,7 @@
 Run tele-operation, controlling the follower using the leader position.
 
 ```
-python scripts/teleop/teleoperate.py
+python scripts/teleop/teleoperate.py --fps 30
 ```
 
 The robot state for both the leader and the follower can be visualized in rerun.io viewer.

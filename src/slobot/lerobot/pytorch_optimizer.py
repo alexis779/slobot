@@ -11,11 +11,12 @@ from slobot.rigid_body.state import OptimizerParametersState, from_dict, get_sta
 
 class PytorchOptimizer:
     LOGGER = Configuration.logger(__name__)
-    MAX_STEPS = 1000
+    MAX_STEPS = 10
     STORE_STEPS = 100
+    LAST_FRAMES_COUNT = 10
     PARAMETERS_STATE_FILENAME = "optimizer_parameters_state.json"
 
-    def __init__(self, repo_id, mjcf_path, episode_id, device: torch.device):
+    def __init__(self, repo_id, mjcf_path, device: torch.device):
         self.repo_id = repo_id
         self.mjcf_path = mjcf_path
         self.device = device
@@ -23,41 +24,25 @@ class PytorchOptimizer:
         self.parameters_state_path = Path(Configuration.WORK_DIR) / self.PARAMETERS_STATE_FILENAME
         self.parameters_state_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self.episode_loader = EpisodeLoader(repo_id=repo_id, device=device)
-        self.episode_loader.load_episodes(episode_ids=[episode_id])
+        self.episode_loader = EpisodeLoader(repo_id=self.repo_id, device=self.device)
 
-        self.pytorch_solver = PytorchSolver(device=device)
+        self.pytorch_solver = PytorchSolver(device=self.device)
         self.pytorch_solver.config.step_dt = 1 / self.episode_loader.dataset.meta.fps
 
         self.episode_loader.set_dofs_limit(
             [self.pytorch_solver.config_state.min_dofs_limit, self.pytorch_solver.config_state.max_dofs_limit]
         )
 
+        self._load_optimizer_state()
 
-    def minimize_sim_real_error(self):
-        optimizer_state = self._get_optimizer_state()
+    def _load_optimizer_state(self):
+        self.optimizer_state = self._get_optimizer_state()
 
-        self._requires_grad(optimizer_state)
+        self._requires_grad(self.optimizer_state)
 
-        load_attributes(optimizer_state, self.pytorch_solver.config_state)
+        load_attributes(self.optimizer_state, self.pytorch_solver.config_state)
 
         self.episode_loader.set_middle_pos_offset(self.pytorch_solver.config_state.middle_pos_offset)
-
-        optimizer = torch.optim.Adam(get_state_values(optimizer_state))
-
-        hold_state = self.episode_loader.hold_states[0]
-
-        for step in range(PytorchOptimizer.MAX_STEPS):
-            optimizer.zero_grad()
-
-            # stop at the pick frame, assuming no collision occurs before that
-            error = self.forward(hold_state.pick_frame_id)
-
-            error.backward(retain_graph=True)
-            optimizer.step()
-            PytorchOptimizer.LOGGER.info(f"step {step}, error = {error}")
-            if (step + 1) % PytorchOptimizer.STORE_STEPS == 0:
-                self._write_optimizer_state(optimizer_state)
 
     def _build_optimizer_params(self):
         params = {
@@ -94,35 +79,73 @@ class PytorchOptimizer:
         with self.parameters_state_path.open("w", encoding="utf-8") as file_obj:
             json.dump(serializable, file_obj, indent=2)
 
-    def forward(self, frame_count):
-        frame_errors = torch.vstack(
-            [
-                self.replay_frame(frame_id)
-                for frame_id in range(frame_count)
-            ]
-        )
+    def minimize_sim_real_error(self, episode_id):
+        self.episode_loader.load_episodes(episode_ids=[episode_id])
 
-        return torch.mean(frame_errors)
+        optimizer = torch.optim.Adam(get_state_values(self.optimizer_state), lr=0.001)
+
+        hold_state = self.episode_loader.hold_states[0]
+
+        # discount 1/2 second worth of frames in case a collision occurred in the last frames
+        last_frame_id = hold_state.pick_frame_id - int(self.episode_loader.dataset.meta.fps/2)
+
+        for frame_id in range(1, last_frame_id):
+            step = 0
+            while True:
+                optimizer.zero_grad()
+
+                error = self.forward(frame_id)
+                if error.item() < 0.1:
+                    break  # stop once simulation error is sufficiently small
+
+                error.backward(retain_graph=True)
+                optimizer.step()
+                step += 1
+
+            PytorchOptimizer.LOGGER.info(f"episode_id {episode_id}, frame_id {frame_id}, error = {error}")
+
+            self._write_optimizer_state(self.optimizer_state)
+
+    def forward(self, last_frame_id):
+        initial_frame_ids = [0]
+        initial_follower_robot_states = self.episode_loader.get_robot_states(EpisodeLoader.FOLLOWER_STATE_COLUMN, initial_frame_ids)
+        initial_follower_robot_state = initial_follower_robot_states.squeeze(0)
+        self.pytorch_solver.set_pos(initial_follower_robot_state)
+
+        initial_follower_velocity = torch.zeros(self.pytorch_solver.config.dofs, requires_grad=True)
+        self.pytorch_solver.set_vel(initial_follower_velocity)
+
+        errors = torch.vstack([
+            self.replay_frame(frame_id)
+            for frame_id in range(last_frame_id+1)
+        ])
+
+        # Keep only the last frames
+        last_errors = errors[-PytorchOptimizer.LAST_FRAMES_COUNT:] if errors.shape[0] >= PytorchOptimizer.LAST_FRAMES_COUNT else errors
+
+        # Compute norm for each error vector
+        norms = torch.norm(last_errors, p=2, dim=1)
+
+        # Return the mean error norm
+        mean_error = torch.mean(norms)
+        PytorchOptimizer.LOGGER.info(f"mean_error = {mean_error}")
+        PytorchOptimizer.LOGGER.info(f"last_errors = {last_errors}")
+        return mean_error
 
     def replay_frame(self, frame_id):
-        frame_ids = [frame_id]
-        leader_robot_states = self.episode_loader.get_robot_states(EpisodeLoader.LEADER_STATE_COLUMN, frame_ids)
-        leader_robot_state = leader_robot_states.squeeze(0)
+        current_frame_ids = [frame_id]
+        current_leader_robot_states = self.episode_loader.get_robot_states(EpisodeLoader.LEADER_STATE_COLUMN, current_frame_ids)
+        current_leader_robot_state = current_leader_robot_states.squeeze(0)
 
-        if frame_id == 0:
-            self.pytorch_solver.set_pos(leader_robot_state)
-            self.pytorch_solver.set_vel(torch.zeros_like(leader_robot_state))
-        else:
-            self.pytorch_solver.control_dofs_position(leader_robot_state)
+        self.pytorch_solver.control_dofs_position(current_leader_robot_state)
 
         self.pytorch_solver.step()
 
-        sim_pos = self.pytorch_solver.get_pos()
+        next_sim_robot_state = self.pytorch_solver.get_pos()
 
-        follower_robot_states = self.episode_loader.get_robot_states(EpisodeLoader.FOLLOWER_STATE_COLUMN, frame_ids)
-        follower_robot_state = follower_robot_states.squeeze(0)
+        next_frame_ids = [frame_id + 1]
+        next_follower_robot_states = self.episode_loader.get_robot_states(EpisodeLoader.FOLLOWER_STATE_COLUMN, next_frame_ids)
+        next_follower_robot_state = next_follower_robot_states.squeeze(0)
 
-        error = sim_pos - follower_robot_state
-        error = torch.norm(error, p=2)
+        error = next_sim_robot_state - next_follower_robot_state
         return error
-

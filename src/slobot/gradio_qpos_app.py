@@ -28,7 +28,7 @@ class GradioQposApp():
         demo.launch()
 
     def sim_qpos(self, fps):
-        res = Configuration.LD
+        res = Configuration.QVGA
         #sleep_period = 1.0 / fps
         for simulation_frame_paths in self.image_streams.simulation_frame_paths(res, fps, rgb=False, depth=False, segmentation=False, normal=False):
             #time.sleep(sleep_period)
