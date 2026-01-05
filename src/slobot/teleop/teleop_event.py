@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from slobot.simulation_frame import SimulationFrame
+
 
 @dataclass
 class ActionEvent:
@@ -15,13 +17,21 @@ class ActionEvent:
 
 
 @dataclass
+class SimEvent:
+    """Stores data for a single simulation step."""
+
+    step: int
+    control_qpos: list[float]
+
+
+@dataclass
 class TeleopEvent:
     """Stores timing events for a single teleoperation cycle."""
 
-    step: int
     teleop: ActionEvent
     leader_read: ActionEvent
     follower_control: ActionEvent
     follower_read: ActionEvent
-    leader_qpos: list[float]
-    follower_qpos: list[float]
+    sim_step: ActionEvent
+
+    simulation_frame: SimulationFrame

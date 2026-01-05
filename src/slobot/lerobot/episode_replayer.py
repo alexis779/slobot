@@ -117,7 +117,6 @@ class EpisodeReplayer:
     def build_scene(self):
         self.arm.genesis.start()
 
-        '''
         golf_ball_morph = gs.morphs.Mesh(
             file="meshes/sphere.obj",
             scale=self.GOLF_BALL_RADIUS,
@@ -137,7 +136,6 @@ class EpisodeReplayer:
         )
 
         self.cup : RigidEntity = self.arm.genesis.scene.add_entity(cup)
-        '''
 
         n_envs = len(self.episode_ids)
         self.arm.genesis.build(n_envs=n_envs)
@@ -145,7 +143,7 @@ class EpisodeReplayer:
         qpos_limits = self.arm.genesis.entity.get_dofs_limit()
         self.episode_loader.set_dofs_limit(qpos_limits)
 
-        #self.set_object_initial_positions()
+        self.set_object_initial_positions()
 
     def replay_frame(self, frame_id):
         frame_ids = [

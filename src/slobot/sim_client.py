@@ -19,7 +19,7 @@ class SimClient():
         period = 1.0 / fps
         for qpos in job:
             SimClient.LOGGER.info(f"Received qpos {qpos}")
-            simulation_frame = SimulationFrame(0, qpos)
+            simulation_frame = SimulationFrame(qpos=qpos)
 
             current_time = time.time()
             delta = current_time - (previous_time + period)

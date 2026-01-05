@@ -1,19 +1,21 @@
-class SimulationFrame():
-    def __init__(self, timestamp, control_pos, qpos, velocity, force, control_force):
-        self.timestamp = timestamp
-        self.control_pos = control_pos
-        self.qpos = qpos
-        self.velocity = velocity
-        self.force = force
-        self.control_force = control_force
-        self.rgb = None
-        self.depth = None
-        self.segmentation = None
-        self.normal = None
-        self.feetech_frame = None
+from dataclasses import dataclass
 
-    def __repr__(self):
-        return f"SimulationFrame(timestamp={self.timestamp}, control_pos={self.control_pos}, qpos={self.qpos}, velocity={self.velocity}, force={self.force}, control_force={self.control_force}, feetech_frame={self.feetech_frame})"
+from slobot.feetech_frame import FeetechFrame
+
+
+@dataclass
+class SimulationFrame:
+    timestamp: float = None
+    control_pos: list[float] = None
+    qpos: list[float] = None
+    velocity: list[float] = None
+    force: list[float] = None
+    control_force: list[float] = None
+    rgb: any = None
+    depth: any = None
+    segmentation: any = None
+    normal: any = None
+    feetech_frame: FeetechFrame = None
 
     def frame(self, frame_id):
         match frame_id:

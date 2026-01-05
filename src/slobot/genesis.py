@@ -88,10 +88,6 @@ class Genesis():
             vis_mode=vis_mode,
         )
 
-        # TODO errors in non-interactive mode in Docker
-        #print("Joints=", pprint.pformat(self.entity.joints))
-        #print("Links=", pprint.pformat(self.entity.links))
-
         self.fixed_jaw: RigidLink = self.entity.get_link('Fixed_Jaw')
 
         self.jaw: RigidJoint = self.entity.get_joint('Jaw')
@@ -106,7 +102,7 @@ class Genesis():
         if should_start:
             self.build()
 
-    def build(self, n_envs=0):
+    def build(self, n_envs=1):
         self.scene.build(n_envs=n_envs, env_spacing=(0.5, 0.5))
 
         self.camera.start_recording()

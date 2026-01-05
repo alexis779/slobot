@@ -40,6 +40,8 @@ class RerunMetrics:
         self.add_metric_label("/teleop/follower_control_duration", "Follower Control Duration")
         self.add_metric_label("/teleop/follower_read_start", "Follower Read Start")
         self.add_metric_label("/teleop/follower_read_duration", "Follower Read Duration")
+        self.add_metric_label("/teleop/sim_step_start", "Sim Step Start")
+        self.add_metric_label("/teleop/sim_step_duration", "Sim Step Duration")
 
         self.step = 0
         RerunMetrics.LOGGER.info("Recording %s started", rrd_file)
@@ -48,27 +50,30 @@ class RerunMetrics:
         RerunMetrics.LOGGER.debug(f"Feetech frame {feetech_frame}")
 
         rr.set_time(RerunMetrics.TIME_METRIC, sequence=self.step)
-        self.log_qpos(feetech_frame)
+        self.log_real_qpos(feetech_frame)
         self.step += 1
 
     def handle_step(self, simulation_frame: SimulationFrame):
         RerunMetrics.LOGGER.debug(f"Simulation frame {simulation_frame}")
 
         rr.set_time(RerunMetrics.TIME_METRIC, sequence=self.step)
+        self.log_sim_qpos(simulation_frame)
+        if simulation_frame.feetech_frame is not None:
+            self.log_real_qpos(simulation_frame.feetech_frame)
 
+        self.step += 1
+
+    def log_sim_qpos(self, simulation_frame: SimulationFrame):
         for i, joint_name in enumerate(Configuration.JOINT_NAMES):
             self.add_metric("/sim/qpos", joint_name, simulation_frame.qpos[0][i])
             if simulation_frame.control_pos is not None:
                 self.add_metric(RerunMetrics.CONTROL_POS_METRIC, joint_name, simulation_frame.control_pos[0][i])
-            self.add_metric("/sim/velocity", joint_name, simulation_frame.velocity[0][i])
-            self.add_metric("/sim/control_force", joint_name, simulation_frame.control_force[0][i])
+            if simulation_frame.velocity is not None:
+                self.add_metric("/sim/velocity", joint_name, simulation_frame.velocity[0][i])
+            if simulation_frame.control_force is not None:
+                self.add_metric("/sim/control_force", joint_name, simulation_frame.control_force[0][i])
 
-        if simulation_frame.feetech_frame is not None:
-            self.log_qpos(simulation_frame.feetech_frame)
-
-        self.step += 1
-
-    def log_qpos(self, feetech_frame: FeetechFrame):
+    def log_real_qpos(self, feetech_frame: FeetechFrame):
         for i, joint_name in enumerate(Configuration.JOINT_NAMES):
             self.add_metric(RerunMetrics.CONTROL_POS_METRIC, joint_name, feetech_frame.control_pos[i])
             self.add_metric(RerunMetrics.REAL_QPOS_METRIC, joint_name, feetech_frame.qpos[i])
@@ -86,10 +91,10 @@ class RerunMetrics:
     def add_metric_label(self, metric_name, label):
         rr.log(metric_name, rr.SeriesLines(names=label), static=True)
 
-    def log_teleop_event(self, teleop_event: TeleopEvent):
-        RerunMetrics.LOGGER.debug(f"Teleop event {teleop_event}")
+    def log_teleop_real_event(self, step: int, teleop_event: TeleopEvent):
+        RerunMetrics.LOGGER.debug(f"Teleop real event {teleop_event}")
 
-        rr.set_time(RerunMetrics.TIME_METRIC, sequence=teleop_event.step)
+        rr.set_time(RerunMetrics.TIME_METRIC, sequence=step)
         rr.log("/teleop/teleop_start", rr.Scalars(teleop_event.teleop.start_time))
         rr.log("/teleop/teleop_duration", rr.Scalars(teleop_event.teleop.duration))
         rr.log("/teleop/leader_read_start", rr.Scalars(teleop_event.leader_read.start_time))
@@ -99,6 +104,13 @@ class RerunMetrics:
         rr.log("/teleop/follower_read_start", rr.Scalars(teleop_event.follower_read.start_time))
         rr.log("/teleop/follower_read_duration", rr.Scalars(teleop_event.follower_read.duration))
 
-        for i, joint_name in enumerate(Configuration.JOINT_NAMES):
-            self.add_metric(RerunMetrics.CONTROL_POS_METRIC, joint_name, teleop_event.leader_qpos[i])
-            self.add_metric(RerunMetrics.REAL_QPOS_METRIC, joint_name, teleop_event.follower_qpos[i])
+        self.log_real_qpos(teleop_event.simulation_frame.feetech_frame)
+
+    def log_teleop_sim_event(self, step: int, teleop_event: TeleopEvent):
+        RerunMetrics.LOGGER.debug(f"Teleop sim event {teleop_event}")
+
+        rr.set_time(RerunMetrics.TIME_METRIC, sequence=step)
+        rr.log("/teleop/sim_step_start", rr.Scalars(teleop_event.sim_step.start_time))
+        rr.log("/teleop/sim_step_duration", rr.Scalars(teleop_event.sim_step.duration))
+
+        self.log_sim_qpos(teleop_event.simulation_frame)

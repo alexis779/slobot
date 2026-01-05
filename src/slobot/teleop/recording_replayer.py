@@ -38,10 +38,16 @@ class RecordingReplayer():
         )
         self.cup = self.arm.genesis.scene.add_entity(cup_morph)
 
-        self.arm.genesis.build(n_envs=1)
+        self.arm.genesis.build()
 
     def replay(self):
-        for frame in self.replay_frames_throttled():
+        frames = self.replay_frames_throttled()
+
+        first_frame = next(frames)
+        self.arm.genesis.entity.set_dofs_position(first_frame.control_pos)
+        self.arm.genesis.step()
+
+        for frame in frames:
             self.arm.handle_qpos(frame)
 
     def replay_frames_throttled(self):
@@ -62,7 +68,6 @@ class RecordingReplayer():
             client = server.client()
             dataset = client.get_dataset(RerunMetrics.APPLICATION_ID)
             df = dataset.reader(index=RerunMetrics.TIME_METRIC)
-            #df = df.limit(2)
             record_batches = df.collect()
             for record_batch in record_batches:
                 for frame in self.replay_record_batch(record_batch):
