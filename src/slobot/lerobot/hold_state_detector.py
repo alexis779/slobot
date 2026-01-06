@@ -7,10 +7,13 @@ class HoldState:
     place_frame_id: int
 
 class HoldStateDetector:
-    DIFF_THRESHOLD = 10 # the cutoff value to identify when the gripper is holding the ball and when it is releasing the ball
     SUSTAINED_FRAMES = 4 # the number of frames the gripper must be above or below the threshold to be considered holding or releasing the ball
 
-    def __init__(self):
+    def __init__(self, diff_threshold: float):
+        '''
+        diff_threshold: float # the cutoff value to identify when the gripper is holding the ball and when it is releasing the ball
+        '''
+        self.diff_threshold = diff_threshold
         self._consecutive_above_count = 0
         self._pick_frame_id = None
         self._place_frame_id = None
@@ -21,7 +24,7 @@ class HoldStateDetector:
             self._add_frame_error(frame_id, error)
 
     def _add_frame_error(self, frame_id: int, error: float):
-        if error > self.DIFF_THRESHOLD:
+        if error > self.diff_threshold:
             self._consecutive_above_count += 1
 
             if self._consecutive_above_count == self.SUSTAINED_FRAMES:

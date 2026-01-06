@@ -22,8 +22,6 @@ class Feetech():
     PORT0 = '/dev/ttyACM0'
     PORT1 = '/dev/ttyACM1'
 
-    REFERENCE_FRAME = 'middle'
-
     def calibrate_pos(preset):
         feetech = Feetech()
         feetech.calibrate(preset)
@@ -159,12 +157,12 @@ class Feetech():
         return motors_bus
 
     def _qpos_to_steps(self, qpos, motor_index):
-        steps = Configuration.MOTOR_DIRECTION[motor_index] * (qpos[motor_index] - Configuration.QPOS_MAP[Feetech.REFERENCE_FRAME][motor_index]) / self.radian_per_step
-        return Configuration.POS_MAP[Feetech.REFERENCE_FRAME][motor_index] + int(steps)
+        steps = Configuration.MOTOR_DIRECTION[motor_index] * (qpos[motor_index] - Configuration.QPOS_MAP[Configuration.REFERENCE_FRAME][motor_index]) / self.radian_per_step
+        return Configuration.POS_MAP[Configuration.REFERENCE_FRAME][motor_index] + int(steps)
 
     def _steps_to_qpos(self, pos, motor_index):
-        steps = pos[motor_index] - Configuration.POS_MAP[Feetech.REFERENCE_FRAME][motor_index]
-        return Configuration.QPOS_MAP[Feetech.REFERENCE_FRAME][motor_index] + Configuration.MOTOR_DIRECTION[motor_index] * steps * self.radian_per_step
+        steps = pos[motor_index] - Configuration.POS_MAP[Configuration.REFERENCE_FRAME][motor_index]
+        return Configuration.QPOS_MAP[Configuration.REFERENCE_FRAME][motor_index] + Configuration.MOTOR_DIRECTION[motor_index] * steps * self.radian_per_step
 
     def _stepvelocity_to_velocity(self, step_velocity, motor_index):
         return step_velocity[motor_index] * self.radian_per_step

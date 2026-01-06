@@ -4,7 +4,9 @@ version = "0.1.17"
 
 dependencies = [
     # "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
+
     "torch",
+
     # "lerobot @ git+https://github.com/huggingface/lerobot.git",
 
     "feetech-servo-sdk", # to control motors

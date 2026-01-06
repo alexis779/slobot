@@ -1,23 +1,26 @@
-import rerun as rr
-from pandas import Timestamp
+from functools import cached_property
+
 import genesis as gs
+import torch
 from importlib.resources import files
 
 from slobot.metrics.rerun_metrics import RerunMetrics
-from slobot.feetech_frame import FeetechFrame
 from slobot.configuration import Configuration
 from slobot.so_arm_100 import SoArm100
 from slobot.lerobot.episode_replayer import EpisodeReplayer
+from slobot.teleop.recording_loader import RecordingLoader
+from slobot.lerobot.episode_replayer import InitialState
+from slobot.lerobot.hold_state_detector import HoldStateDetector, HoldState
+from slobot.lerobot.frame_delay_detector import FrameDelayDetector
 
-class RecordingReplayer():
+class RecordingReplayer:
     def __init__(self, **kwargs):
-        self.rrd_file = kwargs['rrd_file']
+        rrd_file = kwargs['rrd_file']
         self.fps = kwargs['fps']
-        self.period = 1.0 / self.fps
-        self.feetech_frame: FeetechFrame = FeetechFrame()
+        self.recording_loader = RecordingLoader(rrd_file)
 
-        rerun_metrics = RerunMetrics()
-        self.arm: SoArm100 = SoArm100(mjcf_path=Configuration.MJCF_CONFIG, fps=self.fps, should_start=False, step_handler=rerun_metrics)
+        #rerun_metrics = RerunMetrics()
+        self.arm: SoArm100 = SoArm100(mjcf_path=Configuration.MJCF_CONFIG, fps=self.fps, should_start=False, step_handler=None)
 
         self.build_scene()
 
@@ -41,69 +44,67 @@ class RecordingReplayer():
         self.arm.genesis.build()
 
     def replay(self):
-        frames = self.replay_frames_throttled()
+        actions = self.recording_loader.action
 
-        first_frame = next(frames)
-        self.arm.genesis.entity.set_dofs_position(first_frame.control_pos)
+        # Set initial position
+        self.arm.genesis.entity.set_dofs_position(actions[0])
         self.arm.genesis.step()
 
-        for frame in frames:
-            self.arm.handle_qpos(frame)
+        self.set_object_initial_positions()
 
-    def replay_frames_throttled(self):
-        last_frame_timestamp = None
+        # Replay remaining frames
+        for step in range(1, len(actions)):
+            if step == self.hold_state.pick_frame_id:
+                self.arm.genesis.draw_arrow(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate, EpisodeReplayer.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
+                print(f"golf ball position = {self.golf_ball.get_pos()}")
+                #input("Pick frame")
+            self.arm.genesis.entity.set_dofs_position(actions[step])
+            self.arm.genesis.step()
 
-        for frame in self.replay_frames():
-            # Sample: skip frames that are too close together
-            if last_frame_timestamp is not None:
-                time_delta = (frame.timestamp - last_frame_timestamp).total_seconds()
-                if time_delta < self.period:
-                    continue
-
-            last_frame_timestamp = frame.timestamp
-            yield frame
-
-    def replay_frames(self):
-        with rr.server.Server(datasets={RerunMetrics.APPLICATION_ID: [self.rrd_file]}) as server:
-            client = server.client()
-            dataset = client.get_dataset(RerunMetrics.APPLICATION_ID)
-            df = dataset.reader(index=RerunMetrics.TIME_METRIC)
-            record_batches = df.collect()
-            for record_batch in record_batches:
-                for frame in self.replay_record_batch(record_batch):
-                    yield frame
-
-    def replay_record_batch(self, record_batch):
-        rows = record_batch.shape[0]
-        for row in range(rows):
-            self.update_frame(record_batch, row)
-            yield self.feetech_frame
-
-    def update_frame(self, record_batch, row):
-        self.feetech_frame.timestamp = self.get_timestamp(record_batch, row)
-        self.feetech_frame.control_pos = self.get_control_pos(record_batch, row)
-        self.feetech_frame.qpos = self.get_real_qpos(record_batch, row)
-
-    def get_timestamp(self, record_batch, row) -> Timestamp:
-        return self.get_cell_value(record_batch, row, 'log_time')
-
-    def get_control_pos(self, record_batch, row):
-        return self.get_metric(RerunMetrics.CONTROL_POS_METRIC, record_batch, row)
-
-    def get_real_qpos(self, record_batch, row):
-        return self.get_metric(RerunMetrics.REAL_QPOS_METRIC, record_batch, row)
-
-    def get_metric(self, metric_name, record_batch, row):
-        return [
-            self.get_cell_scalar(record_batch, row, f"{metric_name}/{joint_name}:Scalars:scalars")
-            for joint_name in Configuration.JOINT_NAMES
+    def set_object_initial_positions(self):
+        # compute the initial positions of the ball and the cup
+        golf_pos = [
+            [self.initial_state.ball[0].item(), self.initial_state.ball[1].item(), EpisodeReplayer.GOLF_BALL_RADIUS]
         ]
+        self.golf_ball.set_pos(golf_pos)
 
-    def get_cell_scalar(self, record_batch, row, column):
-        return self.get_cell(record_batch, row, column)[0].as_py()
+        cup_pos = [
+            [self.initial_state.cup[0].item(), self.initial_state.cup[1].item(), 0]
+        ]
+        self.cup.set_pos(cup_pos)
 
-    def get_cell(self, record_batch, row, column):
-        return record_batch.column(column)[row]
+    @cached_property
+    def initial_state(self) -> InitialState:
+        self.fixed_jaw_translate = torch.tensor(EpisodeReplayer.FIXED_JAW_TRANSLATE)
 
-    def get_cell_value(self, record_batch, row, column):
-        return self.get_cell(record_batch, row, column).as_py()
+        self.set_robot_state(self.hold_state.pick_frame_id)
+        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
+
+        self.set_robot_state(self.hold_state.place_frame_id)
+        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
+
+        return InitialState(ball=pick_link_pos[0], cup=place_link_pos[0])
+
+    @cached_property
+    def hold_state(self) -> HoldState:
+        leader_gripper = self.recording_loader.action[:, Configuration.GRIPPER_ID]
+        follower_gripper = self.recording_loader.observation_state[:, Configuration.GRIPPER_ID]
+
+        frame_delay_detector = FrameDelayDetector(fps=self.fps)
+        delay_frames = frame_delay_detector.detect_frame_delay(leader_gripper, follower_gripper)
+
+        leader_gripper = leader_gripper[:-delay_frames]
+        follower_gripper = follower_gripper[delay_frames:]
+
+        hold_state_detector = HoldStateDetector(diff_threshold=0.1)
+        hold_state_detector.replay_teleop(leader_gripper, follower_gripper)
+        hold_state = hold_state_detector.get_hold_state()
+
+        if hold_state.pick_frame_id is None or hold_state.place_frame_id is None:
+            raise ValueError("Hold state not found")
+
+        return hold_state
+
+    def set_robot_state(self, frame_id):
+        robot_state = self.recording_loader.frame_observation_state(frame_id)
+        self.arm.genesis.entity.set_dofs_position(robot_state)

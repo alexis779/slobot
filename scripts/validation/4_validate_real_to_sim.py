@@ -15,7 +15,7 @@ so_arm_100 = SoArm100(mjcf_path=mjcf_path)
 preset = sys.argv[1]
 pos = Configuration.POS_MAP[preset]
 
-feetech = Feetech(qpos_handlers=[so_arm_100])
+feetech = Feetech(qpos_handler=so_arm_100)
 feetech.control_position(pos)
 
 so_arm_100.genesis.hold_entity()

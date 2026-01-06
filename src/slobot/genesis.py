@@ -88,9 +88,20 @@ class Genesis():
             vis_mode=vis_mode,
         )
 
+        # Kinematic path
+        self.base: RigidLink = self.entity.get_link('Base')
+        self.shoulder_pan: RigidJoint = self.entity.get_joint('Rotation')
+        self.rotation_pitch: RigidLink = self.entity.get_link('Rotation_Pitch')
+        self.shoulder_lift: RigidJoint = self.entity.get_joint('Pitch')
+        self.upper_arm: RigidLink = self.entity.get_link('Upper_Arm')
+        self.elbow_flex: RigidJoint = self.entity.get_joint('Elbow')
+        self.lower_arm: RigidLink = self.entity.get_link('Lower_Arm')
+        self.wrist_flex: RigidJoint = self.entity.get_joint('Wrist_Pitch')
+        self.wrist_pitch_roll: RigidLink = self.entity.get_link('Wrist_Pitch_Roll')
+        self.wrist_roll: RigidJoint = self.entity.get_joint('Wrist_Roll')
         self.fixed_jaw: RigidLink = self.entity.get_link('Fixed_Jaw')
-
-        self.jaw: RigidJoint = self.entity.get_joint('Jaw')
+        self.gripper: RigidJoint = self.entity.get_joint('Jaw')
+        self.moving_jaw: RigidLink = self.entity.get_link('Moving_Jaw')
 
         self.camera = self.scene.add_camera(
             res    = res,

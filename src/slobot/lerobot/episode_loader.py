@@ -8,6 +8,7 @@ from slobot.lerobot.hold_state_detector import HoldStateDetector, HoldState
 
 class EpisodeLoader:
     COLUMN_NAMES = [ 'frame_index', 'action', 'observation.state' ]
+    DIFF_THRESHOLD = 10
 
     LEADER_STATE_COLUMN = 'action'
     FOLLOWER_STATE_COLUMN = 'observation.state'
@@ -81,7 +82,7 @@ class EpisodeLoader:
         leader_gripper = leader_gripper[:-delay_frames]
         follower_gripper = follower_gripper[delay_frames:]
 
-        hold_state_detector = HoldStateDetector()
+        hold_state_detector = HoldStateDetector(diff_threshold=EpisodeLoader.DIFF_THRESHOLD)
         hold_state_detector.replay_teleop(leader_gripper, follower_gripper)
 
         hold_state = hold_state_detector.get_hold_state()
