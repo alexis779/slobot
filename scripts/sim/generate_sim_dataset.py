@@ -13,7 +13,5 @@ episode_ids = None
 if args.episode_ids:
     episode_ids = [int(episode_id_str) for episode_id_str in args.episode_ids.split(",")]
 
-mjcf_path = Configuration.MJCF_CONFIG
-
-sim_dataset_generator = SimDatasetGenerator(repo_id=args.dataset_repo_id, sim_repo_id=args.sim_dataset_repo_id, mjcf_path=mjcf_path)
+sim_dataset_generator = SimDatasetGenerator(repo_id=args.dataset_repo_id, sim_repo_id=args.sim_dataset_repo_id)
 sim_dataset_generator.generate_dataset(episode_ids=episode_ids)

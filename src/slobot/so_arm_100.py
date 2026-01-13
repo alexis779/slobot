@@ -15,8 +15,7 @@ class SoArm100():
     HOME_QPOS = [0, -np.pi/2, np.pi/2, np.pi/2, -np.pi/2, 0]
 
     def sim_qpos(target_qpos):
-        mjcf_path = Configuration.MJCF_CONFIG
-        arm = SoArm100(mjcf_path=mjcf_path)
+        arm = SoArm100()
         arm.genesis.entity.set_dofs_position(target_qpos)
         arm.genesis.hold_entity()
 
@@ -67,9 +66,6 @@ class SoArm100():
             euler[2] = yaw
             quat = self.genesis.euler_to_quat(euler)
             self.genesis.move(self.genesis.fixed_jaw, pos, quat)
-
-    def stop(self):
-        self.genesis.stop()
 
     def go_home(self):
         target_qpos = torch.tensor(SoArm100.HOME_QPOS)

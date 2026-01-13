@@ -4,7 +4,6 @@ from slobot.configuration import Configuration
 from slobot.teleop.teleop_event import TeleopEvent
 
 import rerun as rr
-import uuid
 import os
 
 class RerunMetrics:
@@ -15,12 +14,12 @@ class RerunMetrics:
     CONTROL_POS_METRIC = "/control_pos"
     REAL_QPOS_METRIC = "/real/qpos"
 
-    def __init__(self):
-        rrd_id = str(uuid.uuid4())
-        rr.init(RerunMetrics.APPLICATION_ID, recording_id=rrd_id)
+    def __init__(self, **kwargs):
+        recording_id = kwargs['recording_id']
 
+        rr.init(RerunMetrics.APPLICATION_ID, recording_id=recording_id)
         os.makedirs(RerunMetrics.RRD_FOLDER, exist_ok=True)
-        rrd_file = f"{RerunMetrics.RRD_FOLDER}/{rrd_id}.rrd"
+        rrd_file = f"{RerunMetrics.RRD_FOLDER}/{recording_id}.rrd"
         rr.save(rrd_file)
 
         for joint_name in Configuration.JOINT_NAMES:
@@ -44,7 +43,7 @@ class RerunMetrics:
         self.add_metric_label("/teleop/sim_step_duration", "Sim Step Duration")
 
         self.step = 0
-        RerunMetrics.LOGGER.info("Recording %s started", rrd_file)
+        RerunMetrics.LOGGER.info("Recording %s started.", rrd_file)
 
     def handle_qpos(self, feetech_frame: FeetechFrame):
         RerunMetrics.LOGGER.debug(f"Feetech frame {feetech_frame}")

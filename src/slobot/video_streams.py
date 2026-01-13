@@ -43,8 +43,7 @@ class VideoStreams:
         env_id = 0
         self.start(cam_id, [env_id], res, fps, segment_duration, rgb=rgb, depth=depth, segmentation=segmentation, normal=normal)
 
-        mjcf_path = Configuration.MJCF_CONFIG
-        arm = SoArm100(mjcf_path=mjcf_path, step_handler=self, res=res, fps=fps, show_viewer=False, rgb=rgb, depth=depth, segmentation=segmentation, normal=normal)
+        arm = SoArm100(step_handler=self, res=res, fps=fps, show_viewer=False, rgb=rgb, depth=depth, segmentation=segmentation, normal=normal)
         arm.elemental_rotations()
 
         self.stop()

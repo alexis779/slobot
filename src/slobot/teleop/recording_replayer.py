@@ -2,9 +2,9 @@ from functools import cached_property
 
 import genesis as gs
 import torch
+import json
 from importlib.resources import files
 
-from slobot.metrics.rerun_metrics import RerunMetrics
 from slobot.configuration import Configuration
 from slobot.so_arm_100 import SoArm100
 from slobot.lerobot.episode_replayer import EpisodeReplayer
@@ -12,66 +12,105 @@ from slobot.teleop.recording_loader import RecordingLoader
 from slobot.lerobot.episode_replayer import InitialState
 from slobot.lerobot.hold_state_detector import HoldStateDetector, HoldState
 from slobot.lerobot.frame_delay_detector import FrameDelayDetector
+from slobot.simulation_frame import SimulationFrame
 
 class RecordingReplayer:
+    LOGGER = Configuration.logger(__name__)
+
     def __init__(self, **kwargs):
-        rrd_file = kwargs['rrd_file']
         self.fps = kwargs['fps']
+
+        self.golf_ball_pos_str = kwargs.get('golf_ball_pos', None)
+
+        rrd_file = kwargs['rrd_file']
         self.recording_loader = RecordingLoader(rrd_file)
 
-        #rerun_metrics = RerunMetrics()
-        self.arm: SoArm100 = SoArm100(mjcf_path=Configuration.MJCF_CONFIG, fps=self.fps, should_start=False, step_handler=None)
+        kwargs['should_start'] = False
+        kwargs['step_handler'] = self
+        kwargs['rgb'] = True
+
+        self.arm: SoArm100 = SoArm100(**kwargs)
 
         self.build_scene()
 
     def build_scene(self):
+        vis_mode = self.arm.genesis.vis_mode
+
         self.arm.genesis.start()
 
+        golf_ball_radius = EpisodeReplayer.GOLF_BALL_RADIUS
+        '''
         golf_ball_morph = gs.morphs.Mesh(
             file="meshes/sphere.obj",
-            scale=EpisodeReplayer.GOLF_BALL_RADIUS,
-            pos=(0.25, 0, EpisodeReplayer.GOLF_BALL_RADIUS),
+            scale=golf_ball_radius,
+            pos=(0.25, 0, golf_ball_radius),
         )
-        self.golf_ball = self.arm.genesis.scene.add_entity(golf_ball_morph)
+        '''
+        golf_ball_morph = gs.morphs.Sphere(
+            radius=golf_ball_radius,
+            pos=(0.25, 0, golf_ball_radius),
+        )
+        self.golf_ball = self.arm.genesis.scene.add_entity(
+            golf_ball_morph,
+            visualize_contact=False,
+            vis_mode=vis_mode,
+        )
 
         cup_filename = str(files('slobot.config') / 'assets' / 'cup.stl')
         cup_morph = gs.morphs.Mesh(
             file=cup_filename,
             pos=(-0.25, 0, 0)
         )
-        self.cup = self.arm.genesis.scene.add_entity(cup_morph)
+        self.cup = self.arm.genesis.scene.add_entity(
+            cup_morph,
+            visualize_contact=False,
+            vis_mode=vis_mode,
+        )
 
         self.arm.genesis.build()
 
     def replay(self):
+        self.set_object_initial_positions()
+
         actions = self.recording_loader.action
 
         # Set initial position
         self.arm.genesis.entity.set_dofs_position(actions[0])
         self.arm.genesis.step()
 
-        self.set_object_initial_positions()
-
         # Replay remaining frames
         for step in range(1, len(actions)):
-            if step == self.hold_state.pick_frame_id:
-                self.arm.genesis.draw_arrow(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate, EpisodeReplayer.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
-                print(f"golf ball position = {self.golf_ball.get_pos()}")
-                #input("Pick frame")
-            self.arm.genesis.entity.set_dofs_position(actions[step])
+            control_pos = actions[step]
+
+            if step <= self.hold_state.pick_frame_id:
+                self.golf_ball.set_pos([self.golf_ball_pos])
+                if step == self.hold_state.pick_frame_id:
+                    #self.arm.genesis.draw_arrow(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate, EpisodeReplayer.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
+                    tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
+                    RecordingReplayer.LOGGER.info(f"pick frame id = {self.hold_state.pick_frame_id}")
+                    RecordingReplayer.LOGGER.info(f"golf ball position = {self.golf_ball.get_pos()}")
+                    RecordingReplayer.LOGGER.info(f"TCP position = {tcp_pos}")
+
+            self.arm.genesis.entity.control_dofs_position(control_pos)
             self.arm.genesis.step()
 
+        self.arm.genesis.stop()
+
+    # set the initial positions of the ball and the cup
     def set_object_initial_positions(self):
-        # compute the initial positions of the ball and the cup
-        golf_pos = [
-            [self.initial_state.ball[0].item(), self.initial_state.ball[1].item(), EpisodeReplayer.GOLF_BALL_RADIUS]
-        ]
-        self.golf_ball.set_pos(golf_pos)
+        self.golf_ball.set_pos([self.golf_ball_pos])
 
         cup_pos = [
             [self.initial_state.cup[0].item(), self.initial_state.cup[1].item(), 0]
         ]
         self.cup.set_pos(cup_pos)
+
+    @cached_property
+    def golf_ball_pos(self):
+        if self.golf_ball_pos_str is not None:
+             return json.loads(self.golf_ball_pos_str)
+        else:
+            return [self.initial_state.ball[0].item(), self.initial_state.ball[1].item(), EpisodeReplayer.GOLF_BALL_RADIUS]
 
     @cached_property
     def initial_state(self) -> InitialState:
@@ -108,3 +147,6 @@ class RecordingReplayer:
     def set_robot_state(self, frame_id):
         robot_state = self.recording_loader.frame_observation_state(frame_id)
         self.arm.genesis.entity.set_dofs_position(robot_state)
+
+    def handle_step(self, simulation_frame: SimulationFrame):
+        pass

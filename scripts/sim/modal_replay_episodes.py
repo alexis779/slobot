@@ -52,15 +52,13 @@ def open_ssh_tunnel():
 
 @app.function(image=image, gpu="any", timeout=3600, volumes={cache_folder: vol})
 def replay_episodes(dataset_repo_id: str, episode_ids: str = None):
-    mjcf_path = Configuration.MJCF_CONFIG
-
     episode_count = None
     episode_ids = None
     if episode_ids:
         episode_ids = [int(epipsode_id.strip()) for epipsode_id in episode_ids.split(',')]
         episode_count = len(episode_ids)
 
-    episode_replayer = EpisodeReplayer(repo_id=dataset_repo_id, mjcf_path=mjcf_path, show_viewer=False, n_envs=episode_count)
+    episode_replayer = EpisodeReplayer(repo_id=dataset_repo_id, show_viewer=False, n_envs=episode_count)
 
     episode_replayer.load_episodes(episode_ids=episode_ids)
     rate = episode_replayer.replay_episodes()

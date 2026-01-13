@@ -9,8 +9,7 @@ if len(sys.argv) < 2:
 
 # Validate the robot is located in the position preset in real then sim
 
-mjcf_path = Configuration.MJCF_CONFIG
-so_arm_100 = SoArm100(mjcf_path=mjcf_path)
+so_arm_100 = SoArm100()
 
 preset = sys.argv[1]
 pos = Configuration.POS_MAP[preset]

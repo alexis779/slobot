@@ -8,7 +8,6 @@ parser.add_argument("--episode-ids", type=str, default=None, help="Specific epis
 
 args = parser.parse_args()
 
-mjcf_path = Configuration.MJCF_CONFIG
 repo_id = args.dataset_repo_id
 
 episode_count = None
@@ -20,6 +19,6 @@ if episode_id_str is not None:
     ]
     episode_count = len(episode_ids)
 
-episode_replayer = EpisodeReplayer(repo_id=repo_id, mjcf_path=mjcf_path, show_viewer=True, episode_ids=episode_ids)
+episode_replayer = EpisodeReplayer(repo_id=repo_id, show_viewer=True, episode_ids=episode_ids)
 rate = episode_replayer.replay_episodes()
 print(f"Success rate: {rate:.2f} for episode_ids = {episode_ids}")

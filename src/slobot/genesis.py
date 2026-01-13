@@ -20,6 +20,8 @@ class Genesis():
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
+        self.vis_mode = kwargs.get('vis_mode', 'visual')
+
         # pass should_start=False to control the start and build process
         should_start = kwargs.get('should_start', True)
         if should_start:
@@ -27,8 +29,6 @@ class Genesis():
 
     def start(self):
         kwargs = self.kwargs
-
-        vis_mode = 'visual' # 'collision'
 
         res = kwargs.get('res', Configuration.VGA)
         camera_pos = (-0.125, -1, 0.25)
@@ -47,6 +47,8 @@ class Genesis():
 
         dt = 1 / self.fps
 
+        substeps = kwargs.get('substeps', 10)
+
         requires_grad = kwargs.get('requires_grad', False)
 
         self.scene = gs.Scene(
@@ -54,7 +56,7 @@ class Genesis():
             sim_options = gs.options.SimOptions(
                 dt = dt,
                 requires_grad = requires_grad,
-                #substeps = 1,
+                substeps = substeps,
             ),
             rigid_options = gs.options.RigidOptions(
                 enable_collision = not requires_grad, # TODO, collision dection is not supported with autograd
@@ -78,14 +80,16 @@ class Genesis():
         plane = gs.morphs.Plane()
         self.scene.add_entity(
             plane,
-            vis_mode=vis_mode,
+            visualize_contact=False,
+            vis_mode=self.vis_mode,
         )
 
         arm_morph = self.parse_robot_configuration(**kwargs)
 
         self.entity: RigidEntity = self.scene.add_entity(
             arm_morph,
-            vis_mode=vis_mode,
+            visualize_contact=False,
+            vis_mode=self.vis_mode,
         )
 
         # Kinematic path
@@ -107,6 +111,7 @@ class Genesis():
             res    = res,
             pos    = camera_pos,
             lookat = lookat,
+            env_idx = 0,
         )
 
         should_start = kwargs.get('should_start', True)
@@ -158,7 +163,7 @@ class Genesis():
         print("control_force=", control_force)
 
     def parse_robot_configuration(self, **kwargs):
-        mjcf_path = kwargs['mjcf_path']
+        mjcf_path = kwargs.get('mjcf_path', Configuration.MJCF_CONFIG)
         if mjcf_path is not None:
             return gs.morphs.MJCF(
                 file = mjcf_path,

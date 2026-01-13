@@ -17,12 +17,9 @@ parser.add_argument("--episode-id", type=int, required=True, help="Episode ID to
 
 args = parser.parse_args()
 
-mjcf_path = Configuration.MJCF_CONFIG
-
 device = torch.device("cpu")
 pytorch_optimizer = PytorchOptimizer(
     repo_id=args.dataset_repo_id,
-    mjcf_path=mjcf_path,
     device=device,
 )
 

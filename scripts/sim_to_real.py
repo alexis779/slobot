@@ -6,8 +6,7 @@ from slobot.configuration import Configuration
 
 feetech = Feetech()
 
-mjcf_path = Configuration.MJCF_CONFIG
-arm = SoArm100(mjcf_path=mjcf_path, step_handler=feetech, show_viewer=True, rgb=True)
+arm = SoArm100(step_handler=feetech, show_viewer=True, rgb=True)
 arm.elemental_rotations()
 feetech.go_to_rest()
-arm.stop()
+arm.genesis.stop()

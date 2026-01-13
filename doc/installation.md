@@ -80,7 +80,7 @@ LD_LIBRARY_PATH=$PYMESHLAB_LIB python <script.py>
 
 ## Camera feed
 
-If you intend to record with your Android phoen, install **Webcam IP** Android app on your phone, select 640 x 480 image resolution and start server.
+If you intend to record with your Android phone, install **Webcam IP** Android app on your phone, select 640 x 480 image resolution and start server.
 
 List v4l2 devices
 
@@ -108,6 +108,17 @@ Make sure the camera is streamable via
 ffplay /dev/video4
 ```
 
+Wether it's via phone app or webcam, make sure you're able to capture the camera feed.
+
+```
+ffmpeg -f v4l2 -video_size 640x480 -framerate 30 -i /dev/video4 -c:v libx264 episode01.mp4 -y
+```
+
+Press q to stop the capture. Replay the recording via
+
+```
+ffplay -autoexit episode01.mp4
+```
 
 ## Docker
 

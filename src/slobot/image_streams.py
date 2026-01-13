@@ -34,10 +34,9 @@ class ImageStreams:
     def run_simulation(self, res, fps, rgb=True, depth=False, segmentation=False, normal=False):
         self.start(res, fps, rgb=rgb, depth=depth, segmentation=segmentation, normal=normal)
 
-        mjcf_path = Configuration.MJCF_CONFIG
-        arm = SoArm100(mjcf_path=mjcf_path, step_handler=self, res=res, fps=fps, show_viewer=False, rgb=rgb, depth=depth, segmentation=segmentation, normal=normal)
+        arm = SoArm100(step_handler=self, res=res, fps=fps, show_viewer=False, rgb=rgb, depth=depth, segmentation=segmentation, normal=normal)
         arm.elemental_rotations()
-        arm.stop()
+        arm.genesis.stop()
 
         self.queue.put(None) # add poison pill
 

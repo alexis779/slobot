@@ -27,12 +27,9 @@ cache_folder = "/root/.cache/huggingface"
 
 @app.function(image=image, gpu="any", timeout=3600, volumes={cache_folder: vol})
 def minimize_sim_real_error(dataset_repo_id: str, episode_id: int = 0):
-    mjcf_path = Configuration.MJCF_CONFIG
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     trajectory_optimizer = PytorchOptimizer(
         repo_id=dataset_repo_id,
-        mjcf_path=mjcf_path,
         episode_id=episode_id,
         device=device,
     )

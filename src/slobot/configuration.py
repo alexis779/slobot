@@ -5,7 +5,7 @@ from importlib.resources import files
 class Configuration:
     WORK_DIR = "/tmp/slobot"
 
-    MJCF_CONFIG = str(files('slobot.config') / "trs_so_arm100" / "so_arm100.xml")
+    MJCF_CONFIG = str(files('slobot.config') / "trs_so_arm100" / "so_arm100.xml") # "../mujoco_menagerie/trs_so_arm100/so_arm100.xml"
 
     # 4:3 aspect ratio
     QVGA = (320, 240)

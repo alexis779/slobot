@@ -15,7 +15,6 @@ feetech = Feetech()
 preset = sys.argv[1]
 qpos = Configuration.QPOS_MAP[preset]
 
-mjcf_path = Configuration.MJCF_CONFIG
-arm = SoArm100(mjcf_path=mjcf_path, step_handler=feetech)
+arm = SoArm100(step_handler=feetech)
 arm.genesis.entity.control_dofs_position(qpos)
 arm.genesis.hold_entity()
