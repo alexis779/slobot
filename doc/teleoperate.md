@@ -33,7 +33,7 @@ Compare the real recording with the SIM replayed videos.
 
 ## Visual
 
-<video controls src="https://github.com/user-attachments/assets/ece6a2f4-9c7d-46b6-83bb-ccc295254e9e"></video>
+<video controls src="https://github.com/user-attachments/assets/1bc9a00e-fdda-4590-8fb7-ee414f0ef183"></video>
 
 ```
 python scripts/teleop/replay_recording.py --rrd_file /tmp/slobot/teleoperation/episode01.rrd --fps 30 --substeps 40 --vis_mode visual
@@ -41,7 +41,7 @@ python scripts/teleop/replay_recording.py --rrd_file /tmp/slobot/teleoperation/e
 
 ## Collision
 
-<video controls src="https://github.com/user-attachments/assets/4f362763-4025-4077-8dc4-2f78281f6502"></video>
+<video controls src="https://github.com/user-attachments/assets/0e8e0346-5ef1-475e-9eba-1374347e4f71"></video>
 
 ```
 python scripts/teleop/replay_recording.py --rrd_file /tmp/slobot/teleoperation/episode01.rrd --fps 30 --substeps 40 --vis_mode collision

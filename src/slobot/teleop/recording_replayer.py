@@ -72,7 +72,9 @@ class RecordingReplayer:
     def replay(self):
         self.set_object_initial_positions()
 
-        actions = self.recording_loader.action
+        actions = self.recording_loader.observation_state # use follower state instead of leader state
+
+        #torch.save(actions, "actions.pt")
 
         # Set initial position
         self.arm.genesis.entity.set_dofs_position(actions[0])
@@ -82,17 +84,14 @@ class RecordingReplayer:
         for step in range(1, len(actions)):
             control_pos = actions[step]
 
-            if step <= self.hold_state.pick_frame_id:
-                self.golf_ball.set_pos([self.golf_ball_pos])
-                if step == self.hold_state.pick_frame_id:
-                    #self.arm.genesis.draw_arrow(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate, EpisodeReplayer.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
-                    tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
-                    RecordingReplayer.LOGGER.info(f"pick frame id = {self.hold_state.pick_frame_id}")
-                    RecordingReplayer.LOGGER.info(f"golf ball position = {self.golf_ball.get_pos()}")
-                    RecordingReplayer.LOGGER.info(f"TCP position = {tcp_pos}")
+            if step == self.hold_state.pick_frame_id:
+                self.debug_tcp()
 
             self.arm.genesis.entity.control_dofs_position(control_pos)
             self.arm.genesis.step()
+
+        if self.golf_ball_in_cup():
+            RecordingReplayer.LOGGER.info("The golf ball was placed in the cup successfully.")
 
         self.arm.genesis.stop()
 
@@ -150,3 +149,20 @@ class RecordingReplayer:
 
     def handle_step(self, simulation_frame: SimulationFrame):
         pass
+
+    def golf_ball_in_cup(self):
+        diff = self.golf_ball.get_pos() - self.cup.get_pos()
+        diff = diff[0]
+        diff = diff[:2]
+        return torch.norm(diff) < EpisodeReplayer.DISTANCE_THRESHOLD
+
+    def debug_tcp(self):
+        #self.arm.genesis.draw_arrow(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate, EpisodeReplayer.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
+        tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
+        RecordingReplayer.LOGGER.info(f"pick frame id = {self.hold_state.pick_frame_id}")
+        RecordingReplayer.LOGGER.info(f"initial golf ball position = {self.golf_ball_pos}")
+        current_golf_ball_pos = self.golf_ball.get_pos()
+        RecordingReplayer.LOGGER.info(f"current golf ball position = {current_golf_ball_pos}")
+        RecordingReplayer.LOGGER.info(f"TCP position = {tcp_pos}") # use this position for the golf ball initial position
+        pos_offset = current_golf_ball_pos[0] - torch.tensor(self.golf_ball_pos)
+        RecordingReplayer.LOGGER.info(f"pos_offset = {pos_offset}")
