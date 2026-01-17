@@ -121,7 +121,9 @@ class Genesis():
     def build(self, n_envs=1):
         self.scene.build(n_envs=n_envs, env_spacing=(0.5, 0.5))
 
-        self.camera.start_recording()
+        self.record = self.kwargs.get('record', False)
+        if self.record:
+            self.camera.start_recording()
 
         print("Limits=", self.entity.get_dofs_limit())
 
@@ -200,7 +202,8 @@ class Genesis():
         print("qpos error=", current_error)
 
     def stop(self):
-        self.camera.stop_recording(save_to_filename="video.mp4")
+        if self.record:
+            self.camera.stop_recording(save_to_filename=f"{Configuration.WORK_DIR}/video.mp4")
         gs.destroy()
 
     def move(self, link, target_pos, target_quat):

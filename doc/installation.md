@@ -120,6 +120,40 @@ Press q to stop the capture. Replay the recording via
 ffplay -autoexit episode01.mp4
 ```
 
+### Webcam configuration
+
+Check the formats available via
+
+```
+% v4l2-ctl --list-formats-ext -d /dev/video3
+```
+
+Following command dumps the current webcam resolution and FPS.
+
+```
+% v4l2-ctl -d /dev/video3 --get-fmt-video
+Format Video Capture:
+        Width/Height      : 640/480
+        Pixel Format      : 'YUYV' (YUYV 4:2:2)
+        Field             : None
+        Bytes per Line    : 1280
+        Size Image        : 614400
+        Colorspace        : sRGB
+        Transfer Function : Rec. 709
+        YCbCr/HSV Encoding: ITU-R 601
+        Quantization      : Default (maps to Limited Range)
+        Flags             :
+```
+
+```
+% v4l2-ctl -d /dev/video3 --get-parm
+Streaming Parameters Video Capture:
+        Capabilities     : timeperframe
+        Frames per second: 30.000 (30/1)
+        Read buffers     : 0
+```
+
+
 ## Docker
 
 

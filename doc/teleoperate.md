@@ -2,47 +2,46 @@
 
 Run tele-operation, controlling the follower using the leader position.
 
-```
-% python scripts/teleop/teleoperate.py --recording_id episode01 --fps 30
-2026-01-13 09:14:13,315 - INFO - Recording /tmp/slobot/teleoperation/episode01.rrd started.
-```
+## Architecture
+
+The teleoperation uses an asynchronous architecture with Linux FIFO queues for Inter-Process Communication. It sends the data and metrics to Rerun.io as a sink.
+
+| Resource     | Repeated Action |
+|--------------|-----------------|
+| Leader Arm   | Read leader arm motor positions |
+| Follower Arm| Send control command to the follower arm and read its motor positions |
+| Webcam       | Capture an image of the scene |
+| Simulator    | Step through the simulation |
+| Cron         | Send periodic tick |
 
 
-# Replay in rerun.io
-
-The robot state for both the leader and the follower can be visualized in rerun.io viewer.
-
-Each joint chart contain 3 metrics
-- the leader motor position
-- the follower motor position
-- the genesis entity qpos
-
-![Recording dashboard](./TeleopRerun.io.png)
+### Leader Read
 
 ```
-rerun /tmp/slobot/teleoperation/episode01.rrd
+python scripts/teleop/asyncprocessing/spawn_leader_read.py --recording-id episode --port /dev/ttyACM1
 ```
 
-# Replay in SIM
 
-Compare the real recording with the SIM replayed videos.
-
-<video controls src="https://github.com/user-attachments/assets/0cd6b8a6-f75c-4e72-adf0-ffdeddc1c45b"></video>
-
-
-
-## Visual
-
-<video controls src="https://github.com/user-attachments/assets/1bc9a00e-fdda-4590-8fb7-ee414f0ef183"></video>
+### Follower Control
 
 ```
-python scripts/teleop/replay_recording.py --rrd_file /tmp/slobot/teleoperation/episode01.rrd --fps 30 --substeps 40 --vis_mode visual
+python scripts/teleop/asyncprocessing/spawn_follower_control.py --recording-id episode --port /dev/ttyACM0 --webcam --sim
 ```
 
-## Collision
 
-<video controls src="https://github.com/user-attachments/assets/0e8e0346-5ef1-475e-9eba-1374347e4f71"></video>
+### Webcam Capture
+```
+python scripts/teleop/asyncprocessing/spawn_webcam_capture.py --recording-id episode --camera-id 2 --width 640 --height 480 --fps 30
+```
+
+
+### Sim Step
+```
+python scripts/teleop/asyncprocessing/spawn_sim_step.py --recording-id episode --width 640 --height 480 --fps 30 --substeps 40 --vis-mode visual
+```
+
+### Cron loop
 
 ```
-python scripts/teleop/replay_recording.py --rrd_file /tmp/slobot/teleoperation/episode01.rrd --fps 30 --substeps 40 --vis_mode collision
+python scripts/teleop/asyncprocessing/spawn_cron.py --recording-id episode --fps 30
 ```
