@@ -24,7 +24,6 @@ class FollowerControlWorker(WorkerBase):
         input_queue: FifoQueue,
         webcam_capture_queue: Optional[FifoQueue],
         sim_step_queue: Optional[FifoQueue],
-        recording_id: str,
         port: str = Feetech.PORT0,
     ):
         """Initialize the follower control worker.
@@ -42,7 +41,6 @@ class FollowerControlWorker(WorkerBase):
             worker_name=self.WORKER_FOLLOWER,
             input_queue=input_queue,
             output_queues=[webcam_capture_queue, sim_step_queue],
-            recording_id=recording_id,
         )
         self.port = port
         self.follower: Optional[Feetech] = None
@@ -84,16 +82,23 @@ class FollowerControlWorker(WorkerBase):
         # Read follower position and convert to qpos
         follower_pos = self.follower.get_pos()
         follower_qpos = self.follower.pos_to_qpos(follower_pos)
-        
-        return FifoQueue.MSG_QPOS, follower_qpos
 
-    def publish_data(self, step: int, qpos: list[float]):
-        return self.rerun_metrics.log_qpos(step, self.worker_name, qpos)
+        # estimate the joint motor load by reading the control torque
+        control_force = self.follower.get_dofs_control_force()
+
+        return FifoQueue.MSG_QPOS_FORCE, (follower_qpos, control_force)
+
+    def publish_data(self, step: int, result_payload: Any):
+        qpos, control_force = result_payload
+        self.rerun_metrics.log_qpos(step, self.worker_name, qpos)
+        self.rerun_metrics.log_control_force(step, self.worker_name, control_force)
 
     def publish_outputs(self, msg_type: int, result_payload: Any, deadline: float, step: int):
         # webcam capture does not need any input
         if self.webcam_capture_queue is not None:
             self.webcam_capture_queue.write(FifoQueue.MSG_EMPTY, None, deadline, step)
 
+        # sends the follower qpos as control qpos for the simulator
+        follower_qpos, _ = result_payload
         if self.sim_step_queue is not None:
-            self.sim_step_queue.write(msg_type, result_payload, deadline, step)
+            self.sim_step_queue.write(msg_type, follower_qpos, deadline, step)

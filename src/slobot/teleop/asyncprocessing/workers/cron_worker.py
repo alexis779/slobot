@@ -35,18 +35,15 @@ class CronWorker(WorkerBase):
             worker_name=self.WORKER_CRON,
             input_queue=None,
             output_queues=[leader_read_queue],
-            recording_id=recording_id,
         )
-
+        self.recording_id = recording_id
         self.leader_read_queue = leader_read_queue
         self.period = 1.0 / fps
 
     def setup(self):
         self.setup_output()
-        self.setup_metrics()
-        self.add_signal_handlers()
-        self.running = True # start the workflow at startup
-        self.shutdown = False # shutdown flag
+        self.setup_metrics(self.recording_id)
+        self.publish_recording_id(self.recording_id)
 
     def run(self):
         """Main cron loop. Publishes ticks at the configured rate."""
@@ -57,25 +54,20 @@ class CronWorker(WorkerBase):
         try:
             step = 0
             while True:
-                if self.shutdown:
-                    break
-
                 start_time = time.time()
                 
                 # Set deadline = start_time + period
                 # All downstream workers must complete before this deadline
                 deadline = start_time + self.period
     
-                if self.running:
-                    # Publish tick to all output queues with the deadline
-                    self.leader_read_queue.write_empty(deadline, step)
+                # Publish tick to all output queues with the deadline
+                self.leader_read_queue.write_empty(deadline, step)
                 
                 end_time = time.time()
                 latency_ms = (end_time - start_time) * 1000
                 
-                if self.running:
-                    # Publish metrics
-                    self.publish_metrics(step, latency_ms)
+                # Publish metrics
+                self.publish_metrics(step, latency_ms)
                 
                 # Sleep for remaining time in the period
                 elapsed = end_time - start_time
@@ -92,26 +84,6 @@ class CronWorker(WorkerBase):
             self.teardown()
             self.LOGGER.info("Cron worker stopped")
 
-
-    def add_signal_handlers(self):
-        signal.signal(signal.SIGINT, self.stop_workers)
-        signal.signal(signal.SIGTERM, self.stop_workers)
-        signal.signal(signal.SIGUSR1, self.start_workers)
-        signal.signal(signal.SIGUSR2, self.pause_workers)
-
-    def stop_workers(self, signum, frame):
-        self.LOGGER.info(f"Stopping workers due to signal {signum}.")
-        self.publish_poison_pill()
-        self.shutdown = True
-
-    def start_workers(self, signum, frame):
-        self.LOGGER.info(f"Starting workers due to signal {signum}.")
-        self.running = True
-
-    def pause_workers(self, signum, frame):
-        self.LOGGER.info(f"Pausing workers due to signal {signum}.")
-        self.running = False
-
     def process(self, payload: Any) -> tuple[int, Any]:
         return FifoQueue.MSG_EMPTY, None
 
@@ -120,6 +92,5 @@ class CronWorker(WorkerBase):
 
     def teardown(self):
         """Close output queues."""
-        self.shutdown = True
         for queue in self.output_queues:
             queue.close()

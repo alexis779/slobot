@@ -2,7 +2,6 @@ import argparse
 from slobot.teleop.asyncprocessing.workers.async_teleoperator import AsyncTeleoperator
 
 parser = argparse.ArgumentParser(description="Run leader read worker")
-parser.add_argument("--recording-id", type=str, required=True, help="The rerun recording id")
 parser.add_argument("--port", type=str, required=True, help="Leader port")
 args = parser.parse_args()
 

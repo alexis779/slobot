@@ -31,9 +31,10 @@ class Genesis():
         kwargs = self.kwargs
 
         res = kwargs.get('res', Configuration.VGA)
-        camera_pos = (-0.125, -1, 0.25)
 
-        lookat = (0, 0, 0)
+        camera_pos = kwargs.get('camera_pos', (-0.125, -1, 0.25))
+
+        lookat = kwargs.get('lookat', (0, 0, 0))
 
         lights = [
             { "type": "directional", "dir": (1, 1, -1), "color": (1.0, 1.0, 1.0), "intensity": 5.0 },

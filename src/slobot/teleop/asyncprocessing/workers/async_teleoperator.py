@@ -1,6 +1,7 @@
 """Async Teleoperator - main entry point for all the workers."""
 
 from slobot.teleop.asyncprocessing.fifo_queue import FifoQueue
+from slobot.teleop.asyncprocessing.workers.worker_base import WorkerBase
 
 
 class AsyncTeleoperator:
@@ -28,7 +29,6 @@ class AsyncTeleoperator:
         leader_read_worker = LeaderReadWorker(
             input_queue=FifoQueue(FifoQueue.QUEUE_LEADER_READ),
             follower_control_queue=FifoQueue(FifoQueue.QUEUE_FOLLOWER_CONTROL),
-            recording_id=kwargs['recording_id'],
             port=kwargs['port'],
         )
         leader_read_worker.run()
@@ -39,7 +39,6 @@ class AsyncTeleoperator:
             input_queue=FifoQueue(FifoQueue.QUEUE_FOLLOWER_CONTROL),
             webcam_capture_queue=FifoQueue(FifoQueue.QUEUE_WEBCAM_CAPTURE) if kwargs['webcam'] else None,
             sim_step_queue=FifoQueue(FifoQueue.QUEUE_SIM_STEP) if kwargs['sim'] else None,
-            recording_id=kwargs['recording_id'],
             port=kwargs['port'],
         )
         follower_control_worker.run()
@@ -48,7 +47,6 @@ class AsyncTeleoperator:
         from slobot.teleop.asyncprocessing.workers.sim_step_worker import SimStepWorker
         sim_step_worker = SimStepWorker(
             input_queue=FifoQueue(FifoQueue.QUEUE_SIM_STEP),
-            recording_id=kwargs['recording_id'],
             fps=kwargs['fps'],
             substeps=kwargs['substeps'],
             vis_mode=kwargs['vis_mode'],
@@ -57,11 +55,24 @@ class AsyncTeleoperator:
         )
         sim_step_worker.run()
 
+    def spawn_mirror_kinematics_worker(self, **kwargs):
+        from slobot.teleop.asyncprocessing.workers.mirror_kinematics_worker import MirrorKinematicsWorker
+        mirror_kinematics_worker = MirrorKinematicsWorker(
+            input_queue=FifoQueue(FifoQueue.QUEUE_FOLLOWER_CONTROL), # replaces the follower, so it should use the same queue as Follower Control worker
+            fps=kwargs['fps'],
+            substeps=kwargs['substeps'],
+            vis_mode=kwargs['vis_mode'],
+            width=kwargs['width'],
+            height=kwargs['height'],
+            mjcf_path=kwargs['mjcf_path'],
+            end_effector_link=kwargs['end_effector_link'],
+        )
+        mirror_kinematics_worker.run()
+
     def spawn_webcam_capture_worker(self, **kwargs):
         from slobot.teleop.asyncprocessing.workers.webcam_capture_worker import WebcamCaptureWorker
         webcam_capture_worker = WebcamCaptureWorker(
             input_queue=FifoQueue(FifoQueue.QUEUE_WEBCAM_CAPTURE),
-            recording_id=kwargs['recording_id'],
             camera_id=kwargs['camera_id'],
             width=kwargs['width'],
             height=kwargs['height'],

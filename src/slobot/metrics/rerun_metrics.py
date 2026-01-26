@@ -22,11 +22,9 @@ class RerunMetrics:
     REAL_QPOS_METRIC = "/follower/qpos"
 
     def __init__(self, **kwargs):
-        self.recording_id = kwargs['recording_id']
-        rr.init(RerunMetrics.APPLICATION_ID, recording_id=self.recording_id)
-
-        operation_mode = kwargs['operation_mode']
-        self.start_rerun(operation_mode)
+        recording_id = kwargs['recording_id']
+        self.operation_mode = kwargs['operation_mode']
+        self.init_rerun(recording_id, self.operation_mode)
 
         self.add_joint_metric_labels()
         self.step = 0
@@ -41,11 +39,12 @@ class RerunMetrics:
             self.add_child_metric_label("/sim/velocity", joint_name, f"Sim Velocity {joint_name}")
             self.add_child_metric_label("/sim/control_force", joint_name, f"Sim Control Force {joint_name}")
 
-    def start_rerun(self, operation_mode: OperationMode):
+    def init_rerun(self, recording_id: str, operation_mode: OperationMode):
+        rr.init(RerunMetrics.APPLICATION_ID, recording_id=recording_id)
         match operation_mode:
             case OperationMode.SAVE:
                 os.makedirs(RerunMetrics.RRD_FOLDER, exist_ok=True)
-                rrd_file = f"{RerunMetrics.RRD_FOLDER}/{self.recording_id}.rrd"
+                rrd_file = f"{RerunMetrics.RRD_FOLDER}/{recording_id}.rrd"
                 rr.save(rrd_file)
                 RerunMetrics.LOGGER.info("Recording %s started.", rrd_file)
             case OperationMode.SPAWN:
@@ -110,6 +109,11 @@ class RerunMetrics:
         for i, joint_name in enumerate(Configuration.JOINT_NAMES):
             self.add_metric(f"/{worker_name}/qpos", joint_name, qpos[i])
 
+    def log_control_force(self, step: int, worker_name: str, control_force: list[float]):
+        self.set_time(step)
+        for i, joint_name in enumerate(Configuration.JOINT_NAMES):
+            self.add_metric(f"/{worker_name}/control_force", joint_name, control_force[i])
+
     def log_bgr(self, step: int, worker_name: str, bgr: bytes):
         self.set_time(step)
         rr.log(f"/{worker_name}/image", rr.Image(bgr, color_model=ColorModel.BGR)) # OpenCV decodes MJPG into BGR
@@ -118,3 +122,7 @@ class RerunMetrics:
         self.set_time(step)
         RerunMetrics.LOGGER.debug(f"RGB image is {rgb}")
         rr.log(f"/{worker_name}/image", rr.Image(rgb, color_model=ColorModel.RGB))
+
+    def update_recording_id(self, recording_id: str):
+        RerunMetrics.LOGGER.info(f"Updating recording ID to {recording_id}")
+        self.init_rerun(recording_id, self.operation_mode)

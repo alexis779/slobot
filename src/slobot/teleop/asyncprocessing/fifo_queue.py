@@ -27,10 +27,13 @@ class FifoQueue:
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
     
     # Message types
-    MSG_EMPTY = 0        # Empty tick (no payload)
-    MSG_QPOS = 1         # N-DOF float array
-    MSG_QPOS_RGB = 2     # N-DOF float array + RGB array
-    MSG_BGR = 3          # BGR array
+    MSG_EMPTY = 0         # Empty tick (no payload)
+    MSG_QPOS = 1          # N-DOF float array
+    MSG_QPOS_RGB_FORCE = 2      # N-DOF float array + RGB array + N-DOF float array
+    MSG_QPOS_QPOS_RGB = 3 # N-DOF float array + N-DOF float array + RGB array
+    MSG_BGR = 4           # BGR array
+    MSG_RECORDING_ID = 5  # string containing the recording id to update
+    MSG_QPOS_FORCE = 6    # N-DOF float array + N-DOF float array
     MSG_POISON_PILL = 255
     
     # QPOS format: 6 doubles
@@ -128,6 +131,10 @@ class FifoQueue:
     def send_poison_pill(self):
         """Send a poison pill message to signal graceful shutdown."""
         self.write(self.MSG_POISON_PILL, b'', 0.0, 0)
+
+    def send_recording_id(self, recording_id: str):
+        """Send a recording ID message to signal the recording ID to downstream workers."""
+        self.write(self.MSG_RECORDING_ID, recording_id, 0.0, 0)
 
     def poll_next(self) -> Optional[tuple[int, float, bytes]]:
         """Poll for the next message without dropping any.
@@ -249,6 +256,8 @@ class FifoQueue:
                 return b''
             case FifoQueue.MSG_QPOS:
                 return FifoQueue.pack_qpos(result_payload)
+            case FifoQueue.MSG_RECORDING_ID:
+                return result_payload.encode('utf-8')
             case FifoQueue.MSG_POISON_PILL:
                 return b''
             case _:
@@ -262,6 +271,8 @@ class FifoQueue:
                 return None
             case FifoQueue.MSG_QPOS:
                 return FifoQueue.parse_qpos(payload)
+            case FifoQueue.MSG_RECORDING_ID:
+                return payload.decode('utf-8')
             case FifoQueue.MSG_POISON_PILL:
                 return None
             case _:

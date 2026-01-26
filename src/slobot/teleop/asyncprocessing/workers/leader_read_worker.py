@@ -22,7 +22,6 @@ class LeaderReadWorker(WorkerBase):
         self,
         input_queue: FifoQueue,
         follower_control_queue: FifoQueue,
-        recording_id: str,
         port: str = Feetech.PORT1,
     ):
         """Initialize the leader read worker.
@@ -30,14 +29,12 @@ class LeaderReadWorker(WorkerBase):
         Args:
             input_queue: The queue to read tick messages from
             follower_control_queue: The queue to publish qpos to (typically follower_control_q)
-            recording_id: The rerun recording id
             port: Serial port for the leader arm
         """
         super().__init__(
             worker_name=self.WORKER_LEADER,
             input_queue=input_queue,
             output_queues=[follower_control_queue],
-            recording_id=recording_id,
         )
         self.port = port
         self.leader: Optional[Feetech] = None

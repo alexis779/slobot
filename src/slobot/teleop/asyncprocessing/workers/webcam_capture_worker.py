@@ -22,7 +22,6 @@ class WebcamCaptureWorker(WorkerBase):
     def __init__(
         self,
         input_queue: FifoQueue,
-        recording_id: str,
         camera_id: int,
         width: int,
         height: int,
@@ -32,7 +31,6 @@ class WebcamCaptureWorker(WorkerBase):
         
         Args:
             input_queue: The queue to read tick messages from
-            recording_id: The recording ID for the Rerun session
             camera_id: The camera device ID (0 for default webcam)
             width: Width of the webcam image
             height: Height of the webcam image
@@ -41,7 +39,6 @@ class WebcamCaptureWorker(WorkerBase):
             worker_name=self.WORKER_WEBCAM,
             input_queue=input_queue,
             output_queues=[],  # No downstream workers
-            recording_id=recording_id,
         )
         self.camera_id = camera_id
         self.width = width

@@ -1,9 +1,7 @@
 """Sim Step worker - runs the Genesis simulation step."""
 
-import struct
-from typing import Any, Optional
+from typing import Any
 
-import numpy as np
 import torch
 
 from slobot.teleop.asyncprocessing.fifo_queue import FifoQueue
@@ -24,7 +22,6 @@ class SimStepWorker(WorkerBase):
     def __init__(
         self,
         input_queue: FifoQueue,
-        recording_id: str,
         fps: int,
         substeps: int,
         vis_mode: str,
@@ -35,7 +32,6 @@ class SimStepWorker(WorkerBase):
         
         Args:
             input_queue: The queue to read qpos messages from
-            recording_id: The recording ID for the Rerun session
             fps: Expected frames per second
             substeps: Number of substeps
             vis_mode: Visualization mode
@@ -43,10 +39,9 @@ class SimStepWorker(WorkerBase):
             height: Height of the sim RGB image
         """
         super().__init__(
-            worker_name=self.WORKER_SIM,
+            worker_name=WorkerBase.WORKER_SIM,
             input_queue=input_queue,
             output_queues=[],  # No downstream workers
-            recording_id=recording_id,
         )
         self.fps = fps
         self.substeps = substeps
@@ -89,14 +84,19 @@ class SimStepWorker(WorkerBase):
         # Get the resulting qpos
         qpos = self.arm.genesis.entity.get_qpos()
         qpos = qpos[0].tolist()
+
+        # estimate the joint motor load by reading the control torque
+        control_force = self.arm.genesis.entity.get_dofs_control_force()
+        control_force = control_force[0].tolist()
         
         # Render the camera
         rgb, _, _, _ = self.arm.genesis.camera.render()
         
-        return FifoQueue.MSG_QPOS_RGB, (qpos, rgb)
+        return FifoQueue.MSG_QPOS_RGB_FORCE, (qpos, rgb, control_force)
 
     def publish_data(self, step: int, result_payload: Any):
-        qpos, frame = result_payload
+        qpos, rgb, control_force = result_payload
 
         self.rerun_metrics.log_qpos(step, self.worker_name, qpos)
-        self.rerun_metrics.log_rgb(step, self.worker_name, frame)
+        self.rerun_metrics.log_control_force(step, self.worker_name, control_force)
+        self.rerun_metrics.log_rgb(step, self.worker_name, rgb)

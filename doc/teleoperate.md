@@ -18,30 +18,48 @@ The teleoperation uses an asynchronous architecture with Linux FIFO queues for I
 ### Leader Read
 
 ```
-python scripts/teleop/asyncprocessing/spawn_leader_read.py --recording-id episode --port /dev/ttyACM1
+python scripts/teleop/asyncprocessing/spawn_leader_read.py --port /dev/ttyACM1
 ```
 
 
 ### Follower Control
 
 ```
-python scripts/teleop/asyncprocessing/spawn_follower_control.py --recording-id episode --port /dev/ttyACM0 --webcam --sim
+python scripts/teleop/asyncprocessing/spawn_follower_control.py --port /dev/ttyACM0 --webcam --sim
 ```
 
 
 ### Webcam Capture
 ```
-python scripts/teleop/asyncprocessing/spawn_webcam_capture.py --recording-id episode --camera-id 2 --width 640 --height 480 --fps 30
+python scripts/teleop/asyncprocessing/spawn_webcam_capture.py --camera-id 2 --width 640 --height 480 --fps 30
 ```
 
 
 ### Sim Step
 ```
-python scripts/teleop/asyncprocessing/spawn_sim_step.py --recording-id episode --width 640 --height 480 --fps 30 --substeps 40 --vis-mode visual
+python scripts/teleop/asyncprocessing/spawn_sim_step.py --width 640 --height 480 --fps 30 --substeps 40 --vis-mode visual
 ```
 
 ### Cron loop
 
+It should be started after spawning all the remaining workers, because it needs to send a special message to configure the workers with a common recording id.
+
+Pass the *recording id* as a command line argument to send the metrics to Rerun.io.
+
 ```
 python scripts/teleop/asyncprocessing/spawn_cron.py --recording-id episode --fps 30
+```
+
+
+## Teleoperate another robot
+
+This shows how a cheap robot leader arm like SO-ARM-100 can control an industrial robot like Franka arm.
+
+<video controls src="https://github.com/user-attachments/assets/a7a7ba47-17be-46c0-b91b-39a1aa89bd0c"></video>
+
+
+Start the *Mirror Kinematics* worker instead of *Follower Control* worker:
+
+```
+python scripts/teleop/asyncprocessing/spawn_mirror_kinematics.py --fps 30 --substeps 40 --width 640 --height 480 --vis-mode visual --mjcf-path ../mujoco_menagerie/franka_emika_panda/panda.xml --end-effector-link link7
 ```
