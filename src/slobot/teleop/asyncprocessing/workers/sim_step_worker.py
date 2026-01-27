@@ -3,11 +3,22 @@
 from typing import Any
 
 import torch
+import av
+import numpy as np
 
 from slobot.teleop.asyncprocessing.fifo_queue import FifoQueue
 from slobot.teleop.asyncprocessing.workers.worker_base import WorkerBase
 from slobot.configuration import Configuration
 from slobot.so_arm_100 import SoArm100
+from slobot.video_streams import VideoStreams
+
+from enum import Enum
+
+class RenderMode(Enum):
+    RGB = "rgb"
+    DEPTH = "depth"
+    SEGMENTATION = "segmentation"
+    NORMAL = "normal"
 
 
 class SimStepWorker(WorkerBase):
@@ -53,8 +64,17 @@ class SimStepWorker(WorkerBase):
         """Initialize the Genesis simulation."""
         super().setup()
 
+        for render_mode in RenderMode:
+            self.rerun_metrics.add_video_stream(f"/{self.worker_name}/{render_mode}/video")
+
+        # initialize the video streams
+        container = av.open("/dev/null", "w", format="h264")
+        self.streams = {
+            render_mode: container.add_stream("libx264", rate=self.fps) for render_mode in RenderMode
+        }
+
         res = (self.width, self.height)
-        self.arm = SoArm100(show_viewer=False, fps=self.fps, substeps=self.substeps, rgb=True, res=res, vis_mode=self.vis_mode)
+        self.arm = SoArm100(show_viewer=False, fps=self.fps, substeps=self.substeps, rgb=True, depth=True, segmentation=True, normal=True, res=res, vis_mode=self.vis_mode)
         
         self.LOGGER.info(f"Genesis simulation started with {self.fps} FPS, {self.substeps} substeps, {self.width}x{self.height} resolution, and {self.vis_mode} visualization mode")
 
@@ -90,13 +110,30 @@ class SimStepWorker(WorkerBase):
         control_force = control_force[0].tolist()
         
         # Render the camera
-        rgb, _, _, _ = self.arm.genesis.camera.render()
+        rgb, depth, segmentation, normal = self.arm.genesis.camera.render(rgb=True, depth=True, segmentation=True, colorize_seg=True, normal=True)
         
-        return FifoQueue.MSG_QPOS_RGB_FORCE, (qpos, rgb, control_force)
+        return FifoQueue.MSG_QPOS_RENDER_FORCE, (qpos, rgb, depth, segmentation, normal, control_force)
 
     def publish_data(self, step: int, result_payload: Any):
-        qpos, rgb, control_force = result_payload
+        qpos, rgb, depth, segmentation, normal, control_force = result_payload
 
         self.rerun_metrics.log_qpos(step, self.worker_name, qpos)
         self.rerun_metrics.log_control_force(step, self.worker_name, control_force)
-        self.rerun_metrics.log_rgb(step, self.worker_name, rgb)
+
+        self.log_rgb(step, rgb, RenderMode.RGB)
+
+        depth = VideoStreams.logarithmic_depth_to_rgb(depth)
+        self.log_rgb(step, depth, RenderMode.DEPTH)
+
+        self.log_rgb(step, segmentation, RenderMode.SEGMENTATION)
+
+        self.log_rgb(step, normal, RenderMode.NORMAL)
+
+    def publish_recording_id(self, recording_id: str):
+        super().publish_recording_id(recording_id)
+        for render_mode in RenderMode:
+            self.rerun_metrics.add_video_stream(f"/{self.worker_name}/{render_mode.value}/video")
+
+    def log_rgb(self, step: int, rgb: Any, render_mode: RenderMode):
+        frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
+        self.rerun_metrics.log_frame(step, f"/{self.worker_name}/{render_mode.value}/video", frame, self.streams[render_mode])

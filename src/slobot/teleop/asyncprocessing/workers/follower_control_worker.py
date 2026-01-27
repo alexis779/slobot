@@ -22,7 +22,8 @@ class FollowerControlWorker(WorkerBase):
     def __init__(
         self,
         input_queue: FifoQueue,
-        webcam_capture_queue: Optional[FifoQueue],
+        webcam_capture_queue1: Optional[FifoQueue],
+        webcam_capture_queue2: Optional[FifoQueue],
         sim_step_queue: Optional[FifoQueue],
         port: str = Feetech.PORT0,
     ):
@@ -30,17 +31,19 @@ class FollowerControlWorker(WorkerBase):
         
         Args:
             input_queue: The queue to read qpos messages from
-            webcam_capture_queue: Queue to trigger webcam capture
+            webcam_capture_queue1: Queue to trigger webcam1 capture
+            webcam_capture_queue2: Queue to trigger webcam2 capture
             sim_step_queue: Queue to send qpos for simulation
             port: Serial port for the follower arm
         """
         # Store individual queues for different message types
-        self.webcam_capture_queue: Optional[FifoQueue] = webcam_capture_queue
+        self.webcam_capture_queue1: Optional[FifoQueue] = webcam_capture_queue1
+        self.webcam_capture_queue2: Optional[FifoQueue] = webcam_capture_queue2
         self.sim_step_queue: Optional[FifoQueue] = sim_step_queue
         super().__init__(
             worker_name=self.WORKER_FOLLOWER,
             input_queue=input_queue,
-            output_queues=[webcam_capture_queue, sim_step_queue],
+            output_queues=[webcam_capture_queue1, webcam_capture_queue2, sim_step_queue],
         )
         self.port = port
         self.follower: Optional[Feetech] = None
@@ -95,10 +98,12 @@ class FollowerControlWorker(WorkerBase):
 
     def publish_outputs(self, msg_type: int, result_payload: Any, deadline: float, step: int):
         # webcam capture does not need any input
-        if self.webcam_capture_queue is not None:
-            self.webcam_capture_queue.write(FifoQueue.MSG_EMPTY, None, deadline, step)
+        if self.webcam_capture_queue1 is not None:
+            self.webcam_capture_queue1.write(FifoQueue.MSG_EMPTY, None, deadline, step)
+        if self.webcam_capture_queue2 is not None:
+            self.webcam_capture_queue2.write(FifoQueue.MSG_EMPTY, None, deadline, step)
 
         # sends the follower qpos as control qpos for the simulator
         follower_qpos, _ = result_payload
         if self.sim_step_queue is not None:
-            self.sim_step_queue.write(msg_type, follower_qpos, deadline, step)
+            self.sim_step_queue.write(FifoQueue.MSG_QPOS, follower_qpos, deadline, step)

@@ -3,7 +3,7 @@
 from typing import Any, Optional
 
 import cv2
-import rerun as rr
+import av
 
 from slobot.teleop.asyncprocessing.fifo_queue import FifoQueue
 from slobot.teleop.asyncprocessing.workers.worker_base import WorkerBase
@@ -21,6 +21,7 @@ class WebcamCaptureWorker(WorkerBase):
 
     def __init__(
         self,
+        worker_name: str,
         input_queue: FifoQueue,
         camera_id: int,
         width: int,
@@ -30,13 +31,15 @@ class WebcamCaptureWorker(WorkerBase):
         """Initialize the webcam capture worker.
         
         Args:
+            worker_name: The name of the worker
+                (either WORKER_WEBCAM1 or WORKER_WEBCAM2)
             input_queue: The queue to read tick messages from
             camera_id: The camera device ID (0 for default webcam)
             width: Width of the webcam image
             height: Height of the webcam image
         """
         super().__init__(
-            worker_name=self.WORKER_WEBCAM,
+            worker_name=worker_name,
             input_queue=input_queue,
             output_queues=[],  # No downstream workers
         )
@@ -49,7 +52,11 @@ class WebcamCaptureWorker(WorkerBase):
     def setup(self):
         """Initialize the webcam capture."""
         super().setup()
-        
+
+        # initialize the video stream
+        container = av.open("/dev/null", "w", format="h264")
+        self.stream = container.add_stream("libx264", rate=self.fps)
+
         # Open the webcam
         self.cap = cv2.VideoCapture(self.camera_id)
         
@@ -97,5 +104,11 @@ class WebcamCaptureWorker(WorkerBase):
 
         return FifoQueue.MSG_BGR, frame
 
-    def publish_data(self, step: int, frame: Any):
-        self.rerun_metrics.log_bgr(step, self.worker_name, frame)
+    def publish_recording_id(self, recording_id: str):
+        super().publish_recording_id(recording_id)
+        self.rerun_metrics.add_video_stream(f"/{self.worker_name}/video")
+
+    def publish_data(self, step: int, bgr: Any):
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
+        self.rerun_metrics.log_frame(step, f"/{self.worker_name}/video", frame, self.stream)

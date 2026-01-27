@@ -42,7 +42,7 @@ class CronWorker(WorkerBase):
 
     def setup(self):
         self.setup_output()
-        self.setup_metrics(self.recording_id)
+        self.setup_metrics()
         self.publish_recording_id(self.recording_id)
 
     def run(self):

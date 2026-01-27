@@ -29,7 +29,7 @@ The goal is to replay a recorded LeRobot dataset episode or Rerun.io recording i
 
 For live simulation, the tele-operation process should rely on a scalable asynchronous process.
 
-<video controls src="https://github.com/user-attachments/assets/65dc44ab-3c72-4925-8f55-30a4bbf3d3f1"></video>
+<video controls src="https://github.com/user-attachments/assets/2e5d367d-ad09-40b2-8e69-7dbe024627f0"></video>
 
 With pub/sub, workers repeatedly poll tasks from their dedicated queue, pushing their output to rerun.io database.
 

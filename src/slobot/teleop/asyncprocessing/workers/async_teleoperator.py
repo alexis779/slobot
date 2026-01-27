@@ -37,7 +37,8 @@ class AsyncTeleoperator:
         from slobot.teleop.asyncprocessing.workers.follower_control_worker import FollowerControlWorker
         follower_control_worker = FollowerControlWorker(
             input_queue=FifoQueue(FifoQueue.QUEUE_FOLLOWER_CONTROL),
-            webcam_capture_queue=FifoQueue(FifoQueue.QUEUE_WEBCAM_CAPTURE) if kwargs['webcam'] else None,
+            webcam_capture_queue1=FifoQueue(FifoQueue.QUEUE_WEBCAM_CAPTURE1) if kwargs['webcam1'] else None,
+            webcam_capture_queue2=FifoQueue(FifoQueue.QUEUE_WEBCAM_CAPTURE2) if kwargs['webcam2'] else None,
             sim_step_queue=FifoQueue(FifoQueue.QUEUE_SIM_STEP) if kwargs['sim'] else None,
             port=kwargs['port'],
         )
@@ -69,10 +70,11 @@ class AsyncTeleoperator:
         )
         mirror_kinematics_worker.run()
 
-    def spawn_webcam_capture_worker(self, **kwargs):
+    def spawn_webcam_capture_worker(self, worker_name: str, queue_name: str, **kwargs):
         from slobot.teleop.asyncprocessing.workers.webcam_capture_worker import WebcamCaptureWorker
         webcam_capture_worker = WebcamCaptureWorker(
-            input_queue=FifoQueue(FifoQueue.QUEUE_WEBCAM_CAPTURE),
+            worker_name=worker_name,
+            input_queue=FifoQueue(queue_name),
             camera_id=kwargs['camera_id'],
             width=kwargs['width'],
             height=kwargs['height'],

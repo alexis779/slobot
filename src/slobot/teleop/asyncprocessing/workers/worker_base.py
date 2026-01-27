@@ -20,7 +20,7 @@ class WorkerBase(ABC):
     LOGGER = Configuration.logger(__name__)
 
     # Operation mode for Rerun.io
-    OPERATION_MODE = OperationMode.SPAWN
+    OPERATION_MODE = OperationMode.SPAWN # use SAVE to save the worker metrics to file
     
     # Worker IDs for metrics
     WORKER_CRON = "cron"
@@ -28,7 +28,8 @@ class WorkerBase(ABC):
     WORKER_FOLLOWER = "follower"
     WORKER_SIM = "sim"
     WORKER_KINEMATICS = "kinematics"
-    WORKER_WEBCAM = "webcam"
+    WORKER_WEBCAM1 = "webcam1"
+    WORKER_WEBCAM2 = "webcam2"
 
     WORKER_NAMES = {
         WORKER_CRON: "Cron",
@@ -36,7 +37,8 @@ class WorkerBase(ABC):
         WORKER_FOLLOWER: "Follower",
         WORKER_SIM: "Sim",
         WORKER_KINEMATICS: "Kinematics",
-        WORKER_WEBCAM: "Webcam",
+        WORKER_WEBCAM1: "Webcam1",
+        WORKER_WEBCAM2: "Webcam2",
     }
 
     WORKER_INPUT_MSG_TYPE = {
@@ -45,16 +47,18 @@ class WorkerBase(ABC):
         WORKER_FOLLOWER: FifoQueue.MSG_QPOS,
         WORKER_SIM: FifoQueue.MSG_QPOS,
         WORKER_KINEMATICS: FifoQueue.MSG_QPOS,
-        WORKER_WEBCAM: FifoQueue.MSG_EMPTY,
+        WORKER_WEBCAM1: FifoQueue.MSG_EMPTY,
+        WORKER_WEBCAM2: FifoQueue.MSG_EMPTY,
     }
 
     WORKER_OUTPUT_MSG_TYPE = {
         WORKER_CRON: FifoQueue.MSG_EMPTY,
         WORKER_LEADER: FifoQueue.MSG_QPOS,
         WORKER_FOLLOWER: FifoQueue.MSG_QPOS_FORCE,
-        WORKER_SIM: FifoQueue.MSG_QPOS_RGB_FORCE,
+        WORKER_SIM: FifoQueue.MSG_QPOS_RENDER_FORCE,
         WORKER_KINEMATICS: FifoQueue.MSG_QPOS_QPOS_RGB,
-        WORKER_WEBCAM: FifoQueue.MSG_BGR,
+        WORKER_WEBCAM1: FifoQueue.MSG_BGR,
+        WORKER_WEBCAM2: FifoQueue.MSG_BGR,
     }
 
     def __init__(
@@ -144,8 +148,8 @@ class WorkerBase(ABC):
     def setup(self):
         """Called once before the main loop. Override to initialize resources."""
         self.setup_input()
-
         self.setup_output()
+        self.setup_metrics()
 
     def setup_input(self):
         self.input_queue.open_read()
@@ -155,12 +159,8 @@ class WorkerBase(ABC):
         for queue in self.output_queues:
             queue.open_write()
 
-    def setup_metrics(self, recording_id: str):
-        self.rerun_metrics = RerunMetrics(recording_id=recording_id, operation_mode=WorkerBase.OPERATION_MODE)
-        self.add_worker_metric_labels()
-
-    def add_worker_metric_labels(self):
-        self.rerun_metrics.add_child_metric_label(f"/latency", self.worker_name, f"{self.worker_name} latency (ms)")
+    def setup_metrics(self):
+        self.rerun_metrics = RerunMetrics(operation_mode=WorkerBase.OPERATION_MODE, worker_name=self.worker_name)
 
     def teardown(self):
         """Called once after the main loop. Override to cleanup resources."""
@@ -207,13 +207,7 @@ class WorkerBase(ABC):
             queue.send_poison_pill()
 
     def publish_recording_id(self, recording_id: str):
-        """Publish a recording ID message to signal the recording ID to downstream workers."""
-        self.LOGGER.info(f"Worker {self.worker_name} publishing recording ID {recording_id}")
-        # initialize rerun metrics upon the 1st notification of the recording ID
-        if self.rerun_metrics is None:
-            self.setup_metrics(recording_id)
-        else:
-            self.rerun_metrics.update_recording_id(recording_id)
+        self.rerun_metrics.init_rerun(recording_id)
 
         for queue in self.output_queues:
             queue.send_recording_id(recording_id)

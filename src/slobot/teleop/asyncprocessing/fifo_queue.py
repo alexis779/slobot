@@ -19,7 +19,8 @@ class FifoQueue:
     # Queue names
     QUEUE_LEADER_READ = 'leader_read'
     QUEUE_FOLLOWER_CONTROL = 'follower_control'
-    QUEUE_WEBCAM_CAPTURE = 'webcam_capture'
+    QUEUE_WEBCAM_CAPTURE1 = 'webcam_capture1'
+    QUEUE_WEBCAM_CAPTURE2 = 'webcam_capture2'
     QUEUE_SIM_STEP = 'sim_step'
 
     # Message header: [msg_length: u32][msg_type: u8][deadline: f64][step: u32]
@@ -29,7 +30,7 @@ class FifoQueue:
     # Message types
     MSG_EMPTY = 0         # Empty tick (no payload)
     MSG_QPOS = 1          # N-DOF float array
-    MSG_QPOS_RGB_FORCE = 2      # N-DOF float array + RGB array + N-DOF float array
+    MSG_QPOS_RENDER_FORCE = 2      # N-DOF float array + RGB array + depth array + segmentation array + normal array + N-DOF float array
     MSG_QPOS_QPOS_RGB = 3 # N-DOF float array + N-DOF float array + RGB array
     MSG_BGR = 4           # BGR array
     MSG_RECORDING_ID = 5  # string containing the recording id to update
