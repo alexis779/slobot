@@ -28,8 +28,8 @@ class WorkerBase(ABC):
     WORKER_FOLLOWER = "follower"
     WORKER_SIM = "sim"
     WORKER_KINEMATICS = "kinematics"
-    WORKER_WEBCAM1 = "webcam1"
-    WORKER_WEBCAM2 = "webcam2"
+    WORKER_WEBCAM = "webcam"  # Base pattern for dynamic webcam workers (webcam1, webcam2, etc.)
+    WORKER_DETECT_OBJECTS = "detect_objects"
 
     WORKER_NAMES = {
         WORKER_CRON: "Cron",
@@ -37,8 +37,8 @@ class WorkerBase(ABC):
         WORKER_FOLLOWER: "Follower",
         WORKER_SIM: "Sim",
         WORKER_KINEMATICS: "Kinematics",
-        WORKER_WEBCAM1: "Webcam1",
-        WORKER_WEBCAM2: "Webcam2",
+        WORKER_WEBCAM: "Webcam",
+        WORKER_DETECT_OBJECTS: "Detect Objects",
     }
 
     WORKER_INPUT_MSG_TYPE = {
@@ -47,8 +47,8 @@ class WorkerBase(ABC):
         WORKER_FOLLOWER: FifoQueue.MSG_QPOS,
         WORKER_SIM: FifoQueue.MSG_QPOS,
         WORKER_KINEMATICS: FifoQueue.MSG_QPOS,
-        WORKER_WEBCAM1: FifoQueue.MSG_EMPTY,
-        WORKER_WEBCAM2: FifoQueue.MSG_EMPTY,
+        WORKER_WEBCAM: FifoQueue.MSG_EMPTY,
+        WORKER_DETECT_OBJECTS: FifoQueue.MSG_OBJECT_DETECTION,
     }
 
     WORKER_OUTPUT_MSG_TYPE = {
@@ -57,9 +57,12 @@ class WorkerBase(ABC):
         WORKER_FOLLOWER: FifoQueue.MSG_QPOS_FORCE,
         WORKER_SIM: FifoQueue.MSG_QPOS_RENDER_FORCE,
         WORKER_KINEMATICS: FifoQueue.MSG_QPOS_QPOS_RGB,
-        WORKER_WEBCAM1: FifoQueue.MSG_BGR,
-        WORKER_WEBCAM2: FifoQueue.MSG_BGR,
+        WORKER_WEBCAM: FifoQueue.MSG_BGR,
+        WORKER_DETECT_OBJECTS: FifoQueue.MSG_EMPTY,
     }
+
+    # Worker prefixes for dynamic worker name matching
+    WORKER_PREFIXES = [WORKER_WEBCAM, WORKER_DETECT_OBJECTS]
 
     def __init__(
         self,
@@ -222,11 +225,37 @@ class WorkerBase(ABC):
         self.rerun_metrics.log_latency(step, self.worker_name, latency_ms)
 
     def validate_input(self, msg_type: int):
-        expected_msg_type = WorkerBase.WORKER_INPUT_MSG_TYPE[self.worker_name]
+        expected_msg_type = self._get_expected_input_msg_type()
         if msg_type != expected_msg_type:
             raise ValueError(f"Input type {msg_type} for worker {self.worker_name} does not match expected type {expected_msg_type}.")
 
     def validate_output(self, result_type: int):
-        expected_msg_type = WorkerBase.WORKER_OUTPUT_MSG_TYPE[self.worker_name]
+        expected_msg_type = self._get_expected_output_msg_type()
         if result_type != expected_msg_type:
             raise ValueError(f"Output type {result_type} for worker {self.worker_name} does not match expected type {expected_msg_type}.")
+
+    def _get_expected_input_msg_type(self) -> int:
+        """Get expected input message type for the worker, supporting dynamic worker names."""
+        # Try exact match first
+        if self.worker_name in WorkerBase.WORKER_INPUT_MSG_TYPE:
+            return WorkerBase.WORKER_INPUT_MSG_TYPE[self.worker_name]
+
+        # Support dynamic workers by checking prefixes (e.g., webcam2, detect_objects4)
+        for prefix in WorkerBase.WORKER_PREFIXES:
+            if self.worker_name.startswith(prefix):
+                return WorkerBase.WORKER_INPUT_MSG_TYPE[prefix]
+
+        raise ValueError(f"Unknown worker name: {self.worker_name}")
+
+    def _get_expected_output_msg_type(self) -> int:
+        """Get expected output message type for the worker, supporting dynamic worker names."""
+        # Try exact match first
+        if self.worker_name in WorkerBase.WORKER_OUTPUT_MSG_TYPE:
+            return WorkerBase.WORKER_OUTPUT_MSG_TYPE[self.worker_name]
+
+        # Support dynamic workers by checking prefixes (e.g., webcam2, detect_objects4)
+        for prefix in WorkerBase.WORKER_PREFIXES:
+            if self.worker_name.startswith(prefix):
+                return WorkerBase.WORKER_OUTPUT_MSG_TYPE[prefix]
+
+        raise ValueError(f"Unknown worker name: {self.worker_name}")

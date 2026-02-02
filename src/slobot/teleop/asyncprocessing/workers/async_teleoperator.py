@@ -35,10 +35,16 @@ class AsyncTeleoperator:
         
     def spawn_follower_control_worker(self, **kwargs):
         from slobot.teleop.asyncprocessing.workers.follower_control_worker import FollowerControlWorker
+
+        # Create webcam capture queues dynamically based on camera IDs
+        webcam_queues = [
+            FifoQueue(FifoQueue.get_queue_name(FifoQueue.QUEUE_WEBCAM_CAPTURE, camera_id))
+            for camera_id in kwargs.get('camera_ids', [])
+        ]
+
         follower_control_worker = FollowerControlWorker(
             input_queue=FifoQueue(FifoQueue.QUEUE_FOLLOWER_CONTROL),
-            webcam_capture_queue1=FifoQueue(FifoQueue.QUEUE_WEBCAM_CAPTURE1) if kwargs['webcam1'] else None,
-            webcam_capture_queue2=FifoQueue(FifoQueue.QUEUE_WEBCAM_CAPTURE2) if kwargs['webcam2'] else None,
+            webcam_capture_queues=webcam_queues,
             sim_step_queue=FifoQueue(FifoQueue.QUEUE_SIM_STEP) if kwargs['sim'] else None,
             port=kwargs['port'],
         )
@@ -72,6 +78,7 @@ class AsyncTeleoperator:
 
     def spawn_webcam_capture_worker(self, worker_name: str, queue_name: str, **kwargs):
         from slobot.teleop.asyncprocessing.workers.webcam_capture_worker import WebcamCaptureWorker
+
         webcam_capture_worker = WebcamCaptureWorker(
             worker_name=worker_name,
             input_queue=FifoQueue(queue_name),
@@ -79,5 +86,19 @@ class AsyncTeleoperator:
             width=kwargs['width'],
             height=kwargs['height'],
             fps=kwargs['fps'],
+            detect_objects_queue=FifoQueue(FifoQueue.get_queue_name(FifoQueue.QUEUE_OBJECT_DETECTION, kwargs['camera_id'])) if kwargs.get('detect_objects') else None,
         )
         webcam_capture_worker.run()
+
+    def spawn_detect_objects_worker(self, worker_name: str, queue_name: str, **kwargs):
+        from slobot.teleop.asyncprocessing.workers.detect_objects_workers import DetectObjectsWorker
+
+        detection_worker = DetectObjectsWorker(
+            worker_name=worker_name,
+            input_queue=FifoQueue(FifoQueue.get_queue_name(FifoQueue.QUEUE_OBJECT_DETECTION, kwargs['camera_id'])),
+            camera_id=kwargs['camera_id'],
+            detection_task=kwargs['detection_task'],
+            width=kwargs['width'],
+            height=kwargs['height'],
+        )
+        detection_worker.run()

@@ -47,12 +47,14 @@ flowchart LR
         FollowerArm[Follower Arm]
         Webcam[Webcam]
         Genesis[Genesis]
+        YOLO26[YOLO26]
     end
 
     subgraph workers [Worker Processes]
         LeaderRead[Leader Read]
         FollowerControl[Follower Control]
         WebcamCapture[Webcam Capture]
+        DetectObjects[Detect Objects]
         SimStep[Sim Step]
     end
 
@@ -61,6 +63,10 @@ flowchart LR
         Q2([follower_control_q])
         Q3([sim_step_q])
         Q4([webcam_capture_q])
+    end
+
+    subgraph shm ["-"]
+        SHM{{Shared Memory}}
     end
 
     subgraph metrics [Database]
@@ -81,9 +87,14 @@ flowchart LR
     WebcamCapture <-->|"BGR[][]"| Webcam
     SimStep <-->|"RGB[][]"| Genesis
 
+    WebcamCapture -->|"BGR[][]"| SHM
+    SHM -->|"BGR[][]"| DetectObjects
+    DetectObjects <-->|"predict"| YOLO26
+
     Cron --> Rerun
     LeaderRead --> Rerun
     FollowerControl --> Rerun
     WebcamCapture --> Rerun
+    DetectObjects -->|"BoundingBox[]"| Rerun
     SimStep --> Rerun
 ```

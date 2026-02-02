@@ -19,8 +19,10 @@ class FifoQueue:
     # Queue names
     QUEUE_LEADER_READ = 'leader_read'
     QUEUE_FOLLOWER_CONTROL = 'follower_control'
+    QUEUE_WEBCAM_CAPTURE = 'webcam_capture'  # Base name, append camera_id for specific instances
     QUEUE_WEBCAM_CAPTURE1 = 'webcam_capture1'
     QUEUE_WEBCAM_CAPTURE2 = 'webcam_capture2'
+    QUEUE_OBJECT_DETECTION = 'detect_objects'  # Base name, append camera_id for specific instances
     QUEUE_SIM_STEP = 'sim_step'
 
     # Message header: [msg_length: u32][msg_type: u8][deadline: f64][step: u32]
@@ -35,6 +37,7 @@ class FifoQueue:
     MSG_BGR = 4           # BGR array
     MSG_RECORDING_ID = 5  # string containing the recording id to update
     MSG_QPOS_FORCE = 6    # N-DOF float array + N-DOF float array
+    MSG_OBJECT_DETECTION = 7 # Signal that a frame is ready in shared memory
     MSG_POISON_PILL = 255
     
     # QPOS format: 6 doubles
@@ -42,6 +45,19 @@ class FifoQueue:
     QPOS_SIZE = struct.calcsize(QPOS_FORMAT)  # 48 bytes
     
     LOGGER = Configuration.logger(__name__)
+
+    @staticmethod
+    def get_queue_name(base_queue_name: str, worker_id: int) -> str:
+        """Generate a queue name based on base queue name and ID.
+
+        Args:
+            base_queue_name: Base queue name constant (e.g., FifoQueue.QUEUE_OBJECT_DETECTION)
+            worker_id: Unique identifier for this worker instance (e.g., camera_id)
+
+        Returns:
+            Formatted queue name (e.g., 'detect_objects2', 'webcam_capture4')
+        """
+        return f"{base_queue_name}{worker_id}"
 
     def __init__(self, name: str):
         """Initialize a FIFO queue.
@@ -261,6 +277,8 @@ class FifoQueue:
                 return result_payload.encode('utf-8')
             case FifoQueue.MSG_POISON_PILL:
                 return b''
+            case FifoQueue.MSG_OBJECT_DETECTION:
+                return b''
             case _:
                 raise ValueError(f"Unknown message type: {msg_type}")
 
@@ -275,6 +293,8 @@ class FifoQueue:
             case FifoQueue.MSG_RECORDING_ID:
                 return payload.decode('utf-8')
             case FifoQueue.MSG_POISON_PILL:
+                return None
+            case FifoQueue.MSG_OBJECT_DETECTION:
                 return None
             case _:
                 raise ValueError(f"Unknown message type: {msg_type}")

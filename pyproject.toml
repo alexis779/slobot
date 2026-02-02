@@ -21,7 +21,9 @@ dependencies = [
 
     "modal", # serverless GPU compute platform
 
-    "pyscipopt" # SCIP solver
+    "pyscipopt", # SCIP solver
+
+    "ultralytics"
 ]
 
 [tool.setuptools.packages.find]

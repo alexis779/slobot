@@ -1,13 +1,26 @@
 """Webcam Capture worker - captures frames from the webcam."""
 
 from typing import Any, Optional
+import enum
 
 import cv2
 import av
+import rerun as rr
+import numpy as np
 
 from slobot.teleop.asyncprocessing.fifo_queue import FifoQueue
 from slobot.teleop.asyncprocessing.workers.worker_base import WorkerBase
 from slobot.configuration import Configuration
+from slobot.teleop.asyncprocessing.shared_memory_block import SharedMemoryBlock
+
+
+class DetectionTask(enum.Enum):
+    DETECT = "detect", "yolo26n.pt"
+    POSE = "pose", "yolo26n-pose.pt"
+
+    def __init__(self, value, model_name):
+        self._value_ = value
+        self.model_name = model_name
 
 
 class WebcamCaptureWorker(WorkerBase):
@@ -15,6 +28,7 @@ class WebcamCaptureWorker(WorkerBase):
     
     Receives empty tick messages and captures a frame from the webcam.
     Publishes the RGB image to metrics.
+    Writes frame to Shared Memory for decoupled detection.
     """
     
     LOGGER = Configuration.logger(__name__)
@@ -27,31 +41,39 @@ class WebcamCaptureWorker(WorkerBase):
         width: int,
         height: int,
         fps: int,
+        detect_objects_queue: Optional[FifoQueue] = None,
     ):
         """Initialize the webcam capture worker.
         
         Args:
-            worker_name: The name of the worker
-                (either WORKER_WEBCAM1 or WORKER_WEBCAM2)
+            worker_name: The name of the worker (e.g., "webcam2", "webcam4")
             input_queue: The queue to read tick messages from
             camera_id: The camera device ID (0 for default webcam)
             width: Width of the webcam image
             height: Height of the webcam image
+            fps: Height of the webcam image
+            detect_objects_queue: Optional queue to signal detection worker
         """
         super().__init__(
             worker_name=worker_name,
             input_queue=input_queue,
-            output_queues=[],  # No downstream workers
+            output_queues=[detect_objects_queue],  # No downstream workers
         )
         self.camera_id = camera_id
         self.width = width
         self.height = height
         self.fps = fps
+        self.detect_objects_queue = detect_objects_queue
         self.cap: Optional[cv2.VideoCapture] = None
+        self.model: Optional[YOLO] = None
+        self.shm_block: Optional[SharedMemoryBlock] = None
 
     def setup(self):
         """Initialize the webcam capture."""
         super().setup()
+
+        # Shared memory will be initialized in setup if needed
+
 
         # initialize the video stream
         container = av.open("/dev/null", "w", format="h264")
@@ -79,11 +101,32 @@ class WebcamCaptureWorker(WorkerBase):
         actual_fps = int(self.cap.get(cv2.CAP_PROP_FPS))
         self.LOGGER.info(f"Webcam {self.camera_id} opened with resolution {actual_width}x{actual_height} @ {actual_fps} FPS")
 
+        if self.detect_objects_queue:
+             # Calculate size: W x H x C (BGR) + header
+             size = SharedMemoryBlock.HEADER_SIZE + self.width * self.height * SharedMemoryBlock.CHANNELS
+
+             # Use centralized naming convention
+             shm_name = SharedMemoryBlock.get_name_from_camera_id(self.camera_id)
+             self.shm_block = SharedMemoryBlock.create(shm_name, size)
+
     def teardown(self):
         """Release the webcam."""
-        self.cap.release()
-        
+        if self.cap:
+            self.cap.release()
+
+        if self.shm_block:
+            self.shm_block.close()
+            self.shm_block.unlink()
+
         super().teardown()
+
+    def _write_frame_to_shm(self, frame: np.ndarray):
+        """Write frame to shared memory and signal detection worker."""
+        if not self.shm_block.write_frame(frame):
+            return
+
+        # Signal detection worker
+        self.detect_objects_queue.write(FifoQueue.MSG_OBJECT_DETECTION, b'', 0.0, 0)
 
     def process(self, payload: Any) -> tuple[int, Any]:
         """Capture a frame from the webcam.
@@ -102,7 +145,16 @@ class WebcamCaptureWorker(WorkerBase):
             self.LOGGER.warning("Failed to capture frame from webcam")
             return FifoQueue.MSG_EMPTY, b''
 
+        # Write to shared memory
+        if self.detect_objects_queue:
+            self._write_frame_to_shm(frame)
+
         return FifoQueue.MSG_BGR, frame
+
+    def publish_outputs(self, msg_type: int, result_payload: Any, deadline: float, step: int):
+        # Trigger detect objects
+        if self.detect_objects_queue:
+            self.detect_objects_queue.write(FifoQueue.MSG_EMPTY, None, deadline, step)
 
     def publish_recording_id(self, recording_id: str):
         super().publish_recording_id(recording_id)

@@ -24,28 +24,27 @@ python scripts/teleop/asyncprocessing/spawn_leader_read.py --port /dev/ttyACM1
 
 ### Follower Control
 
-Enable 2 webcams and the simulation:
 
 ```
-python scripts/teleop/asyncprocessing/spawn_follower_control.py --port /dev/ttyACM0 --webcam1 --webcam2 --sim
+python scripts/teleop/asyncprocessing/spawn_follower_control.py --port /dev/ttyACM0 --camera-id 2 --camera-id 4 --sim
 ```
 
 
 ### Webcam Capture
 
-#### Webcam 1
+Start the capture from the *fixed webcam* or the *wrist webcam*
 
-Start the capture from the *fixed webcam*, if available
 ```
-python scripts/teleop/asyncprocessing/spawn_webcam_capture1.py --camera-id 1 --width 640 --height 480 --fps 30
-```
-
-#### Webcam 2
-Start the capture from the *wrist webcam*, if available
-```
-python scripts/teleop/asyncprocessing/spawn_webcam_capture2.py --camera-id 2 --width 640 --height 480 --fps 30
+python scripts/teleop/asyncprocessing/spawn_webcam_capture1.py --camera-id 1 --width 640 --height 480 --fps 30 --detect-objects
 ```
 
+
+### Detect Objects
+Start object detection via YOLO model. Webcam Capture worker is a producer. Detect Objects worker is a consumer. It reads the image from a shared memory between the two workers.
+
+```
+python scripts/teleop/asyncprocessing/spawn_detect_objects.py --camera-id 1 --width 640 --height 480 --detection-task DETECT
+```
 
 ### Sim Step
 ```

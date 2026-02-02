@@ -131,3 +131,21 @@ class RerunMetrics:
                 continue
 
             rr.log(video_metric, rr.VideoStream.from_fields(sample=bytes(packet)))
+
+    def log_boxes2D(self, step: int, metric_name: str, boxes, labels):
+        self.set_time(step)
+        rr.log(
+            metric_name,
+            rr.Boxes2D(
+                array=boxes,
+                array_format=rr.Box2DFormat.XYXY,
+                labels=labels,
+            ),
+        )
+
+    def log_points2D(self, step: int, metric_name: str, points):
+        self.set_time(step)
+        rr.log(
+            metric_name,
+            rr.Points2D(points, radii=3),
+        )
