@@ -43,6 +43,7 @@ class SoArm100():
         print("quat=", quat)
 
         euler = self.genesis.quat_to_euler(quat)
+        euler = euler[0]
 
         print("euler=", euler)
 
@@ -52,20 +53,20 @@ class SoArm100():
         for roll in np.linspace(np.pi/2, 0, steps):
             euler[0] = roll
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.genesis.fixed_jaw, pos, quat)
+            self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
 
         # turn the fixed jaw around the global y axis
         for pitch in np.linspace(0, np.pi, steps):
             euler[1] = pitch
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.genesis.fixed_jaw, pos, quat)
+            self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
 
         # turn the fixed jaw around the global z axis
         pos = None
         for yaw in np.linspace(0, np.pi/2, steps):
             euler[2] = yaw
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.genesis.fixed_jaw, pos, quat)
+            self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
 
     def go_home(self):
         target_qpos = torch.tensor(SoArm100.HOME_QPOS)
