@@ -1,7 +1,8 @@
 from lerobot.motors.feetech import TorqueMode
 from lerobot.robots.config import RobotConfig
-from lerobot.robots import make_robot_from_config, so100_follower
-from lerobot.motors import MotorsBus
+from lerobot.robots import make_robot_from_config
+from lerobot.motors.motors_bus import SerialMotorsBus
+import lerobot.robots.so_follower.config_so_follower
 
 from slobot.configuration import Configuration
 from slobot.simulation_frame import SimulationFrame
@@ -19,8 +20,8 @@ class Feetech():
     MOTOR_MODEL = 'sts3215'
     JOINT_IDS = range(Configuration.DOFS)
 
-    PORT0 = '/dev/ttyACM0'
-    PORT1 = '/dev/ttyACM1'
+    PORT_FOLLOWER = '/dev/ttyACM1'
+    PORT_LEADER = '/dev/ttyACM0'
 
     def calibrate_pos(preset):
         feetech = Feetech()
@@ -31,13 +32,13 @@ class Feetech():
         feetech.control_position(pos)
 
     def __init__(self, **kwargs):
-        self.port = kwargs.get('port', Feetech.PORT0)
+        self.port = kwargs.get('port', Feetech.PORT_FOLLOWER)
         self.robot_id = kwargs.get('robot_id', Feetech.FOLLOWER_ID)
         self.qpos_handler = kwargs.get('qpos_handler', None)
         connect = kwargs.get('connect', True)
         torque = kwargs.get('torque', True)
 
-        self.motors_bus : MotorsBus = self._create_motors_bus(self.port, self.robot_id)
+        self.motors_bus : SerialMotorsBus = self._create_motors_bus(self.port, self.robot_id)
         if connect:
             self.connect(torque)
 
@@ -145,7 +146,7 @@ class Feetech():
         pos_json = json.dumps(pos)
         print(f"Current position is {pos_json}")
 
-    def _create_motors_bus(self, port, robot_id) -> MotorsBus:
+    def _create_motors_bus(self, port, robot_id) -> SerialMotorsBus:
         robot_config_class = RobotConfig.get_choice_class(Feetech.ROBOT_TYPE)
         robot_config = robot_config_class(port=port, id=robot_id)
         robot = make_robot_from_config(robot_config)

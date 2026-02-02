@@ -22,7 +22,7 @@ class LeaderReadWorker(WorkerBase):
         self,
         input_queue: FifoQueue,
         follower_control_queue: FifoQueue,
-        port: str = Feetech.PORT1,
+        port: str = Feetech.PORT_LEADER,
     ):
         """Initialize the leader read worker.
         

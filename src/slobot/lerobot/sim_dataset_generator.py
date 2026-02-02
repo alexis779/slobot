@@ -24,7 +24,7 @@ class SimDatasetGenerator:
 
     def generate_dataset(self, episode_ids=None):
         camera_config = {"sim": OpenCVCameraConfig(index_or_path=self.video_filename, width=self.episode_replayer.res[0], height=self.episode_replayer.res[1], fps=self.episode_replayer.ds_meta.fps)}
-        robot_config = make_robot_config(Feetech.ROBOT_TYPE, port=Feetech.PORT0, id=Feetech.FOLLOWER_ID, cameras=camera_config)
+        robot_config = make_robot_config(Feetech.ROBOT_TYPE, port=Feetech.PORT_FOLLOWER, id=Feetech.FOLLOWER_ID, cameras=camera_config)
         self.robot = make_robot_from_config(robot_config)
 
         self.cam_key = next(self.robot.cameras.keys())

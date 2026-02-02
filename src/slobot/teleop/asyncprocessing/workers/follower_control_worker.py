@@ -24,7 +24,7 @@ class FollowerControlWorker(WorkerBase):
         input_queue: FifoQueue,
         webcam_capture_queues: list[FifoQueue],
         sim_step_queue: Optional[FifoQueue],
-        port: str = Feetech.PORT0,
+        port: str = Feetech.PORT_FOLLOWER,
     ):
         """Initialize the follower control worker.
         

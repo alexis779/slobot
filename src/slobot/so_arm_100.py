@@ -43,6 +43,7 @@ class SoArm100():
         print("quat=", quat)
 
         euler = self.genesis.quat_to_euler(quat)
+        euler = euler[0]
 
         print("euler=", euler)
 
@@ -52,23 +53,23 @@ class SoArm100():
         for roll in np.linspace(np.pi/2, 0, steps):
             euler[0] = roll
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.genesis.fixed_jaw, pos, quat)
+            self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
 
         # turn the fixed jaw around the global y axis
         for pitch in np.linspace(0, np.pi, steps):
             euler[1] = pitch
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.genesis.fixed_jaw, pos, quat)
+            self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
 
         # turn the fixed jaw around the global z axis
         pos = None
         for yaw in np.linspace(0, np.pi/2, steps):
             euler[2] = yaw
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.genesis.fixed_jaw, pos, quat)
+            self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
 
     def go_home(self):
-        target_qpos = torch.tensor(SoArm100.HOME_QPOS)
+        target_qpos = torch.tensor([SoArm100.HOME_QPOS])
         self.genesis.follow_path(target_qpos)
 
     def handle_step(self) -> SimulationFrame:
@@ -82,10 +83,10 @@ class SoArm100():
     def create_simulation_frame(self) -> SimulationFrame:
         current_time = time.time()
 
-        qpos = self.genesis.entity.get_qpos()
-        velocity = self.genesis.entity.get_dofs_velocity()
-        force = self.genesis.entity.get_dofs_force()
-        control_force = self.genesis.entity.get_dofs_control_force()
+        qpos = self.genesis.entity.get_qpos()[0]
+        velocity = self.genesis.entity.get_dofs_velocity()[0]
+        force = self.genesis.entity.get_dofs_force()[0]
+        control_force = self.genesis.entity.get_dofs_control_force()[0]
 
         simulation_frame = SimulationFrame(
             timestamp=current_time,
