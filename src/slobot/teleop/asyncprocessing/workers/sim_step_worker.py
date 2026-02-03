@@ -135,6 +135,9 @@ class SimStepWorker(WorkerBase):
             self.rerun_metrics.add_video_stream(f"/{self.worker_name}/{render_mode.value}/video")
 
     def log_rgb(self, step: int, rgb: Any, render_mode: RenderMode):
+        # this frame is only for preview, it will be updated at every step
         self.rerun_metrics.log_raw_frame(step, f"/{self.worker_name}/{render_mode.value}/raw", rgb)
-        #frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
-        #self.rerun_metrics.log_frame(step, f"/{self.worker_name}/{render_mode.value}/video", frame, self.streams[render_mode])
+
+        # transcode image into a video stream to reduce disk space
+        frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
+        self.rerun_metrics.log_frame(step, f"/{self.worker_name}/{render_mode.value}/video", frame, self.streams[render_mode])
