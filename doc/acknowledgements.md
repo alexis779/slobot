@@ -43,3 +43,7 @@ Finally evaluate it on the eval dataset to see how well it performs.
   url = {https://github.com/Genesis-Embodied-AI/Genesis}
 }
 ```
+
+### Rerun.io
+
+[rerun.io](https://rerun.io/) provides a data logging and visualization tool extremely handy for live preview of an episode. The episode recording can be stored locally and replayed at a later time. The multi-modal dataset can be also be queried for reporting and analysis.
