@@ -39,12 +39,14 @@ class FollowerControlWorker(WorkerBase):
         self.sim_step_queue: Optional[FifoQueue] = sim_step_queue
 
         # Combine all output queues, filtering out None values
-        all_output_queues = self.webcam_capture_queues + ([sim_step_queue] if sim_step_queue else [])
+        all_output_queues = self.webcam_capture_queues
+        if sim_step_queue is not None:
+            all_output_queues = all_output_queues + [sim_step_queue]
 
         super().__init__(
             worker_name=self.WORKER_FOLLOWER,
             input_queue=input_queue,
-            output_queues=all_output_queues if all_output_queues else None,
+            output_queues=all_output_queues,
         )
         self.port = port
         self.follower: Optional[Feetech] = None

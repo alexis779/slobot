@@ -37,9 +37,10 @@ class AsyncTeleoperator:
         from slobot.teleop.asyncprocessing.workers.follower_control_worker import FollowerControlWorker
 
         # Create webcam capture queues dynamically based on camera IDs
+        camera_ids = kwargs['camera_ids'] or []
         webcam_queues = [
             FifoQueue(FifoQueue.get_queue_name(FifoQueue.QUEUE_WEBCAM_CAPTURE, camera_id))
-            for camera_id in kwargs.get('camera_ids', [])
+            for camera_id in camera_ids
         ]
 
         follower_control_worker = FollowerControlWorker(

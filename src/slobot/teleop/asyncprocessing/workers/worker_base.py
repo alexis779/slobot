@@ -32,13 +32,13 @@ class WorkerBase(ABC):
     WORKER_DETECT_OBJECTS = "detect_objects"
 
     WORKER_NAMES = {
-        WORKER_CRON: "Cron",
-        WORKER_LEADER: "Leader",
-        WORKER_FOLLOWER: "Follower",
-        WORKER_SIM: "Sim",
-        WORKER_KINEMATICS: "Kinematics",
-        WORKER_WEBCAM: "Webcam",
-        WORKER_DETECT_OBJECTS: "Detect Objects",
+        WORKER_CRON: WORKER_CRON,
+        WORKER_LEADER: WORKER_LEADER,
+        WORKER_FOLLOWER: WORKER_FOLLOWER,
+        WORKER_SIM: WORKER_SIM,
+        WORKER_KINEMATICS: WORKER_KINEMATICS,
+        WORKER_WEBCAM: WORKER_WEBCAM,
+        WORKER_DETECT_OBJECTS: WORKER_DETECT_OBJECTS,
     }
 
     WORKER_INPUT_MSG_TYPE = {

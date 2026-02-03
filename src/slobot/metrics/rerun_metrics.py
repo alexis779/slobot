@@ -149,3 +149,14 @@ class RerunMetrics:
             metric_name,
             rr.Points2D(points, radii=3),
         )
+
+    def log_raw_frame(self, step: int, metric_name: str, frame):
+        """Log a raw bitmap frame to rerun.io.
+
+        Args:
+            step: The step/frame number
+            metric_name: The metric name/path to log to
+            frame: Raw RGB frame as numpy array or similar (H x W x 3)
+        """
+        self.set_time(step)
+        rr.log(metric_name, rr.Image(frame))

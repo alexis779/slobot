@@ -142,8 +142,7 @@ class WebcamCaptureWorker(WorkerBase):
         ret, frame = self.cap.read()
         
         if not ret:
-            self.LOGGER.warning("Failed to capture frame from webcam")
-            return FifoQueue.MSG_EMPTY, b''
+            raise RuntimeError("Failed to capture frame from webcam")
 
         # Write to shared memory
         if self.detect_objects_queue:
