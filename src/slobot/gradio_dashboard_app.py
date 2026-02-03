@@ -6,7 +6,6 @@ import numpy as np
 
 from datetime import datetime
 from slobot.image_streams import ImageStreams
-from slobot.gravity_compensation import GravityCompensation
 from slobot.configuration import Configuration
 from slobot.simulation_frame import SimulationFrame
 from slobot.feetech_frame import FeetechFrame
@@ -97,7 +96,7 @@ class GradioDashboardApp():
         
         return fig
 
-    def sim_metrics(self, fps):
+    def sim_metrics(self, fps=30):
         df = pd.DataFrame()
 
         image_streams = ImageStreams()
