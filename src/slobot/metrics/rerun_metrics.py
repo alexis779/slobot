@@ -130,7 +130,18 @@ class RerunMetrics:
             if packet.pts is None:
                 continue
 
+            #duration = float(packet.pts * packet.time_base)
             rr.log(video_metric, rr.VideoStream.from_fields(sample=bytes(packet)))
+
+    def log_raw_frame(self, step: int, metric_name: str, frame):
+        """Log a raw bitmap frame to rerun.io.
+
+        Args:
+            step: The step/frame number
+            metric_name: The metric name/path to log to
+            frame: Raw RGB frame as numpy array or similar (H x W x 3)
+        """
+        rr.log(metric_name, rr.Image(frame), static=False)
 
     def log_boxes2D(self, step: int, metric_name: str, boxes, labels):
         self.set_time(step)
@@ -149,13 +160,3 @@ class RerunMetrics:
             metric_name,
             rr.Points2D(points, radii=3),
         )
-
-    def log_raw_frame(self, step: int, metric_name: str, frame):
-        """Log a raw bitmap frame to rerun.io.
-
-        Args:
-            step: The step/frame number
-            metric_name: The metric name/path to log to
-            frame: Raw RGB frame as numpy array or similar (H x W x 3)
-        """
-        rr.log(metric_name, rr.Image(frame), static=True)

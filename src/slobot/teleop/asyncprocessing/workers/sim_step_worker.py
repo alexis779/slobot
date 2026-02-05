@@ -68,9 +68,9 @@ class SimStepWorker(WorkerBase):
             self.rerun_metrics.add_video_stream(f"/{self.worker_name}/{render_mode}/video")
 
         # initialize the video streams
-        container = av.open("/dev/null", "w", format="h264")
+        self.container = av.open("/dev/null", "w", format="h264")
         self.streams = {
-            render_mode: container.add_stream("libx264", rate=self.fps) for render_mode in RenderMode
+            render_mode: self.container.add_stream("libx264", rate=self.fps) for render_mode in RenderMode
         }
 
         res = (self.width, self.height)
@@ -79,7 +79,10 @@ class SimStepWorker(WorkerBase):
         self.LOGGER.info(f"Genesis simulation started with {self.fps} FPS, {self.substeps} substeps, {self.width}x{self.height} resolution, and {self.vis_mode} visualization mode")
 
     def teardown(self):
-        """Stop the Genesis simulation."""
+        # Close the container
+        self.container.close()
+
+        # Stop the Genesis simulation
         self.arm.genesis.stop()
         
         super().teardown()

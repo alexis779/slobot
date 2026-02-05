@@ -53,7 +53,7 @@ class Genesis():
         requires_grad = kwargs.get('requires_grad', False)
 
         self.scene = gs.Scene(
-            show_viewer=show_viewer,
+            show_viewer = show_viewer,
             sim_options = gs.options.SimOptions(
                 dt = dt,
                 requires_grad = requires_grad,

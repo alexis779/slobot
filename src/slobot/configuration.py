@@ -38,6 +38,7 @@ class Configuration:
     def logger(logger_name):
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.INFO)
+        logger.propagate = False # avoid propagating to the root logger, otherwise each log line shows twice in stderr
         handler = logging.StreamHandler()
         handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
         logger.addHandler(handler)
