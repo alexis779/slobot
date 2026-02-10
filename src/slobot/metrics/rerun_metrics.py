@@ -27,6 +27,7 @@ class RerunMetrics:
         self.worker_name = kwargs.get('worker_name', 'worker')
 
         self.step = 0
+        self.steps = []  # sequence of step ids that had a frame added to the video stream
 
     def init_rerun(self, recording_id: str):
         RerunMetrics.LOGGER.info(f"Initializing recording ID {recording_id} for application {RerunMetrics.APPLICATION_ID} and worker {self.worker_name}")
@@ -125,12 +126,15 @@ class RerunMetrics:
             self.add_metric(f"/{worker_name}/control_force", joint_name, control_force[i])
 
     def log_frame(self, step: int, video_metric: str, frame: av.VideoFrame, stream: av.VideoStream):
-        self.set_time(step)
-        for packet in stream.encode(frame):
-            if packet.pts is None:
-                continue
+        # check if self.steps last element is step, only add step once
+        if len(self.steps) == 0 or self.steps[-1] < step:
+            self.steps.append(step)
 
-            #duration = float(packet.pts * packet.time_base)
+        self.encode_frame(video_metric, frame, stream)
+
+    def encode_frame(self, video_metric: str, frame: av.VideoFrame, stream: av.VideoStream):
+        for packet in stream.encode(frame):
+            self.set_time(self.steps[packet.pts]) # frames may be emitted out of order and some steps may not have a corresponding frame
             rr.log(video_metric, rr.VideoStream.from_fields(sample=bytes(packet)))
 
     def log_raw_frame(self, step: int, metric_name: str, frame):
@@ -141,7 +145,7 @@ class RerunMetrics:
             metric_name: The metric name/path to log to
             frame: Raw RGB frame as numpy array or similar (H x W x 3)
         """
-        rr.log(metric_name, rr.Image(frame), static=False)
+        rr.log(metric_name, rr.Image(frame), static=True)
 
     def log_boxes2D(self, step: int, metric_name: str, boxes, labels):
         self.set_time(step)

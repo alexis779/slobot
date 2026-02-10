@@ -70,7 +70,7 @@ class SimStepWorker(WorkerBase):
         # initialize the video streams
         self.container = av.open("/dev/null", "w", format="h264")
         self.streams = {
-            render_mode: self.container.add_stream("libx264", rate=self.fps) for render_mode in RenderMode
+            render_mode: self.create_stream() for render_mode in RenderMode
         }
 
         res = (self.width, self.height)
@@ -79,6 +79,10 @@ class SimStepWorker(WorkerBase):
         self.LOGGER.info(f"Genesis simulation started with {self.fps} FPS, {self.substeps} substeps, {self.width}x{self.height} resolution, and {self.vis_mode} visualization mode")
 
     def teardown(self):
+        # flush video streams
+        for render_mode in RenderMode:
+           self.flush_stream(render_mode)
+
         # Close the container
         self.container.close()
 
@@ -143,4 +147,13 @@ class SimStepWorker(WorkerBase):
 
         # transcode image into a video stream to reduce disk space
         frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
-        self.rerun_metrics.log_frame(step, f"/{self.worker_name}/{render_mode.value}/video", frame, self.streams[render_mode])
+        self.rerun_metrics.log_frame(step, self.render_mode_metric_name(render_mode), frame, self.streams[render_mode])
+
+    def flush_stream(self, render_mode: RenderMode):
+        self.rerun_metrics.encode_frame(self.render_mode_metric_name(render_mode), None, self.streams[render_mode])
+
+    def render_mode_metric_name(self, render_mode: RenderMode):
+        return f"/{self.worker_name}/{render_mode.value}/video"
+
+    def create_stream(self):
+        return self.container.add_stream("libx264", rate=self.fps)
