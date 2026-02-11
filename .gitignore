@@ -3,7 +3,6 @@
 __pycache__
 /.gradio
 /.venv
-/trs_so_arm100
 /dist
 *.egg-info
 /src/slobot/config/trs_so_arm100

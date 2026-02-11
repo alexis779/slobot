@@ -10,10 +10,9 @@ This validates that the robot is in the targetted position preset from the sim q
 python scripts/validation/0_validate_sim_qpos.py [middle|zero|rotated|rest]
 ```
 
-| middle | zero | rotated | rest |
-|-|-|-|-|
-| ![middle](SimMiddle.png) | ![zero](SimZero.png) | ![rotated](SimRotated.png) | ![rotated](SimRest.png) |
-
+| middle                          | zero                        | rotated                           | rest                           |
+| ------------------------------- | --------------------------- | --------------------------------- | ------------------------------ |
+| ![middle](images/SimMiddle.png) | ![zero](images/SimZero.png) | ![rotated](images/SimRotated.png) | ![rotated](images/SimRest.png) |
 
 ### 1. Validate the middle preset pos
 
@@ -25,14 +24,13 @@ Position the arm manually into the `middle` preset.
 python scripts/validation/1_calibrate_motor_pos.py middle
 ```
 
-It will read the motor positions and output them. It should return an int vector around `[2047, 2047, 2047, 2047, 2047, 2047]`, the *middle* position for each motor.
+It will read the motor positions and output them. It should return an int vector around `[2047, 2047, 2047, 2047, 2047, 2047]`, the _middle_ position for each motor.
 
-- For Genesis simulator, the joint position is in *radian*. The *middle* keyframe corresponds to `[0, -np.pi/2, np.pi/2, 0, 0, -0.15]`. It's `0` reference is defined in the Mujoco configuration, which is the *zero* keyframe. The `shoulder_pan` joint in the simulator turns in oppposite direction as the Feetech motor, the other ones in the same one, hence the `[-1, 1, 1, 1, 1, 1]` motor direction configuration.
+- For Genesis simulator, the joint position is in _radian_. The _middle_ keyframe corresponds to `[0, -np.pi/2, np.pi/2, 0, 0, -0.15]`. It's `0` reference is defined in the Mujoco configuration, which is the _zero_ keyframe. The `shoulder_pan` joint in the simulator turns in oppposite direction as the Feetech motor, the other ones in the same one, hence the `[-1, 1, 1, 1, 1, 1]` motor direction configuration.
 
-- For the Feetech motor, the motor position range is `[0, 4096[`. The `0` motor position can be offset by storing the homing offset in the Feetech persistent memory. Sending a control command of `2047` to the robot will result in targetting the *middle* keyframe that was just calibrated.
+- For the Feetech motor, the motor position range is `[0, 4096[`. The `0` motor position can be offset by storing the homing offset in the Feetech persistent memory. Sending a control command of `2047` to the robot will result in targetting the _middle_ keyframe that was just calibrated.
 
 - For the LeRobot dataset, the joint ranges are `[-100, 100]` except for the gripper, which range is `[0, 100]`. So the instrumented motor values are offset and then scaled to fit in that range, which min is `-100`, middle is `0` and max is `+100`.
-
 
 #### LeRobot calibration
 
@@ -95,7 +93,7 @@ A calibration sample file `~/.cache/huggingface/lerobot/calibration/robots/so100
 }
 ```
 
-### 2. Validate the preset *pos to qpos* conversion in sim
+### 2. Validate the preset _pos to qpos_ conversion in sim
 
 Same as script 0, but using the motor pos instead of the sim qpos.
 
@@ -111,10 +109,9 @@ Similar than 2 which but now in real. It validates the robot is positioned corre
 python scripts/validation/3_validate_real_pos.py [middle|zero|rotated|rest]
 ```
 
-| middle | zero | rotated | rest |
-|-|-|-|-|
-| ![middle](RealMiddle.png) | ![zero](RealZero.png) | ![rotated](RealRotated.png) | ![rotated](RealRest.png) |
-
+| middle                           | zero                         | rotated                            | rest                            |
+| -------------------------------- | ---------------------------- | ---------------------------------- | ------------------------------- |
+| ![middle](images/RealMiddle.png) | ![zero](images/RealZero.png) | ![rotated](images/RealRotated.png) | ![rotated](images/RealRest.png) |
 
 ### 4. Validate real to sim
 

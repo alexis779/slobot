@@ -117,7 +117,7 @@ class SimStepWorker(WorkerBase):
         control_force = control_force[0].tolist()
         
         # Render the camera
-        rgb, depth, segmentation, normal = self.arm.genesis.camera.render(rgb=True, depth=True, segmentation=True, colorize_seg=True, normal=True)
+        rgb, depth, segmentation, normal = self.arm.genesis.side_camera.render(rgb=True, depth=True, segmentation=True, colorize_seg=True, normal=True)
         
         return FifoQueue.MSG_QPOS_RENDER_FORCE, (qpos, rgb, depth, segmentation, normal, control_force)
 
@@ -156,4 +156,6 @@ class SimStepWorker(WorkerBase):
         return f"/{self.worker_name}/{render_mode.value}/video"
 
     def create_stream(self):
-        return self.container.add_stream("libx264", rate=self.fps)
+        stream = self.container.add_stream("libx264", rate=self.fps)
+        stream.max_b_frames = 0
+        return stream

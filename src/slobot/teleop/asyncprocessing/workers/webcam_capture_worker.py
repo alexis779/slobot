@@ -76,8 +76,8 @@ class WebcamCaptureWorker(WorkerBase):
 
 
         # initialize the video stream
-        container = av.open("/dev/null", "w", format="h264")
-        self.stream = container.add_stream("libx264", rate=self.fps)
+        self.container = av.open("/dev/null", "w", format="h264")
+        self.stream = self.create_stream()
 
         # Open the webcam
         self.cap = cv2.VideoCapture(self.camera_id)
@@ -111,8 +111,10 @@ class WebcamCaptureWorker(WorkerBase):
 
     def teardown(self):
         """Release the webcam."""
-        if self.cap:
-            self.cap.release()
+        self.cap.release()
+
+        self.flush_stream()
+        self.container.close()
 
         if self.shm_block:
             self.shm_block.close()
@@ -157,9 +159,29 @@ class WebcamCaptureWorker(WorkerBase):
 
     def publish_recording_id(self, recording_id: str):
         super().publish_recording_id(recording_id)
-        self.rerun_metrics.add_video_stream(f"/{self.worker_name}/video")
+        self.rerun_metrics.add_video_stream(self.metric_name())
 
     def publish_data(self, step: int, bgr: Any):
+        # convert BGR to RGB
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+
+        self.log_rgb(step, rgb)
+
+    def log_rgb(self, step: int, rgb: Any):
+        # this frame is only for preview, it will be updated at every step
+        self.rerun_metrics.log_raw_frame(step, f"/{self.worker_name}/preview", rgb)
+
+        # transcode image into a video stream to reduce disk space
         frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
-        self.rerun_metrics.log_frame(step, f"/{self.worker_name}/video", frame, self.stream)
+        self.rerun_metrics.log_frame(step, self.metric_name(), frame, self.stream)
+
+    def create_stream(self):
+        stream = self.container.add_stream("libx264", rate=self.fps)
+        stream.max_b_frames = 0
+        return stream
+
+    def flush_stream(self):
+        self.rerun_metrics.encode_frame(self.metric_name(), None, self.stream)
+
+    def metric_name(self):
+        return f"/{self.worker_name}/video"

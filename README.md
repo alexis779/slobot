@@ -9,6 +9,7 @@ There are 2 main use cases
 
 - [Acknowledgements](doc/acknowledgements.md)
 - [Installation](doc/installation.md)
+- [Camera](doc/camera.md)
 - [Calibration & Validation](doc/calibration_validation.md)
 - [Real 2 Sim](doc/real2sim.md)
 - [Policies](doc/policies.md)

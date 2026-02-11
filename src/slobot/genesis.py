@@ -93,12 +93,22 @@ class Genesis():
             vis_mode=self.vis_mode,
         )
 
-        self.camera = self.scene.add_camera(
+        self.side_camera = self.scene.add_camera(
             res    = res,
             pos    = camera_pos,
             lookat = lookat,
             env_idx = 0,
         )
+
+        link_name = kwargs.get('link_name', None)
+        if link_name:
+            link = self.entity.get_link(link_name)
+            self.link_camera = self.scene.add_camera(
+                res    = res,
+                env_idx = 0,
+            )
+
+            self.link_camera.attach(link, kwargs['camera_offset'])
 
         should_start = kwargs.get('should_start', True)
         if should_start:
@@ -109,7 +119,8 @@ class Genesis():
 
         self.record = self.kwargs.get('record', False)
         if self.record:
-            self.camera.start_recording()
+            self.side_camera.start_recording()
+            self.link_camera.start_recording()
 
         print("Limits=", self.entity.get_dofs_limit())
 
@@ -189,7 +200,9 @@ class Genesis():
 
     def stop(self):
         if self.record:
-            self.camera.stop_recording(save_to_filename=f"{Configuration.WORK_DIR}/video.mp4")
+            self.side_camera.stop_recording(save_to_filename=f"{Configuration.WORK_DIR}/side_camera.mp4")
+            self.link_camera.stop_recording(save_to_filename=f"{Configuration.WORK_DIR}/link_camera.mp4")
+
         gs.destroy()
 
     def move(self, link, target_pos, target_quat):
@@ -204,8 +217,17 @@ class Genesis():
 
     def step(self):
         self.scene.step()
+
+        if self.record:
+            self.render_cameras()
+
         if self.step_handler is not None:
             self.step_handler.handle_step()
+
+    def render_cameras(self):
+        self.side_camera.render()
+        if self.link_camera:
+            self.link_camera.render()
 
     def hold_entity(self):
         while True:

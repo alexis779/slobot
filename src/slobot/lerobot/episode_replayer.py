@@ -237,6 +237,6 @@ class EpisodeReplayer:
         return camera_image
 
     def get_sim_image(self):
-        rgb_image, _, _, _ = self.arm.genesis.camera.render(rgb=True)
+        rgb_image, _, _, _ = self.arm.genesis.side_camera.render(rgb=True)
         #self.write_image("sim", rgb_image, episode_id, frame_id)
         return rgb_image

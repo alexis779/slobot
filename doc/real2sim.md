@@ -2,12 +2,11 @@
 
 Consider a [LeRobot dataset](https://huggingface.co/datasets/alexis779/so100_ball_cup2) created via teleoperation.
 
-*Visualize Dataset* [HuggingFace space](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2Falexis779%2Fso100_ball_cup2%2Fepisode_1%3Ft%3D23) is an interactive tool to visualize episodes from the dataset.
+_Visualize Dataset_ [HuggingFace space](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2Falexis779%2Fso100_ball_cup2%2Fepisode_1%3Ft%3D23) is an interactive tool to visualize episodes from the dataset.
 
-| real | sim |
-|----------|-------------|
+| real                                                                                                           | sim                                                                                                            |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | <video controls src="https://github.com/user-attachments/assets/fbaef5c9-7767-4aff-b879-4f7f59e993c4"></video> | <video controls src="https://github.com/user-attachments/assets/f260e84e-946b-4c74-9e06-4e36dab704a2"></video> |
-
 
 Following script replays the select tele-operated episodes.
 
@@ -59,13 +58,11 @@ The logs indicate the breakdown of the execution into substeps, for a total of 4
 Stopping app - local entrypoint completed.
 ```
 
-![Modal GPU container metrics](./ModalContainerMetrics.png)
+![Modal GPU container metrics](./images/ModalContainerMetrics.png)
 
-
-| 4 | 9 |
-|----------|-------------|
+| 4                                                                                                              | 9                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | <video controls src="https://github.com/user-attachments/assets/f81a4fad-8572-4b24-98b7-d60a475ce848"></video> | <video controls src="https://github.com/user-attachments/assets/b94ce651-839a-4c8e-89a9-a34d30e7de08"></video> |
-
 
 ## Generate LeRobot dataset
 
@@ -77,9 +74,8 @@ See [SIM Example](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%
 python scripts/sim/generate_sim_dataset.py --dataset-repo-id alexis779/so100_ball_cup2 --sim-dataset-repo-id alexis779/so100_ball_cup2_sim
 ```
 
-
 ## Pick & Place frames
 
-| real | sim |
-|----------|-------------|
-| ![Camera](./real_pick_place_frames.png) | ![Simulation](./sim_pick_place_frames.png) |
+| real                                           | sim                                               |
+| ---------------------------------------------- | ------------------------------------------------- |
+| ![Camera](./images/real_pick_place_frames.png) | ![Simulation](./images/sim_pick_place_frames.png) |

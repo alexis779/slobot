@@ -4,7 +4,6 @@ Gradio app is a UI web framework to demo ML applications.
 
 Navigate to the [local URL](http://127.0.0.1:7860) in the browser. Then click _Run_ button.
 
-
 #### Joint Control
 
 ```
@@ -22,7 +21,7 @@ The frontend receives backend events via a Server Side Event stream. For each ne
 python scripts/sim_gradio_image.py
 ```
 
-![Genesis frame types](./GenesisImageFrameTypes.png)
+![Genesis frame types](./images/GenesisImageFrameTypes.png)
 
 #### Video
 
@@ -32,13 +31,13 @@ The [`Video` component](https://www.gradio.app/docs/gradio/video) can play a ful
 python scripts/sim_gradio_video.py
 ```
 
-![Genesis frame types](./GenesisVideoFrameTypes.png)
+![Genesis frame types](./images/GenesisVideoFrameTypes.png)
 
 #### Qpos
 
 The qpos app displays the joint angular position numbers.
 
-![Genesis qpos](./GenesisQpos.png)
+![Genesis qpos](./images/GenesisQpos.png)
 
 ```
 python scripts/sim_gradio_qpos.py
@@ -68,4 +67,4 @@ The [Plot component](https://www.gradio.app/docs/gradio/plot) can display a char
 python scripts/sim_gradio_dashboard.py
 ```
 
-![Gradio dashboard](./GradioTabPlots.png)
+![Gradio dashboard](./images/GradioTabPlots.png)

@@ -111,7 +111,7 @@ class MirrorKinematicsWorker(WorkerBase):
         so_arm_100_qpos = self.arm.genesis.entity.get_qpos()
         so_arm_100_qpos = so_arm_100_qpos[0].tolist()       
 
-        rgb, _, _, _ = self.arm.genesis.camera.render()
+        rgb, _, _, _ = self.arm.genesis.side_camera.render()
 
         robot_qpos = self.robot.get_qpos()
         robot_qpos = robot_qpos[0].tolist()

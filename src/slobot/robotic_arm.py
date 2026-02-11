@@ -31,6 +31,8 @@ class RoboticArm():
         self.segmentation = kwargs.get('segmentation', False)
         self.normal = kwargs.get('normal', False)
 
+        self.home_qpos = kwargs.get('home_qpos', None)
+
     @cached_property
     def joint_names(self):
         return [
@@ -72,7 +74,7 @@ class RoboticArm():
             self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
 
     def go_home(self):
-        target_qpos = torch.tensor([self.home_qpos()])
+        target_qpos = torch.tensor([self.home_qpos])
         self.genesis.follow_path(target_qpos)
 
     def handle_step(self) -> SimulationFrame:
@@ -101,7 +103,7 @@ class RoboticArm():
         )
 
         if self.rgb or self.depth or self.segmentation or self.normal:
-            frame = self.genesis.camera.render(rgb=self.rgb, depth=self.depth, segmentation=self.segmentation, colorize_seg=True, normal=self.normal)
+            frame = self.genesis.side_camera.render(rgb=self.rgb, depth=self.depth, segmentation=self.segmentation, colorize_seg=True, normal=self.normal)
             rbg_arr, depth_arr, seg_arr, normal_arr = frame
             simulation_frame.rgb = rbg_arr
             simulation_frame.depth = depth_arr
