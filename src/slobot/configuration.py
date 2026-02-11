@@ -5,8 +5,6 @@ from importlib.resources import files
 class Configuration:
     WORK_DIR = "/tmp/slobot"
 
-    MJCF_CONFIG = str(files('slobot.config') / "trs_so_arm100" / "so_arm100.xml") # "../mujoco_menagerie/trs_so_arm100/so_arm100.xml"
-
     # 4:3 aspect ratio
     QVGA = (320, 240)
     VGA = (640, 480)
@@ -31,7 +29,6 @@ class Configuration:
 
     MOTOR_DIRECTION = [-1, 1, 1, 1, 1, 1]
 
-    DOFS = 6
     JOINT_NAMES = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
     GRIPPER_ID = 5 # the id of the jaw joint
 

@@ -2,7 +2,7 @@ from slobot.configuration import Configuration
 from slobot.feetech import Feetech
 import gradio as gr
 
-class GradioControlApp:
+class GradioControlRealApp:
     def __init__(self):
         self.feetech = Feetech()
 

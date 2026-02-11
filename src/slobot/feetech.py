@@ -18,7 +18,7 @@ class Feetech():
     LEADER_ID = 'leader_arm'
 
     MOTOR_MODEL = 'sts3215'
-    JOINT_IDS = range(Configuration.DOFS)
+    DOFS = 6
 
     PORT_FOLLOWER = '/dev/ttyACM1'
     PORT_LEADER = '/dev/ttyACM0'
@@ -35,6 +35,10 @@ class Feetech():
         self.port = kwargs.get('port', Feetech.PORT_FOLLOWER)
         self.robot_id = kwargs.get('robot_id', Feetech.FOLLOWER_ID)
         self.qpos_handler = kwargs.get('qpos_handler', None)
+
+        self.dofs = kwargs.get('dofs', Feetech.DOFS)
+        self.joint_ids = range(self.dofs)
+
         connect = kwargs.get('connect', True)
         torque = kwargs.get('torque', True)
 
@@ -54,7 +58,7 @@ class Feetech():
     def get_qpos(self):
         return self.pos_to_qpos(self.get_pos())
 
-    def get_pos(self, ids = JOINT_IDS):
+    def get_pos(self, ids):
         return self._read_config('Present_Position', ids)
 
     def get_velocity(self):
@@ -63,7 +67,7 @@ class Feetech():
     def get_dofs_velocity(self):
         return self.velocity_to_qvelocity(self.get_velocity())
 
-    def get_dofs_control_force(self, ids = JOINT_IDS):
+    def get_dofs_control_force(self, ids):
         return self._read_config('Present_Load', ids=ids)
     
     def get_pos_goal(self):
@@ -75,17 +79,17 @@ class Feetech():
 
     def qpos_to_pos(self, qpos):
         return [ self._qpos_to_steps(qpos, i)
-            for i in Feetech.JOINT_IDS ]
+            for i in self.joint_ids ]
 
-    def pos_to_qpos(self, pos, ids = JOINT_IDS):
+    def pos_to_qpos(self, pos, ids):
         return [ self._steps_to_qpos(pos, id)
             for id in ids]
 
     def velocity_to_qvelocity(self, velocity):
         return [ self._stepvelocity_to_velocity(velocity, i)
-            for i in Feetech.JOINT_IDS ]
+            for i in self.joint_ids ]
 
-    def control_position(self, pos, ids=JOINT_IDS):
+    def control_position(self, pos, ids):
         self._write_config('Goal_Position', pos, ids)
         if self.qpos_handler is not None:
             feetech_frame = self.create_feetech_frame(pos)
@@ -95,10 +99,10 @@ class Feetech():
         target_pos = self.qpos_to_pos(target_qpos)
         self.control_position(target_pos)
 
-    def get_torque(self, ids=JOINT_IDS):
+    def get_torque(self, ids):
         return self._read_config('Torque_Enable', ids)
 
-    def set_torque(self, is_enabled: bool, ids=JOINT_IDS):
+    def set_torque(self, is_enabled: bool, ids):
         torque_enable = TorqueMode.ENABLED.value if is_enabled else TorqueMode.DISABLED.value
         torque_enable = [
             torque_enable
@@ -106,28 +110,28 @@ class Feetech():
         ]
         self._write_config('Torque_Enable', torque_enable, ids)
 
-    def set_home_offset(self, home_offset, ids=JOINT_IDS):
+    def set_home_offset(self, home_offset, ids):
         self._write_config("Home_Offset", home_offset, ids)
 
-    def set_punch(self, punch, ids=JOINT_IDS):
+    def set_punch(self, punch, ids):
         self._write_config('Minimum_Startup_Force', punch, ids)
 
-    def set_dofs_kp(self, Kp, ids=JOINT_IDS):
+    def set_dofs_kp(self, Kp, ids):
         self._write_config('P_Coefficient', Kp, ids)
 
-    def get_dofs_kp(self, ids=JOINT_IDS):
+    def get_dofs_kp(self, ids):
         return self._read_config('P_Coefficient', ids)
 
-    def set_dofs_kv(self, Kv, ids=JOINT_IDS):
+    def set_dofs_kv(self, Kv, ids):
         self._write_config('D_Coefficient', Kv, ids)
 
-    def get_dofs_kv(self, ids=JOINT_IDS):
+    def get_dofs_kv(self, ids):
         return self._read_config('D_Coefficient', ids)
 
-    def set_dofs_ki(self, Ki, ids=JOINT_IDS):
+    def set_dofs_ki(self, Ki, ids):
         self._write_config('I_Coefficient', Ki, ids)
 
-    def get_dofs_ki(self, ids=JOINT_IDS):
+    def get_dofs_ki(self, ids):
         return self._read_config('I_Coefficient', ids)
 
     def go_to_rest(self):
@@ -168,7 +172,7 @@ class Feetech():
     def _stepvelocity_to_velocity(self, step_velocity, motor_index):
         return step_velocity[motor_index] * self.radian_per_step
 
-    def _read_config(self, key, ids=JOINT_IDS):
+    def _read_config(self, key, ids):
         motors = [
             Configuration.JOINT_NAMES[id]
             for id in ids
@@ -197,12 +201,12 @@ class Feetech():
     def sim_positions(self, positions):
         positions = {
             joint_id+1 : positions[joint_id]
-            for joint_id in range(Configuration.DOFS)
+            for joint_id in range(self.dofs)
         }
         positions = self.motors_bus._unnormalize(positions)
         positions = [
             positions[joint_id+1]
-            for joint_id in range(Configuration.DOFS)
+            for joint_id in range(self.dofs)
         ]
 
         return self.pos_to_qpos(positions)

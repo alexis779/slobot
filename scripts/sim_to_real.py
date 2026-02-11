@@ -7,6 +7,6 @@ from slobot.configuration import Configuration
 feetech = Feetech()
 
 arm = SoArm100(step_handler=feetech, show_viewer=True, rgb=True)
-arm.elemental_rotations()
+ arm.elemental_rotations()
 feetech.go_to_rest()
 arm.genesis.stop()

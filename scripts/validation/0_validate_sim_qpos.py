@@ -1,3 +1,4 @@
+from slobot.robotic_arm import RoboticArm
 from slobot.so_arm_100 import SoArm100
 from slobot.configuration import Configuration
 import sys
@@ -10,4 +11,6 @@ if len(sys.argv) < 2:
 
 preset = sys.argv[1]
 qpos = Configuration.QPOS_MAP[preset]
-SoArm100.sim_qpos(qpos)
+arm = SoArm100()
+
+RoboticArm.sim_qpos(arm, qpos)

@@ -3,6 +3,7 @@ import torch
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from slobot.feetech import Feetech
 from slobot.configuration import Configuration
+from slobot.so_arm_100 import SoArm100
 from slobot.lerobot.frame_delay_detector import FrameDelayDetector
 from slobot.lerobot.hold_state_detector import HoldStateDetector, HoldState
 
@@ -102,7 +103,7 @@ class EpisodeLoader:
     def get_robot_state(self, episode, frame_id, column_name):
         robot_state = [
             episode[column_name][frame_id][joint_id]
-            for joint_id in range(Configuration.DOFS)
+            for joint_id in range(SoArm100.DOFS)
         ]
 
         return self.positions_to_radians(robot_state)

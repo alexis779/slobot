@@ -1,5 +1,6 @@
-from slobot.so_arm_100 import SoArm100
 from slobot.feetech import Feetech
+from slobot.so_arm_100 import SoArm100
+from slobot.robotic_arm import RoboticArm
 from slobot.configuration import Configuration
 import sys
 
@@ -14,4 +15,6 @@ feetech = Feetech()
 preset = sys.argv[1]
 pos = Configuration.POS_MAP[preset]
 qpos = feetech.pos_to_qpos(pos)
-SoArm100.sim_qpos(qpos)
+
+arm = SoArm100()
+RoboticArm.sim_qpos(arm, qpos)

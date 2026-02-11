@@ -4,13 +4,22 @@ Gradio app is a UI web framework to demo ML applications.
 
 Navigate to the [local URL](http://127.0.0.1:7860) in the browser. Then click _Run_ button.
 
+
+#### Joint Control
+
+```
+python scripts/teleop/gradio_control_sim_app.py
+```
+
+<video controls src="https://github.com/user-attachments/assets/cc28532c-921d-4c24-908f-d9194f17f8f3"></video>
+
 #### Image
 
 The [`Image` component](https://www.gradio.app/docs/gradio/image) can sample the frames of the simulation at a small FPS rate.
 The frontend receives backend events via a Server Side Event stream. For each new _frame generated_ event, it downloads the image from the webserver and displays it to the user.
 
 ```
-PYOPENGL_PLATFORM=egl python scripts/sim_gradio_image.py
+python scripts/sim_gradio_image.py
 ```
 
 ![Genesis frame types](./GenesisImageFrameTypes.png)
@@ -20,7 +29,7 @@ PYOPENGL_PLATFORM=egl python scripts/sim_gradio_image.py
 The [`Video` component](https://www.gradio.app/docs/gradio/video) can play a full mp4 encoded in h264 or a stream of smaller TS files.
 
 ```
-PYOPENGL_PLATFORM=egl python scripts/sim_gradio_video.py
+python scripts/sim_gradio_video.py
 ```
 
 ![Genesis frame types](./GenesisVideoFrameTypes.png)

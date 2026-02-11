@@ -48,6 +48,4 @@ COPY --chown=user ./scripts /home/user/app
 
 ENV GRADIO_SERVER_NAME="0.0.0.0"
 
-ENV PYOPENGL_PLATFORM="egl"
-
 CMD [ "python", "scripts/sim_gradio_image.py" ]

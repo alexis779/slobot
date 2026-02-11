@@ -93,21 +93,6 @@ class Genesis():
             vis_mode=self.vis_mode,
         )
 
-        # Kinematic path
-        self.base: RigidLink = self.entity.get_link('Base')
-        self.shoulder_pan: RigidJoint = self.entity.get_joint('Rotation')
-        self.rotation_pitch: RigidLink = self.entity.get_link('Rotation_Pitch')
-        self.shoulder_lift: RigidJoint = self.entity.get_joint('Pitch')
-        self.upper_arm: RigidLink = self.entity.get_link('Upper_Arm')
-        self.elbow_flex: RigidJoint = self.entity.get_joint('Elbow')
-        self.lower_arm: RigidLink = self.entity.get_link('Lower_Arm')
-        self.wrist_flex: RigidJoint = self.entity.get_joint('Wrist_Pitch')
-        self.wrist_pitch_roll: RigidLink = self.entity.get_link('Wrist_Pitch_Roll')
-        self.wrist_roll: RigidJoint = self.entity.get_joint('Wrist_Roll')
-        self.fixed_jaw: RigidLink = self.entity.get_link('Fixed_Jaw')
-        self.gripper: RigidJoint = self.entity.get_joint('Jaw')
-        self.moving_jaw: RigidLink = self.entity.get_link('Moving_Jaw')
-
         self.camera = self.scene.add_camera(
             res    = res,
             pos    = camera_pos,
@@ -132,17 +117,17 @@ class Genesis():
         print("qpos=", qpos)
 
         Kp = 50
-        Kp = torch.full((Configuration.DOFS,), Kp)
+        Kp = torch.full((self.entity.n_dofs,), Kp)
         #self.entity.set_dofs_kp(Kp)
         print("Kp=", self.entity.get_dofs_kp())
 
         Kv = 8
-        Kv = torch.full((Configuration.DOFS,), Kv)
+        Kv = torch.full((self.entity.n_dofs,), Kv)
         #self.entity.set_dofs_kv(Kv)
         print("Kd=", self.entity.get_dofs_kv())
 
-        max_force = 14
-        max_force = torch.full((Configuration.DOFS,), max_force)
+        max_force = self.kwargs.get('max_force', 14)
+        max_force = torch.full((self.entity.n_dofs,), max_force)
         min_force = -max_force
         self.entity.set_dofs_force_range(min_force, max_force)
         print("Force range=", self.entity.get_dofs_force_range())
@@ -166,7 +151,7 @@ class Genesis():
         print("control_force=", control_force)
 
     def parse_robot_configuration(self, **kwargs):
-        mjcf_path = kwargs.get('mjcf_path', Configuration.MJCF_CONFIG)
+        mjcf_path = kwargs['mjcf_path']
         if mjcf_path is not None:
             return gs.morphs.MJCF(
                 file = mjcf_path,

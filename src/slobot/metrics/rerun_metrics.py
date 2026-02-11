@@ -133,7 +133,8 @@ class RerunMetrics:
         self.encode_frame(video_metric, frame, stream)
 
     def encode_frame(self, video_metric: str, frame: av.VideoFrame, stream: av.VideoStream):
-        for packet in stream.encode(frame):
+        for p in stream.encode(frame):
+            packet: av.Packet = p
             self.set_time(self.steps[packet.pts]) # frames may be emitted out of order and some steps may not have a corresponding frame
             rr.log(video_metric, rr.VideoStream.from_fields(sample=bytes(packet)))
 

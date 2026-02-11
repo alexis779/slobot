@@ -9,6 +9,7 @@ from slobot.image_streams import ImageStreams
 from slobot.configuration import Configuration
 from slobot.simulation_frame import SimulationFrame
 from slobot.feetech_frame import FeetechFrame
+from slobot.so_arm_100 import SoArm100
 
 class GradioDashboardApp():
     METRIC_CONFIG = {
@@ -60,13 +61,13 @@ class GradioDashboardApp():
                 metric_title = joint_metric_config["title"]
                 with gr.Tab(metric_title):
                     # Calculate number of rows needed
-                    num_rows = (Configuration.DOFS + self.PLOTS_PER_ROW - 1) // self.PLOTS_PER_ROW  # Ceiling division
+                    num_rows = (SoArm100.DOFS + self.PLOTS_PER_ROW - 1) // self.PLOTS_PER_ROW  # Ceiling division
                     
                     for row in range(num_rows):
                         with gr.Row():
                             # Calculate start and end indices for this row
                             start_idx = row * self.PLOTS_PER_ROW
-                            end_idx = min((row + 1) * self.PLOTS_PER_ROW, Configuration.DOFS)
+                            end_idx = min((row + 1) * self.PLOTS_PER_ROW, SoArm100.DOFS)
                             
                             for joint_id in range(start_idx, end_idx):
                                 fig = self.create_plot(df, joint_metric, joint_id, fig_width)
@@ -112,7 +113,7 @@ class GradioDashboardApp():
         time = simulation_frame.timestamp
         df.loc[time, 'time'] = datetime.fromtimestamp(time)
         for joint_metric, joint_metric_config in self.METRIC_CONFIG.items():
-            for joint_id in range(Configuration.DOFS):
+            for joint_id in range(SoArm100.DOFS):
                 joint_name = Configuration.JOINT_NAMES[joint_id]
                 metric_name = f"{joint_metric}_{joint_name}"
                 metric_value = getattr(simulation_frame, joint_metric)[joint_id]
