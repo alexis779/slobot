@@ -4,7 +4,6 @@ from typing import Any
 
 import torch
 import av
-import numpy as np
 
 from slobot.teleop.asyncprocessing.fifo_queue import FifoQueue
 from slobot.teleop.asyncprocessing.workers.worker_base import WorkerBase
@@ -65,7 +64,7 @@ class SimStepWorker(WorkerBase):
         super().setup()
 
         for render_mode in RenderMode:
-            self.rerun_metrics.add_video_stream(f"/{self.worker_name}/{render_mode}/video")
+            self.rerun_metrics.add_video_stream(self.metric_name(render_mode))
 
         # initialize the video streams
         self.container = av.open("/dev/null", "w", format="h264")
@@ -142,9 +141,6 @@ class SimStepWorker(WorkerBase):
             self.rerun_metrics.add_video_stream(f"/{self.worker_name}/{render_mode.value}/video")
 
     def log_rgb(self, step: int, rgb: Any, render_mode: RenderMode):
-        # this frame is only for preview, it will be updated at every step
-        self.rerun_metrics.log_raw_frame(step, f"/{self.worker_name}/{render_mode.value}/raw", rgb)
-
         # transcode image into a video stream to reduce disk space
         frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
         self.rerun_metrics.log_frame(step, self.render_mode_metric_name(render_mode), frame, self.streams[render_mode])

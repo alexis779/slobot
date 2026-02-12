@@ -3,6 +3,7 @@ from functools import cached_property
 import genesis as gs
 import torch
 import json
+import av
 from importlib.resources import files
 
 from slobot.configuration import Configuration
@@ -12,10 +13,14 @@ from slobot.teleop.recording_loader import RecordingLoader
 from slobot.lerobot.episode_replayer import InitialState
 from slobot.lerobot.hold_state_detector import HoldStateDetector, HoldState
 from slobot.lerobot.frame_delay_detector import FrameDelayDetector
-from slobot.simulation_frame import SimulationFrame
+from slobot.simulation_frame import SimulationFrame, CameraFrame
+from slobot.teleop.asyncprocessing.workers.worker_base import WorkerBase
+from slobot.metrics.rerun_metrics import RerunMetrics
 
 class RecordingReplayer:
     LOGGER = Configuration.logger(__name__)
+
+    CAMERA_IDS = ["side", "link"]
 
     def __init__(self, **kwargs):
         self.fps = kwargs['fps']
@@ -26,12 +31,27 @@ class RecordingReplayer:
         self.recording_loader = RecordingLoader(rrd_file)
 
         kwargs['should_start'] = False
-        kwargs['step_handler'] = self
+
         kwargs['rgb'] = True
+        kwargs['step_handler'] = self
 
         self.arm: SoArm100 = SoArm100(**kwargs)
-
         self.build_scene()
+
+        self.worker_name = WorkerBase.WORKER_SIM
+        self.rerun_metrics = RerunMetrics(operation_mode=WorkerBase.OPERATION_MODE, worker_name=self.worker_name)
+        recording_id = "episode00"
+        self.rerun_metrics.init_rerun(recording_id)
+
+        for camera_id in RecordingReplayer.CAMERA_IDS:
+            self.rerun_metrics.add_video_stream(self.camera_metric_name(camera_id))
+
+        # initialize the video streams
+        self.container = av.open("/dev/null", "w", format="h264")
+        self.streams = {
+            camera_id: self.create_stream() for camera_id in RecordingReplayer.CAMERA_IDS
+        }
+
 
     def build_scene(self):
         vis_mode = self.arm.genesis.vis_mode
@@ -77,8 +97,9 @@ class RecordingReplayer:
         #torch.save(actions, "actions.pt")
 
         # Set initial position
+        self.step_id = 0
         self.arm.genesis.entity.set_dofs_position(actions[0])
-        self.arm.genesis.step()
+        self.step()
 
         # Replay remaining frames
         for step in range(1, len(actions)):
@@ -88,12 +109,12 @@ class RecordingReplayer:
                 self.debug_tcp()
 
             self.arm.genesis.entity.control_dofs_position(control_pos)
-            self.arm.genesis.step()
+            self.step()
 
-        if self.golf_ball_in_cup():
-            RecordingReplayer.LOGGER.info("The golf ball was placed in the cup successfully.")
+        success = self.golf_ball_in_cup()
+        RecordingReplayer.LOGGER.info(f"Episode success: {success}")
 
-        self.arm.genesis.stop()
+        self.stop()
 
     # set the initial positions of the ball and the cup
     def set_object_initial_positions(self):
@@ -113,13 +134,13 @@ class RecordingReplayer:
 
     @cached_property
     def initial_state(self) -> InitialState:
-        self.fixed_jaw_translate = torch.tensor(EpisodeReplayer.FIXED_JAW_TRANSLATE)
+        self.fixed_jaw_translate = torch.tensor(self.arm.tcp_offset())
 
         self.set_robot_state(self.hold_state.pick_frame_id)
-        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
+        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.link, self.fixed_jaw_translate)
 
         self.set_robot_state(self.hold_state.place_frame_id)
-        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
+        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.link, self.fixed_jaw_translate)
 
         return InitialState(ball=pick_link_pos[0], cup=place_link_pos[0])
 
@@ -134,7 +155,7 @@ class RecordingReplayer:
         leader_gripper = leader_gripper[:-delay_frames]
         follower_gripper = follower_gripper[delay_frames:]
 
-        hold_state_detector = HoldStateDetector(diff_threshold=0.1)
+        hold_state_detector = HoldStateDetector(diff_threshold=0.3)
         hold_state_detector.replay_teleop(leader_gripper, follower_gripper)
         hold_state = hold_state_detector.get_hold_state()
 
@@ -147,9 +168,6 @@ class RecordingReplayer:
         robot_state = self.recording_loader.frame_observation_state(frame_id)
         self.arm.genesis.entity.set_dofs_position(robot_state)
 
-    def handle_step(self, simulation_frame: SimulationFrame):
-        pass
-
     def golf_ball_in_cup(self):
         diff = self.golf_ball.get_pos() - self.cup.get_pos()
         diff = diff[0]
@@ -157,8 +175,8 @@ class RecordingReplayer:
         return torch.norm(diff) < EpisodeReplayer.DISTANCE_THRESHOLD
 
     def debug_tcp(self):
-        #self.arm.genesis.draw_arrow(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate, EpisodeReplayer.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
-        tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
+        #self.arm.genesis.draw_arrow(self.arm.genesis.link, self.fixed_jaw_translate, EpisodeReplayer.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
+        tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.link, self.fixed_jaw_translate)
         RecordingReplayer.LOGGER.info(f"pick frame id = {self.hold_state.pick_frame_id}")
         RecordingReplayer.LOGGER.info(f"initial golf ball position = {self.golf_ball_pos}")
         current_golf_ball_pos = self.golf_ball.get_pos()
@@ -166,3 +184,38 @@ class RecordingReplayer:
         RecordingReplayer.LOGGER.info(f"TCP position = {tcp_pos}") # use this position for the golf ball initial position
         pos_offset = current_golf_ball_pos[0] - torch.tensor(self.golf_ball_pos)
         RecordingReplayer.LOGGER.info(f"pos_offset = {pos_offset}")
+
+    def step(self):
+        self.arm.genesis.step()
+        self.step_id += 1
+
+    def stop(self):
+        self.arm.genesis.stop()
+
+        # flush video streams
+        for camera_id in RecordingReplayer.CAMERA_IDS:
+           self.flush_stream(camera_id)
+
+        # Close the container
+        self.container.close()
+
+    def flush_stream(self, camera_id: str):
+        self.rerun_metrics.encode_frame(self.camera_metric_name(camera_id), None, self.streams[camera_id])
+
+    def handle_step(self, simulation_frame: SimulationFrame):
+        self.rerun_metrics.handle_step(simulation_frame)
+
+        self.log_sim_camera_frame(simulation_frame.side_camera_frame, "side")
+        self.log_sim_camera_frame(simulation_frame.link_camera_frame, "link")
+
+    def log_sim_camera_frame(self, camera_frame: CameraFrame, camera_id: str):
+        frame = av.VideoFrame.from_ndarray(camera_frame.rgb, format="rgb24")
+        self.rerun_metrics.log_frame(self.step_id, self.camera_metric_name(camera_id), frame, self.streams[camera_id])
+
+    def camera_metric_name(self, camera_id: str):
+        return f"/{self.worker_name}/{camera_id}/video"
+
+    def create_stream(self):
+        stream = self.container.add_stream("libx264", rate=self.fps)
+        #stream.max_b_frames = 0
+        return stream

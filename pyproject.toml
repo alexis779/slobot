@@ -11,8 +11,6 @@ dependencies = [
 
     "feetech-servo-sdk", # to control motors
 
-    "datafusion", # to query Rerun.io dataset
-
     "gradio", # to build webapps
 
     # "nvidia-gr00t-sdk" @ git+https://github.com/NVIDIA/Isaac-GR00T.git
@@ -23,7 +21,9 @@ dependencies = [
 
     "pyscipopt", # SCIP solver
 
-    "ultralytics"
+    "ultralytics", # YOLO models
+
+    "rerun-sdk[datafusion]", # to store tele-operated episode data
 ]
 
 [tool.setuptools.packages.find]

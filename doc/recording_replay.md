@@ -2,16 +2,15 @@
 
 The robot state for both the leader and the follower can be visualized in rerun.io viewer.
 
-Each joint chart contain 3 metrics
+Each joint chart contain 2 metrics
 
 - the leader motor position
 - the follower motor position
-- the genesis entity qpos
 
 ![Recording dashboard](./images/TeleopRerun.io.png)
 
 ```
-rerun /tmp/slobot/teleoperation/episode01.rrd
+rerun ./doc/assets/episode.rrd
 ```
 
 # Replay in SIM

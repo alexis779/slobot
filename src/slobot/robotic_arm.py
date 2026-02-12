@@ -5,7 +5,7 @@ from functools import cached_property
 
 from slobot.genesis import Genesis
 from slobot.configuration import Configuration
-from slobot.simulation_frame import SimulationFrame
+from slobot.simulation_frame import SimulationFrame, CameraFrame
 from slobot.feetech_frame import FeetechFrame
 from slobot.feetech import Feetech
 
@@ -88,10 +88,10 @@ class RoboticArm():
     def create_simulation_frame(self) -> SimulationFrame:
         current_time = time.time()
 
-        qpos = self.genesis.entity.get_qpos()[0]
-        velocity = self.genesis.entity.get_dofs_velocity()[0]
-        force = self.genesis.entity.get_dofs_force()[0]
-        control_force = self.genesis.entity.get_dofs_control_force()[0]
+        qpos = self.genesis.entity.get_qpos()[0].tolist()
+        velocity = self.genesis.entity.get_dofs_velocity()[0].tolist()
+        force = self.genesis.entity.get_dofs_force()[0].tolist()
+        control_force = self.genesis.entity.get_dofs_control_force()[0].tolist()
 
         simulation_frame = SimulationFrame(
             timestamp=current_time,
@@ -100,15 +100,25 @@ class RoboticArm():
             velocity=velocity,
             force=force,
             control_force=control_force,
+            side_camera_frame=CameraFrame(),
+            link_camera_frame=CameraFrame(),
         )
 
         if self.rgb or self.depth or self.segmentation or self.normal:
             frame = self.genesis.side_camera.render(rgb=self.rgb, depth=self.depth, segmentation=self.segmentation, colorize_seg=True, normal=self.normal)
             rbg_arr, depth_arr, seg_arr, normal_arr = frame
-            simulation_frame.rgb = rbg_arr
-            simulation_frame.depth = depth_arr
-            simulation_frame.segmentation = seg_arr
-            simulation_frame.normal = normal_arr
+            simulation_frame.side_camera_frame.rgb = rbg_arr
+            simulation_frame.side_camera_frame.depth = depth_arr
+            simulation_frame.side_camera_frame.segmentation = seg_arr
+            simulation_frame.side_camera_frame.normal = normal_arr
+
+            if self.genesis.link_camera:
+                frame = self.genesis.link_camera.render(rgb=self.rgb, depth=self.depth, segmentation=self.segmentation, colorize_seg=True, normal=self.normal)
+                rbg_arr, depth_arr, seg_arr, normal_arr = frame
+                simulation_frame.link_camera_frame.rgb = rbg_arr
+                simulation_frame.link_camera_frame.depth = depth_arr
+                simulation_frame.link_camera_frame.segmentation = seg_arr
+                simulation_frame.link_camera_frame.normal = normal_arr
 
         if self.feetech is not None:
             simulation_frame.feetech_frame = self.feetech.create_feetech_frame()

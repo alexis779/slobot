@@ -15,6 +15,8 @@ class SoArm100(RoboticArm):
 
     GRIPPER_LINK_NAME = 'Fixed_Jaw'
 
+    TCP_OFFSET = [-1.4e-2, -9e-2, 0] # the translation vector from the fixed jaw position to the ball position, in the frame relative to the link
+
     def __init__(self, **kwargs):
         kwargs['mjcf_path'] = SoArm100.SO_ARM_100_MJCF_CONFIG
 
@@ -28,6 +30,9 @@ class SoArm100(RoboticArm):
 
     def set_kinematic_path(self):
         '''Kinematic path'''
+        if self.genesis.entity is None:
+            return
+
         self.base = self.genesis.entity.get_link('Base')
         self.shoulder_pan = self.genesis.entity.get_joint('Rotation')
         self.rotation_pitch = self.genesis.entity.get_link('Rotation_Pitch')
@@ -67,3 +72,6 @@ class SoArm100(RoboticArm):
         # Build rotation matrix: columns are the basis vectors [X, Y, Z]
         camera_rotation = torch.column_stack([u_n, v_n, w_n])
         return gu.trans_R_to_T(camera_anchor, camera_rotation)
+
+    def tcp_offset(self):
+        return SoArm100.TCP_OFFSET

@@ -64,17 +64,14 @@ class RerunMetrics:
             self.add_child_metric_label("/sim/control_force", joint_name, f"Sim Control Force {joint_name}")
 
     def handle_qpos(self, feetech_frame: FeetechFrame):
-        RerunMetrics.LOGGER.debug(f"Feetech frame {feetech_frame}")
-
         self.set_time(self.step)
         self.log_real_qpos(feetech_frame)
         self.step += 1
 
     def handle_step(self, simulation_frame: SimulationFrame):
-        RerunMetrics.LOGGER.debug(f"Simulation frame {simulation_frame}")
-
         self.set_time(self.step)
         self.log_sim_qpos(simulation_frame)
+
         if simulation_frame.feetech_frame is not None:
             self.log_real_qpos(simulation_frame.feetech_frame)
 
@@ -82,13 +79,13 @@ class RerunMetrics:
 
     def log_sim_qpos(self, simulation_frame: SimulationFrame):
         for i, joint_name in enumerate(Configuration.JOINT_NAMES):
-            self.add_metric("/sim/qpos", joint_name, simulation_frame.qpos[0][i])
+            self.add_metric("/sim/qpos", joint_name, simulation_frame.qpos[i])
             if simulation_frame.control_pos is not None:
-                self.add_metric(RerunMetrics.CONTROL_POS_METRIC, joint_name, simulation_frame.control_pos[0][i])
+                self.add_metric(RerunMetrics.CONTROL_POS_METRIC, joint_name, simulation_frame.control_pos[i])
             if simulation_frame.velocity is not None:
-                self.add_metric("/sim/velocity", joint_name, simulation_frame.velocity[0][i])
+                self.add_metric("/sim/velocity", joint_name, simulation_frame.velocity[i])
             if simulation_frame.control_force is not None:
-                self.add_metric("/sim/control_force", joint_name, simulation_frame.control_force[0][i])
+                self.add_metric("/sim/control_force", joint_name, simulation_frame.control_force[i])
 
     def log_real_qpos(self, feetech_frame: FeetechFrame):
         for i, joint_name in enumerate(Configuration.JOINT_NAMES):

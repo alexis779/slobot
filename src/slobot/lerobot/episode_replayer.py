@@ -23,7 +23,6 @@ class InitialState:
 class EpisodeReplayer:
     LOGGER = Configuration.logger(__name__)
 
-    FIXED_JAW_TRANSLATE = [-1.4e-2, -9e-2, 0] # the translation vector from the fixed jaw position to the ball position, in the frame relative to the link
     GOLF_BALL_RADIUS = 4.27e-2 / 2
 
     DISTANCE_THRESHOLD = 0.01 # the threshold for the distance between the golf ball and the cup for the ball to be considered in the cup, or for the ball to be considered moved from the initial position
@@ -34,7 +33,6 @@ class EpisodeReplayer:
         self.episode_ids = kwargs["episode_ids"]
         self.episode_loader = EpisodeLoader(repo_id=self.repo_id, episode_ids=self.episode_ids)
 
-        self.fixed_jaw_translate = torch.tensor(EpisodeReplayer.FIXED_JAW_TRANSLATE)
         # FPS
         kwargs["fps"] = self.episode_loader.dataset.meta.fps
         kwargs["should_start"] = False
@@ -53,6 +51,7 @@ class EpisodeReplayer:
             kwargs["step_handler"] = self.metrics
 
         self.arm = SoArm100(**kwargs)
+        self.tcp_offset = torch.tensor(self.arm.tcp_offset())
 
         self.build_scene()
 
@@ -172,14 +171,14 @@ class EpisodeReplayer:
         ]
 
         self.set_robot_states(pick_frame_ids)
-        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
+        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.tcp_offset)
 
         place_frame_ids = [
             hold_state.place_frame_id
             for hold_state in self.episode_loader.hold_states
         ]
         self.set_robot_states(place_frame_ids)
-        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.fixed_jaw_translate)
+        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.tcp_offset)
 
         return [
             InitialState(

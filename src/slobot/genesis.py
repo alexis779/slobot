@@ -26,6 +26,8 @@ class Genesis():
         should_start = kwargs.get('should_start', True)
         if should_start:
             self.start()
+        else:
+            self.entity = None
 
     def start(self):
         kwargs = self.kwargs
@@ -102,13 +104,13 @@ class Genesis():
 
         link_name = kwargs.get('link_name', None)
         if link_name:
-            link = self.entity.get_link(link_name)
+            self.link = self.entity.get_link(link_name)
             self.link_camera = self.scene.add_camera(
                 res    = res,
                 env_idx = 0,
             )
 
-            self.link_camera.attach(link, kwargs['camera_offset'])
+            self.link_camera.attach(self.link, kwargs['camera_offset'])
 
         should_start = kwargs.get('should_start', True)
         if should_start:
@@ -217,9 +219,6 @@ class Genesis():
 
     def step(self):
         self.scene.step()
-
-        if self.record:
-            self.render_cameras()
 
         if self.step_handler is not None:
             self.step_handler.handle_step()
