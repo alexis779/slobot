@@ -72,7 +72,7 @@ class Genesis():
                 max_FPS       = self.fps,
             ),
             vis_options    = gs.options.VisOptions(
-                show_world_frame = False, # True
+                show_world_frame = True, # True
                 lights           = lights,
             ),
             profiling_options = gs.options.ProfilingOptions(
@@ -111,6 +111,10 @@ class Genesis():
             )
 
             self.link_camera.attach(self.link, kwargs['camera_offset'])
+
+        joint_name = kwargs.get('joint_name', None)
+        if joint_name:
+            self.joint = self.entity.get_joint(joint_name)
 
         should_start = kwargs.get('should_start', True)
         if should_start:

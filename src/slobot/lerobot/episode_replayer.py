@@ -23,8 +23,6 @@ class InitialState:
 class EpisodeReplayer:
     LOGGER = Configuration.logger(__name__)
 
-    GOLF_BALL_RADIUS = 4.27e-2 / 2
-
     DISTANCE_THRESHOLD = 0.01 # the threshold for the distance between the golf ball and the cup for the ball to be considered in the cup, or for the ball to be considered moved from the initial position
 
     def __init__(self, **kwargs):
@@ -51,7 +49,6 @@ class EpisodeReplayer:
             kwargs["step_handler"] = self.metrics
 
         self.arm = SoArm100(**kwargs)
-        self.tcp_offset = torch.tensor(self.arm.tcp_offset())
 
         self.build_scene()
 
@@ -99,7 +96,7 @@ class EpisodeReplayer:
         self.initial_states = self.get_initial_states()
 
         golf_pos = [
-            [initial_state.ball[0].item(), initial_state.ball[1].item(), self.GOLF_BALL_RADIUS]
+            [initial_state.ball[0].item(), initial_state.ball[1].item(), Configuration.GOLF_BALL_RADIUS]
             for initial_state in self.initial_states
         ]
         self.golf_ball.set_pos(golf_pos)
@@ -118,8 +115,8 @@ class EpisodeReplayer:
 
         golf_ball_morph = gs.morphs.Mesh(
             file="meshes/sphere.obj",
-            scale=self.GOLF_BALL_RADIUS,
-            pos=(0.25, 0, self.GOLF_BALL_RADIUS)
+            scale=Configuration.GOLF_BALL_RADIUS,
+            pos=(0.25, 0, Configuration.GOLF_BALL_RADIUS)
         )
 
         cup_filename = str(files('slobot.config') / 'assets' / 'cup.stl')
@@ -171,14 +168,14 @@ class EpisodeReplayer:
         ]
 
         self.set_robot_states(pick_frame_ids)
-        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.tcp_offset)
+        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.arm.tcp_offset)
 
         place_frame_ids = [
             hold_state.place_frame_id
             for hold_state in self.episode_loader.hold_states
         ]
         self.set_robot_states(place_frame_ids)
-        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.tcp_offset)
+        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.arm.tcp_offset)
 
         return [
             InitialState(

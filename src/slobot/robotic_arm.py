@@ -1,5 +1,6 @@
-import numpy as np
 import torch
+import genesis.utils.geom as gu
+
 import time
 from functools import cached_property
 
@@ -8,6 +9,7 @@ from slobot.configuration import Configuration
 from slobot.simulation_frame import SimulationFrame, CameraFrame
 from slobot.feetech_frame import FeetechFrame
 from slobot.feetech import Feetech
+
 
 class RoboticArm():
     LOGGER = Configuration.logger(__name__)
@@ -55,20 +57,20 @@ class RoboticArm():
         steps = 2
 
         # turn the fixed jaw around the global x axis
-        for roll in np.linspace(np.pi/2, 0, steps):
+        for roll in torch.linspace(torch.pi/2, 0, steps):
             euler[0] = roll
             quat = self.genesis.euler_to_quat(euler)
             self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
 
         # turn the fixed jaw around the global y axis
-        for pitch in np.linspace(0, np.pi, steps):
+        for pitch in torch.linspace(0, torch.pi, steps):
             euler[1] = pitch
             quat = self.genesis.euler_to_quat(euler)
             self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
 
         # turn the fixed jaw around the global z axis
         pos = None
-        for yaw in np.linspace(0, np.pi/2, steps):
+        for yaw in torch.linspace(0, torch.pi/2, steps):
             euler[2] = yaw
             quat = self.genesis.euler_to_quat(euler)
             self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
@@ -131,3 +133,41 @@ class RoboticArm():
         self.feetech_frame = feetech_frame
         self.genesis.entity.control_dofs_position(feetech_frame.control_pos)
         self.genesis.step()
+
+    def draw_link_arrow(self):
+        link_pos = self.genesis.link.get_pos()
+
+        link_quat = self.genesis.link.get_quat()
+        tcp_offset_world = gu.transform_by_quat(self.tcp_offset, link_quat)
+
+        for env_idx in range(self.genesis.scene.n_envs):
+            self.genesis.scene.draw_debug_arrow(torch.from_numpy(self.genesis.scene.envs_offset[env_idx]) + link_pos[env_idx], tcp_offset_world[env_idx], color=(1, 1, 1), radius=0.005)
+
+    def draw_single_link_frame(self, frame_size=0.1):
+        """Draw coordinate frame for a specific link.
+
+        Args:
+            frame_size: Length of the frame axes in meters
+        """
+        # Get link position and orientation for all environments
+        link_pos = self.genesis.link.get_pos()
+        link_quat = self.genesis.link.get_quat()
+
+        # Create frame axes (X=red, Y=green, Z=blue)
+        x_axis = torch.tensor([frame_size, 0, 0])
+        y_axis = torch.tensor([0, frame_size, 0])
+        z_axis = torch.tensor([0, 0, frame_size])
+
+        for env_idx in range(self.genesis.scene.n_envs):
+            # Transform axes by link orientation
+            x_axis_world = gu.transform_by_quat(x_axis, link_quat[env_idx])
+            y_axis_world = gu.transform_by_quat(y_axis, link_quat[env_idx])
+            z_axis_world = gu.transform_by_quat(z_axis, link_quat[env_idx])
+
+            # Get link position in world frame (with environment offset)
+            origin = torch.from_numpy(self.genesis.scene.envs_offset[env_idx]) + link_pos[env_idx]
+
+            # Draw the three axes
+            self.genesis.scene.draw_debug_arrow(origin, x_axis_world, color=(1, 0, 0), radius=0.005)  # X-axis in red
+            self.genesis.scene.draw_debug_arrow(origin, y_axis_world, color=(0, 1, 0), radius=0.005)  # Y-axis in green
+            self.genesis.scene.draw_debug_arrow(origin, z_axis_world, color=(0, 0, 1), radius=0.005)  # Z-axis in blue

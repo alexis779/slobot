@@ -58,7 +58,7 @@ class RecordingReplayer:
 
         self.arm.genesis.start()
 
-        golf_ball_radius = EpisodeReplayer.GOLF_BALL_RADIUS
+        golf_ball_radius = Configuration.GOLF_BALL_RADIUS
         '''
         golf_ball_morph = gs.morphs.Mesh(
             file="meshes/sphere.obj",
@@ -130,11 +130,11 @@ class RecordingReplayer:
         if self.golf_ball_pos_str is not None:
              return json.loads(self.golf_ball_pos_str)
         else:
-            return [self.initial_state.ball[0].item(), self.initial_state.ball[1].item(), EpisodeReplayer.GOLF_BALL_RADIUS]
+            return [self.initial_state.ball[0].item(), self.initial_state.ball[1].item(), Configuration.GOLF_BALL_RADIUS]
 
     @cached_property
     def initial_state(self) -> InitialState:
-        self.fixed_jaw_translate = torch.tensor(self.arm.tcp_offset())
+        self.fixed_jaw_translate = torch.tensor(self.arm.tcp_offset)
 
         self.set_robot_state(self.hold_state.pick_frame_id)
         pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.link, self.fixed_jaw_translate)
@@ -175,7 +175,7 @@ class RecordingReplayer:
         return torch.norm(diff) < EpisodeReplayer.DISTANCE_THRESHOLD
 
     def debug_tcp(self):
-        #self.arm.genesis.draw_arrow(self.arm.genesis.link, self.fixed_jaw_translate, EpisodeReplayer.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
+        #self.arm.genesis.draw_arrow(self.arm.genesis.link, self.fixed_jaw_translate, Configuration.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
         tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.link, self.fixed_jaw_translate)
         RecordingReplayer.LOGGER.info(f"pick frame id = {self.hold_state.pick_frame_id}")
         RecordingReplayer.LOGGER.info(f"initial golf ball position = {self.golf_ball_pos}")

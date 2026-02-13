@@ -32,6 +32,8 @@ class Configuration:
     JOINT_NAMES = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
     GRIPPER_ID = 5 # the id of the jaw joint
 
+    GOLF_BALL_RADIUS = 4.27e-2 / 2
+
     def logger(logger_name):
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.INFO)

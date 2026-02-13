@@ -1,5 +1,15 @@
 ## Policies
 
+### Scripted policy
+
+This policy relies on Inverse Kinematics + Path Planning to perform the task.
+
+```
+python scripts/validation/run_sim_policy.py --ball_x -5 --ball_y -11 --cup_x 8 --cup_y -11
+```
+
+<video controls src="https://github.com/user-attachments/assets/14c96939-5c3c-46ea-9dce-c858aae510a9"></video>
+
 ### ACT
 
 Action Chunking Transformer is part of the [Aloha paper](https://tonyzhaozh.github.io/aloha/).

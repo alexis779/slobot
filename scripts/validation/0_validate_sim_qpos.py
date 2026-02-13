@@ -13,10 +13,4 @@ preset = sys.argv[1]
 qpos = Configuration.QPOS_MAP[preset]
 arm = SoArm100(record=True)
 
-#RoboticArm.sim_qpos(arm, qpos)
-arm.genesis.entity.control_dofs_position(qpos)
-
-for _ in range(100):
-    arm.genesis.step()
-
-arm.genesis.stop()
+RoboticArm.sim_qpos(arm, qpos)
