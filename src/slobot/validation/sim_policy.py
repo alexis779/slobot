@@ -50,9 +50,6 @@ class SimPolicy:
             should_start=False,
         )
         
-        # Start the Genesis scene
-        self.arm.genesis.start()
-        
         # Build scene with objects
         self.build_scene()
 
@@ -96,10 +93,28 @@ class SimPolicy:
 
         ball_pos = self.golf_ball.get_pos()
         target_pos = ball_pos + tcp_offset_world
-        self.LOGGER.info(f"pregrasp tcp_offset_world={tcp_offset_world}")
 
         gripper_opened_qpos = 1.0
         return self.ik_path_plan(target_pos, target_quat, gripper_opened_qpos, rot_mask=[False, True, False])
+
+    def move_to_cup(self):
+        target_quat = self.radial_quat()
+
+        tcp_offset_world = -gu.transform_by_quat(self.arm.tcp_offset, target_quat)
+        target_pos = self.cup.get_pos() + tcp_offset_world
+
+        target_pos[0][2] = target_pos[0][2] + SimPolicy.CUP_Z * self.INCHES_TO_METERS
+
+        gripper_closed_qpos = 0.1
+        return self.ik_path_plan(target_pos, target_quat, gripper_closed_qpos, rot_mask=[False, False, True])
+
+    def open_gripper(self):
+        qpos = self.arm.genesis.entity.get_dofs_position()
+        self.set_gripper_qpos(qpos, 1.0)
+        self.arm.genesis.entity.control_dofs_position(qpos)
+        for step in range(self.arm.genesis.fps * 1):
+            self.arm.genesis.scene.step()
+            self.arm.genesis.side_camera.render()
 
     def ik_path_plan(self, target_pos, target_quat, gripper_qpos, rot_mask=[True, True, True]):
 
@@ -165,25 +180,6 @@ class SimPolicy:
         gripper_id = self.arm.genesis.joint.qs_idx_local[0]
         qpos[0][gripper_id] = gripper_qpos # open gripper 
 
-    def open_gripper(self):
-        qpos = self.arm.genesis.entity.get_dofs_position()
-        self.set_gripper_qpos(qpos, 1.0)
-        self.arm.genesis.entity.control_dofs_position(qpos)
-        for step in range(self.arm.genesis.fps * 1):
-            self.arm.genesis.scene.step()
-            self.arm.genesis.side_camera.render()
-
-    def move_to_cup(self):
-        target_quat = self.radial_quat()
-
-        tcp_offset_world = -gu.transform_by_quat(self.arm.tcp_offset, target_quat)
-        target_pos = self.cup.get_pos() + tcp_offset_world
-
-        target_pos[0][2] = target_pos[0][2] + SimPolicy.CUP_Z * self.INCHES_TO_METERS
-
-        gripper_closed_qpos = 0.1
-        return self.ik_path_plan(target_pos, target_quat, gripper_closed_qpos, rot_mask=[False, False, True])
-
     def tcp_pos(self):
         link_quat = self.arm.genesis.link.get_quat()
         tcp_offset_world = gu.transform_by_quat(self.arm.tcp_offset, link_quat)
@@ -192,9 +188,13 @@ class SimPolicy:
         return link_pos + tcp_offset_world
 
     def down_quat(self):
-        x_axis = torch.tensor([1.0, 0.0, 0.0]) # rotation axis
-        theta = torch.tensor(torch.pi/2) # rotation angle
-        return gu.axis_angle_to_quat(theta, x_axis).unsqueeze(0)
+        x_axis = torch.tensor([1.0, 0.0, 0.0])
+        quat_x = gu.axis_angle_to_quat(torch.tensor(torch.pi / 2), x_axis)  # -90° around x
+
+        y_axis = torch.tensor([0.0, 1.0, 0.0])
+        quat_y = gu.axis_angle_to_quat(torch.tensor(torch.pi), y_axis)  # 180° around y
+
+        return gu.transform_quat_by_quat(quat_y, quat_x).unsqueeze(0)
 
     def radial_quat(self):
         """Compute quaternion for link staying horizontal and facing radially toward the cup."""
@@ -212,8 +212,12 @@ class SimPolicy:
         
         # Create yaw rotation around Z
         z_axis = torch.tensor([0.0, 0.0, 1.0])
-        return gu.axis_angle_to_quat(yaw_angle, z_axis).unsqueeze(0)
+        radial_quat = gu.axis_angle_to_quat(yaw_angle, z_axis)
 
+        y_axis = torch.tensor([0.0, 1.0, 0.0])
+        quat_y = gu.axis_angle_to_quat(torch.tensor(torch.pi), y_axis)  # 180° around y
+
+        return gu.transform_quat_by_quat(quat_y, radial_quat).unsqueeze(0)
 
     def validate_success(self) -> bool:
         """

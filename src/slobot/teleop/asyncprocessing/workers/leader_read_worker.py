@@ -57,7 +57,7 @@ class LeaderReadWorker(WorkerBase):
         
         super().teardown()
 
-    def process(self, payload: NoneType) -> tuple[int, list[float]]:
+    def process(self, payload: NoneType) -> tuple[int, list[int]]:
         """Read the leader arm position.
         
         Args:
@@ -65,13 +65,12 @@ class LeaderReadWorker(WorkerBase):
             payload: None
         
         Returns:
-            Tuple of (MSG_QPOS, qpos_payload)
+            Tuple of (MSG_POS, pos)
         """
         # Read leader position and convert to qpos
         leader_pos = self.leader.get_pos()
-        leader_qpos = self.leader.pos_to_qpos(leader_pos)
         
-        return FifoQueue.MSG_QPOS, leader_qpos
+        return FifoQueue.MSG_POS, leader_pos
 
-    def publish_data(self, step: int, leader_qpos: list[float]):
-        self.rerun_metrics.log_qpos(step, self.worker_name, leader_qpos)
+    def publish_data(self, step: int, leader_pos: list[int]):
+        self.rerun_metrics.log_qpos(step, self.worker_name, leader_pos)

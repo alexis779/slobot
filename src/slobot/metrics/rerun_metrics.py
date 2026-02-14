@@ -112,12 +112,12 @@ class RerunMetrics:
         self.set_time(step)
         rr.log(f"/latency/{worker_name}", rr.Scalars(latency_ms))
 
-    def log_qpos(self, step: int, worker_name: str, qpos: list[float]):
+    def log_qpos(self, step: int, worker_name: str, qpos: list[int] | list[float]):
         self.set_time(step)
         for i, joint_name in enumerate(Configuration.JOINT_NAMES):
             self.add_metric(f"/{worker_name}/qpos", joint_name, qpos[i])
 
-    def log_control_force(self, step: int, worker_name: str, control_force: list[float]):
+    def log_control_force(self, step: int, worker_name: str, control_force: list[int] | list[float]):
         self.set_time(step)
         for i, joint_name in enumerate(Configuration.JOINT_NAMES):
             self.add_metric(f"/{worker_name}/control_force", joint_name, control_force[i])

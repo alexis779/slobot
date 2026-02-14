@@ -44,17 +44,17 @@ class WorkerBase(ABC):
     WORKER_INPUT_MSG_TYPE = {
         WORKER_CRON: FifoQueue.MSG_EMPTY,
         WORKER_LEADER: FifoQueue.MSG_EMPTY,
-        WORKER_FOLLOWER: FifoQueue.MSG_QPOS,
-        WORKER_SIM: FifoQueue.MSG_QPOS,
-        WORKER_KINEMATICS: FifoQueue.MSG_QPOS,
+        WORKER_FOLLOWER: FifoQueue.MSG_POS,
+        WORKER_SIM: FifoQueue.MSG_POS,
+        WORKER_KINEMATICS: FifoQueue.MSG_POS,
         WORKER_WEBCAM: FifoQueue.MSG_EMPTY,
         WORKER_DETECT_OBJECTS: FifoQueue.MSG_OBJECT_DETECTION,
     }
 
     WORKER_OUTPUT_MSG_TYPE = {
         WORKER_CRON: FifoQueue.MSG_EMPTY,
-        WORKER_LEADER: FifoQueue.MSG_QPOS,
-        WORKER_FOLLOWER: FifoQueue.MSG_QPOS_FORCE,
+        WORKER_LEADER: FifoQueue.MSG_POS,
+        WORKER_FOLLOWER: FifoQueue.MSG_POS_FORCE,
         WORKER_SIM: FifoQueue.MSG_QPOS_RENDER_FORCE,
         WORKER_KINEMATICS: FifoQueue.MSG_QPOS_QPOS_RGB,
         WORKER_WEBCAM: FifoQueue.MSG_BGR,

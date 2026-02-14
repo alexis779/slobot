@@ -90,7 +90,7 @@ class Feetech():
         return [ self._stepvelocity_to_velocity(velocity, i)
             for i in self.joint_ids ]
 
-    def control_position(self, pos):
+    def control_position(self, pos: list[float]):
         self._write_config('Goal_Position', pos)
         if self.qpos_handler is not None:
             feetech_frame = self.create_feetech_frame(pos)

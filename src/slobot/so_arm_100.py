@@ -20,22 +20,23 @@ class SoArm100(RoboticArm):
     MAX_POS = [3458, 3297, 3102, 3275, 4095, 3327]
 
     # Home position
-    HOME_QPOS = [0, -torch.pi/2, torch.pi/2, torch.pi/2, -torch.pi/2, 0]
+    HOME_QPOS = [0.049, -3.32, 3.14, 1.21, 1.57, -0.17]
 
     GRIPPER_LINK_NAME = 'Fixed_Jaw'
     GRIPPER_JOINT_NAME = 'Jaw'
 
-    TCP_OFFSET = [-1.4e-2, -9e-2, 0] # the translation vector from the gripper link position to tool center point, in the frame relative to the link
+    # the translation vector from the gripper link position to tool center point, in the frame relative to the link
+    TCP_OFFSET = [-1.4e-2, -9e-2, 0]
 
     def __init__(self, **kwargs):
         kwargs['mjcf_path'] = SoArm100.SO_ARM_100_MJCF_CONFIG
-
-        kwargs['home_qpos'] = SoArm100.HOME_QPOS
 
         kwargs['camera_offset'] = self.camera_offset()
 
         kwargs['link_name'] = SoArm100.GRIPPER_LINK_NAME
         kwargs['joint_name'] = SoArm100.GRIPPER_JOINT_NAME
+
+        kwargs['home_qpos'] = SoArm100.HOME_QPOS
 
         super().__init__(**kwargs)
         if self.genesis.entity:

@@ -69,34 +69,30 @@ class FollowerControlWorker(WorkerBase):
         
         super().teardown()
 
-    def process(self, control_qpos: list[float]) -> tuple[int, list[float]]:
+    def process(self, control_pos: list[int]) -> tuple[int, Any]:
         """Send control command to the follower arm. Then reads the motor positions.
         
         Args:
-            msg_type: Should be MSG_QPOS
-            control_qpos: qpos payload from leader
+            msg_type: Should be MSG_POS
+            control_pos: pos payload from leader
         
         Returns:
-            Tuple of (MSG_QPOS, qpos) - the follower arm motor position
+            Tuple of (MSG_POS_FORCE, (pos, control_force)) - the follower arm motor position
         """
-        # Convert positions in radians to motor positions
-        target_pos = self.follower.qpos_to_pos(control_qpos)
-        
         # Send control command to follower
-        self.follower.control_position(target_pos)
+        self.follower.control_position(control_pos)
         
         # Read follower position and convert to qpos
         follower_pos = self.follower.get_pos()
-        follower_qpos = self.follower.pos_to_qpos(follower_pos)
 
         # estimate the joint motor load by reading the control torque
-        control_force = self.follower.get_dofs_control_force()
+        control_force = [int(x) for x in self.follower.get_dofs_control_force()]
 
-        return FifoQueue.MSG_QPOS_FORCE, (follower_qpos, control_force)
+        return FifoQueue.MSG_POS_FORCE, (follower_pos, control_force)
 
     def publish_data(self, step: int, result_payload: Any):
-        qpos, control_force = result_payload
-        self.rerun_metrics.log_qpos(step, self.worker_name, qpos)
+        pos, control_force = result_payload
+        self.rerun_metrics.log_qpos(step, self.worker_name, pos)
         self.rerun_metrics.log_control_force(step, self.worker_name, control_force)
 
     def publish_outputs(self, msg_type: int, result_payload: Any, deadline: float, step: int):
@@ -104,7 +100,7 @@ class FollowerControlWorker(WorkerBase):
         for webcam_queue in self.webcam_capture_queues:
             webcam_queue.write(FifoQueue.MSG_EMPTY, None, deadline, step)
 
-        # sends the follower qpos as control qpos for the simulator
-        follower_qpos, _ = result_payload
+        # sends the follower pos (motor steps) as control input for the simulator
+        follower_pos, _ = result_payload
         if self.sim_step_queue is not None:
-            self.sim_step_queue.write(FifoQueue.MSG_QPOS, follower_qpos, deadline, step)
+            self.sim_step_queue.write(FifoQueue.MSG_POS, follower_pos, deadline, step)

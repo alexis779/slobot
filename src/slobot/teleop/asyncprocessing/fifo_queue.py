@@ -31,18 +31,18 @@ class FifoQueue:
     
     # Message types
     MSG_EMPTY = 0         # Empty tick (no payload)
-    MSG_QPOS = 1          # N-DOF float array
+    MSG_POS = 1           # N-DOF int array (motor positions in steps)
     MSG_QPOS_RENDER_FORCE = 2      # N-DOF float array + RGB array + depth array + segmentation array + normal array + N-DOF float array
     MSG_QPOS_QPOS_RGB = 3 # N-DOF float array + N-DOF float array + RGB array
     MSG_BGR = 4           # BGR array
     MSG_RECORDING_ID = 5  # string containing the recording id to update
-    MSG_QPOS_FORCE = 6    # N-DOF float array + N-DOF float array
+    MSG_POS_FORCE = 6     # N-DOF int array + N-DOF int array (pos + control_force)
     MSG_OBJECT_DETECTION = 7 # Signal that a frame is ready in shared memory
     MSG_POISON_PILL = 255
     
-    # QPOS format: 6 doubles
-    QPOS_FORMAT = '<6d'
-    QPOS_SIZE = struct.calcsize(QPOS_FORMAT)  # 48 bytes
+    # QPOS format: 6 int32 (motor positions in steps)
+    QPOS_FORMAT = '<6i'
+    QPOS_SIZE = struct.calcsize(QPOS_FORMAT)  # 24 bytes
     
     LOGGER = Configuration.logger(__name__)
 
@@ -112,7 +112,7 @@ class FifoQueue:
         """Write a message to the FIFO.
         
         Args:
-            msg_type: The message type (MSG_EMPTY, MSG_QPOS, MSG_RGB, etc.)
+            msg_type: The message type (MSG_EMPTY, MSG_POS, MSG_RGB, etc.)
             payload: The raw payload bytes
             deadline: The deadline by which downstream processing must complete
         """
@@ -135,15 +135,15 @@ class FifoQueue:
         """Write an empty tick message."""
         self.write(self.MSG_EMPTY, b'', deadline, step)
 
-    def write_qpos(self, qpos: list[float], deadline: float):
+    def write_qpos(self, pos: list[int], deadline: float, step: int):
         """Write an N-DOF position array.
         
         Args:
-            qpos: List of 6 joint positions in radians
+            pos: List of 6 motor positions in steps
             deadline: The deadline for downstream processing
+            step: The step number
         """
-        payload = struct.pack(self.QPOS_FORMAT, *qpos)
-        self.write(self.MSG_QPOS, payload, deadline)
+        self.write(self.MSG_POS, pos, deadline, step)
 
     def send_poison_pill(self):
         """Send a poison pill message to signal graceful shutdown."""
@@ -271,8 +271,8 @@ class FifoQueue:
         match msg_type:
             case FifoQueue.MSG_EMPTY:
                 return b''
-            case FifoQueue.MSG_QPOS:
-                return FifoQueue.pack_qpos(result_payload)
+            case FifoQueue.MSG_POS:
+                return FifoQueue.pack_pos(result_payload)
             case FifoQueue.MSG_RECORDING_ID:
                 return result_payload.encode('utf-8')
             case FifoQueue.MSG_POISON_PILL:
@@ -288,8 +288,8 @@ class FifoQueue:
         match msg_type:
             case FifoQueue.MSG_EMPTY:
                 return None
-            case FifoQueue.MSG_QPOS:
-                return FifoQueue.parse_qpos(payload)
+            case FifoQueue.MSG_POS:
+                return FifoQueue.parse_pos(payload)
             case FifoQueue.MSG_RECORDING_ID:
                 return payload.decode('utf-8')
             case FifoQueue.MSG_POISON_PILL:
@@ -300,13 +300,13 @@ class FifoQueue:
                 raise ValueError(f"Unknown message type: {msg_type}")
 
     @staticmethod
-    def pack_qpos(qpos: list[float]) -> bytes:
-        """Pack a qpos list into bytes."""
-        return struct.pack(FifoQueue.QPOS_FORMAT, *qpos)
+    def pack_pos(pos: list[int]) -> bytes:
+        """Pack a position list (motor steps) into bytes."""
+        return struct.pack(FifoQueue.QPOS_FORMAT, *pos)
 
     @staticmethod
-    def parse_qpos(payload: bytes) -> list[float]:
-        """Parse a qpos payload into a list of floats."""
+    def parse_pos(payload: bytes) -> list[int]:
+        """Parse a position payload into a list of ints (motor steps)."""
         return list(struct.unpack(FifoQueue.QPOS_FORMAT, payload))
 
     def cleanup(self):

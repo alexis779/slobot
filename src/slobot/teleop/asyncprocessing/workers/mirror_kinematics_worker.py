@@ -1,6 +1,7 @@
 from typing import Any
 import torch
 
+from slobot.feetech import Feetech
 from slobot.so_arm_100 import SoArm100
 from slobot.teleop.asyncprocessing.fifo_queue import FifoQueue
 from slobot.teleop.asyncprocessing.workers.sim_step_worker import SimStepWorker
@@ -52,6 +53,9 @@ class MirrorKinematicsWorker(WorkerBase):
         """Initialize the mirror kinematics worker."""
         super().setup()
 
+        # Feetech instance for pos (motor steps) to qpos (radians) conversion
+        self.feetech = Feetech(connect=False)
+
         res = (self.width, self.height)
         self.arm = SoArm100(should_start=False, show_viewer=True, fps=self.fps, substeps=self.substeps, rgb=True, res=res, vis_mode=self.vis_mode, camera_pos=(0.5, -2, 0.5), lookat = (0.5, 0, 0))
 
@@ -73,17 +77,17 @@ class MirrorKinematicsWorker(WorkerBase):
 
         self.LOGGER.info(f"Genesis TransferKinematicsWorker started with {self.fps} FPS, {self.substeps} substeps, {self.width}x{self.height} resolution, {self.vis_mode} visualization mode, {self.mjcf_path} MJCF path, {self.end_effector_link} end effector link")
 
-    def process(self, so_arm_100_control_qpos: list[float]) -> tuple[int, list[float]]:
+    def process(self, so_arm_100_control_pos: list[int]) -> tuple[int, Any]:
         """Run a simulation step with the given control input.
         
         Args:
-            msg_type: Should be MSG_QPOS
-            payload: qpos payload with target joint positions
+            so_arm_100_control_pos: Motor positions in steps (from MSG_POS)
         
         Returns:
-            Tuple of (MSG_QPOS_RGB, (qpos, rgb)) - the other robot qpos and RGB image
+            Tuple of (MSG_QPOS_QPOS_RGB, (so_arm_100_qpos, robot_qpos, rgb))
         """
-        # Convert to tensor and set joint positions
+        # Convert motor steps to qpos (radians) for Genesis
+        so_arm_100_control_qpos = self.feetech.pos_to_qpos(so_arm_100_control_pos)
         so_arm_100_control_qpos = torch.tensor([so_arm_100_control_qpos], dtype=torch.float32)
         self.arm.genesis.entity.control_dofs_position(so_arm_100_control_qpos)
 

@@ -123,6 +123,13 @@ class Genesis():
     def build(self, n_envs=1):
         self.scene.build(n_envs=n_envs, env_spacing=(0.5, 0.5))
 
+        # initialize the robot position to the rest position
+        if 'home_qpos' in self.kwargs:
+            self.home_qpos = self.kwargs['home_qpos']
+            self.home_qpos = torch.tensor([self.home_qpos])
+            self.entity.set_dofs_position(self.home_qpos)
+            self.step()
+
         self.record = self.kwargs.get('record', False)
         if self.record:
             self.side_camera.start_recording()
@@ -183,7 +190,7 @@ class Genesis():
 
         raise ValueError(f"Provide either mjcf_path or urdf_path")
 
-    def follow_path(self, target_qpos):
+    def follow_path(self, target_qpos: torch.Tensor):
         path = self.entity.plan_path(
             qpos_goal        = target_qpos,
             ignore_collision = True,

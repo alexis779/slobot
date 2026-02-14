@@ -8,6 +8,7 @@ import av
 from slobot.teleop.asyncprocessing.fifo_queue import FifoQueue
 from slobot.teleop.asyncprocessing.workers.worker_base import WorkerBase
 from slobot.configuration import Configuration
+from slobot.feetech import Feetech
 from slobot.so_arm_100 import SoArm100
 from slobot.video_streams import VideoStreams
 
@@ -63,6 +64,9 @@ class SimStepWorker(WorkerBase):
         """Initialize the Genesis simulation."""
         super().setup()
 
+        # Feetech instance for pos (motor steps) to qpos (radians) conversion
+        self.feetech = Feetech(connect=False)
+
         for render_mode in RenderMode:
             self.rerun_metrics.add_video_stream(self.metric_name(render_mode))
 
@@ -90,17 +94,17 @@ class SimStepWorker(WorkerBase):
         
         super().teardown()
 
-    def process(self, control_qpos: list[float]) -> tuple[int, Any]:
+    def process(self, control_pos: list[int]) -> tuple[int, Any]:
         """Run a simulation step with the given control input.
         
         Args:
-            msg_type: Should be MSG_QPOS
-            payload: qpos payload with target joint positions
+            control_pos: Motor positions in steps (from MSG_POS)
         
         Returns:
-            Tuple of (MSG_QPOS_RGB, (qpos_payload, rgb_payload)) - the simulated qpos and RGB image
+            Tuple of (MSG_QPOS_RENDER_FORCE, (qpos, rgb, ...)) - the simulated qpos and RGB image
         """
-        # Convert to tensor and apply control
+        # Convert motor steps to qpos (radians) for Genesis
+        control_qpos = self.feetech.pos_to_qpos(control_pos)
         control_qpos = torch.tensor([control_qpos], dtype=torch.float32)
         self.arm.genesis.entity.control_dofs_position(control_qpos)
         
