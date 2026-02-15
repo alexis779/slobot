@@ -43,7 +43,7 @@ python scripts/teleop/asyncprocessing/spawn_follower_control.py --port /dev/ttyA
 Start the capture from the *fixed webcam* or the *wrist webcam*
 
 ```
-python scripts/teleop/asyncprocessing/spawn_webcam_capture1.py --camera-id 1 --width 640 --height 480 --fps 30 --detect-objects
+python scripts/teleop/asyncprocessing/spawn_webcam_capture.py --camera-id 1 --width 640 --height 480 --fps 30 --detect-objects
 ```
 
 ### Sim Step

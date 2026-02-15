@@ -3,7 +3,6 @@
 import time
 from types import NoneType
 from typing import Any
-import signal
 from slobot.teleop.asyncprocessing.fifo_queue import FifoQueue
 from slobot.teleop.asyncprocessing.workers.worker_base import WorkerBase
 from slobot.configuration import Configuration
@@ -92,5 +91,6 @@ class CronWorker(WorkerBase):
 
     def teardown(self):
         """Close output queues."""
+        self.publish_reset() # trigger a reset of the downstream workers so they can be ready for the next recording
         for queue in self.output_queues:
             queue.close()

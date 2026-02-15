@@ -110,6 +110,9 @@ class WorkerBase(ABC):
                     case FifoQueue.MSG_POISON_PILL:
                         self.publish_poison_pill()
                         break
+                    case FifoQueue.MSG_RESET:
+                        self.reset()
+                        continue
                     case FifoQueue.MSG_RECORDING_ID:
                         recording_id = payload
                         self.publish_recording_id(recording_id)
@@ -189,6 +192,10 @@ class WorkerBase(ABC):
         """Publish data to Rerun.io."""
         raise NotImplementedError
 
+    def reset(self):
+        """Reset the worker. Override to reset resources."""
+        self.publish_reset()
+
     def publish_outputs(self, msg_type: int, result_payload: Any, deadline: float, step: int):
         """Publish outputs to all output queues.
         
@@ -208,6 +215,12 @@ class WorkerBase(ABC):
         self.LOGGER.info(f"Worker {self.worker_name} received poison pill")
         for queue in self.output_queues:
             queue.send_poison_pill()
+
+    def publish_reset(self):
+        """Publish a reset message to signal the worker to reset."""
+        self.LOGGER.info(f"Worker {self.worker_name} publishing reset")
+        for queue in self.output_queues:
+            queue.send_reset()
 
     def publish_recording_id(self, recording_id: str):
         self.rerun_metrics.init_rerun(recording_id)

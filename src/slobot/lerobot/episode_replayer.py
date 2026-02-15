@@ -19,6 +19,8 @@ from importlib.resources import files
 class InitialState:
     ball: torch.Tensor  # 3D float tensor [x, y, z]
     cup: torch.Tensor  # 3D float tensor [x, y, z]
+    ball_motor_pos: torch.Tensor  # DOFS float tensor
+    cup_motor_pos: torch.Tensor  # DOFS float tensor
 
 class EpisodeReplayer:
     LOGGER = Configuration.logger(__name__)

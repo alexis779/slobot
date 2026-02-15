@@ -34,7 +34,10 @@ class Genesis():
 
         res = kwargs.get('res', Configuration.VGA)
 
-        camera_pos = kwargs.get('camera_pos', (-0.125, -1, 0.25))
+        camera_x = 0
+        camera_y = -30 * Configuration.INCHES_TO_METERS
+        camera_z = 3.25 * Configuration.INCHES_TO_METERS
+        camera_pos = kwargs.get('camera_pos', (camera_x, camera_y, camera_z))
 
         lookat = kwargs.get('lookat', (0, 0, 0))
 
@@ -128,7 +131,6 @@ class Genesis():
             self.home_qpos = self.kwargs['home_qpos']
             self.home_qpos = torch.tensor([self.home_qpos])
             self.entity.set_dofs_position(self.home_qpos)
-            self.step()
 
         self.record = self.kwargs.get('record', False)
         if self.record:

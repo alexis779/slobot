@@ -34,6 +34,8 @@ class Configuration:
 
     GOLF_BALL_RADIUS = 4.27e-2 / 2
 
+    INCHES_TO_METERS = 0.0254
+
     def logger(logger_name):
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.INFO)

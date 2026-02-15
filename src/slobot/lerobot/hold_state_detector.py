@@ -24,6 +24,8 @@ class HoldStateDetector:
             self._add_frame_error(frame_id, error)
 
     def _add_frame_error(self, frame_id: int, error: float):
+        # TODO, start checking after a sustained number of frames were close to each other
+
         if error > self.diff_threshold:
             self._consecutive_above_count += 1
 

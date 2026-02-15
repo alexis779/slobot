@@ -109,6 +109,12 @@ class WebcamCaptureWorker(WorkerBase):
              shm_name = SharedMemoryBlock.get_name_from_camera_id(self.camera_id)
              self.shm_block = SharedMemoryBlock.create(shm_name, size)
 
+    def reset(self):
+        '''Reset the video stream.'''
+        super().reset()
+        self.flush_stream()
+        self.stream = self.create_stream()
+
     def teardown(self):
         """Release the webcam."""
         self.cap.release()

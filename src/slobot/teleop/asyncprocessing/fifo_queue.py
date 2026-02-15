@@ -30,15 +30,16 @@ class FifoQueue:
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
     
     # Message types
-    MSG_EMPTY = 0         # Empty tick (no payload)
-    MSG_POS = 1           # N-DOF int array (motor positions in steps)
-    MSG_QPOS_RENDER_FORCE = 2      # N-DOF float array + RGB array + depth array + segmentation array + normal array + N-DOF float array
-    MSG_QPOS_QPOS_RGB = 3 # N-DOF float array + N-DOF float array + RGB array
-    MSG_BGR = 4           # BGR array
-    MSG_RECORDING_ID = 5  # string containing the recording id to update
-    MSG_POS_FORCE = 6     # N-DOF int array + N-DOF int array (pos + control_force)
-    MSG_OBJECT_DETECTION = 7 # Signal that a frame is ready in shared memory
-    MSG_POISON_PILL = 255
+    MSG_EMPTY = 0             # Empty tick (no payload)
+    MSG_POS = 1               # N-DOF int array (motor positions in steps)
+    MSG_QPOS_RENDER_FORCE = 2 # N-DOF float array + RGB array + depth array + segmentation array + normal array + N-DOF float array
+    MSG_QPOS_QPOS_RGB = 3     # N-DOF float array + N-DOF float array + RGB array
+    MSG_BGR = 4               # BGR array
+    MSG_RECORDING_ID = 5      # string containing the recording id to update
+    MSG_POS_FORCE = 6         # N-DOF int array + N-DOF int array (pos + control_force)
+    MSG_OBJECT_DETECTION = 7  # Signal that a frame is ready in shared memory
+    MSG_RESET = 254           # Signal to reset the worker
+    MSG_POISON_PILL = 255     # Signal to stop the worker
     
     # QPOS format: 6 int32 (motor positions in steps)
     QPOS_FORMAT = '<6i'
@@ -149,6 +150,10 @@ class FifoQueue:
         """Send a poison pill message to signal graceful shutdown."""
         self.write(self.MSG_POISON_PILL, b'', 0.0, 0)
 
+    def send_reset(self):
+        """Send a reset message to signal the worker to reset."""
+        self.write(self.MSG_RESET, b'', 0.0, 0)
+
     def send_recording_id(self, recording_id: str):
         """Send a recording ID message to signal the recording ID to downstream workers."""
         self.write(self.MSG_RECORDING_ID, recording_id, 0.0, 0)
@@ -255,10 +260,6 @@ class FifoQueue:
 
             self._read_buffer = self._read_buffer[msg_len:]
             
-            # Poison pill is always returned immediately
-            if msg_type == self.MSG_POISON_PILL:
-                return (msg_type, deadline, step, payload)
-            
             # Keep only messages with deadline still in the future (or keep latest if all expired)
             if deadline > current_time or latest_msg is None:
                 latest_msg = (msg_type, deadline, step, payload)
@@ -277,6 +278,8 @@ class FifoQueue:
                 return result_payload.encode('utf-8')
             case FifoQueue.MSG_POISON_PILL:
                 return b''
+            case FifoQueue.MSG_RESET:
+                return b''
             case FifoQueue.MSG_OBJECT_DETECTION:
                 return b''
             case _:
@@ -293,6 +296,8 @@ class FifoQueue:
             case FifoQueue.MSG_RECORDING_ID:
                 return payload.decode('utf-8')
             case FifoQueue.MSG_POISON_PILL:
+                return None
+            case FifoQueue.MSG_RESET:
                 return None
             case FifoQueue.MSG_OBJECT_DETECTION:
                 return None

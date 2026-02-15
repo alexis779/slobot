@@ -8,6 +8,7 @@ from importlib.resources import files
 
 from slobot.configuration import Configuration
 from slobot.so_arm_100 import SoArm100
+from slobot.feetech import Feetech
 from slobot.lerobot.episode_replayer import EpisodeReplayer
 from slobot.teleop.recording_loader import RecordingLoader
 from slobot.lerobot.episode_replayer import InitialState
@@ -35,12 +36,13 @@ class RecordingReplayer:
         kwargs['rgb'] = True
         kwargs['step_handler'] = self
 
-        self.arm: SoArm100 = SoArm100(**kwargs)
-        self.build_scene()
+        self.diff_threshold = kwargs['diff_threshold']
+
+        self.feetech = Feetech(connect=False)
 
         self.worker_name = WorkerBase.WORKER_SIM
         self.rerun_metrics = RerunMetrics(operation_mode=WorkerBase.OPERATION_MODE, worker_name=self.worker_name)
-        recording_id = "episode00"
+        recording_id = kwargs['recording_id']
         self.rerun_metrics.init_rerun(recording_id)
 
         for camera_id in RecordingReplayer.CAMERA_IDS:
@@ -52,6 +54,9 @@ class RecordingReplayer:
             camera_id: self.create_stream() for camera_id in RecordingReplayer.CAMERA_IDS
         }
 
+        self.step_id = 0
+        self.arm: SoArm100 = SoArm100(**kwargs)
+        self.build_scene()
 
     def build_scene(self):
         vis_mode = self.arm.genesis.vis_mode
@@ -93,11 +98,12 @@ class RecordingReplayer:
         self.set_object_initial_positions()
 
         actions = self.recording_loader.observation_state # use follower state instead of leader state
-
-        #torch.save(actions, "actions.pt")
+        actions = [
+            self.feetech.pos_to_qpos(pos)
+            for pos in actions
+        ]
 
         # Set initial position
-        self.step_id = 0
         self.arm.genesis.entity.set_dofs_position(actions[0])
         self.step()
 
@@ -113,7 +119,6 @@ class RecordingReplayer:
 
         success = self.golf_ball_in_cup()
         RecordingReplayer.LOGGER.info(f"Episode success: {success}")
-
         self.stop()
 
     # set the initial positions of the ball and the cup
@@ -134,15 +139,23 @@ class RecordingReplayer:
 
     @cached_property
     def initial_state(self) -> InitialState:
+        self.LOGGER.info(f"hold_state = {self.hold_state}")
         self.fixed_jaw_translate = torch.tensor(self.arm.tcp_offset)
 
-        self.set_robot_state(self.hold_state.pick_frame_id)
-        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.link, self.fixed_jaw_translate)
+        pick_motor_pos = self.get_motor_pos(self.hold_state.pick_frame_id)
+        self.LOGGER.info(f"pick frame motor configuration={pick_motor_pos}")
+        pick_link_pos = self.get_link_pos(pick_motor_pos)
 
-        self.set_robot_state(self.hold_state.place_frame_id)
-        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.link, self.fixed_jaw_translate)
+        place_motor_pos = self.get_motor_pos(self.hold_state.place_frame_id)
+        self.LOGGER.info(f"place frame motor configuration={place_motor_pos}")
+        place_link_pos = self.get_link_pos(place_motor_pos)
 
-        return InitialState(ball=pick_link_pos[0], cup=place_link_pos[0])
+        return InitialState(
+            ball=pick_link_pos[0],
+            cup=place_link_pos[0],
+            ball_motor_pos=pick_motor_pos[0],
+            cup_motor_pos=place_motor_pos[0],
+        )
 
     @cached_property
     def hold_state(self) -> HoldState:
@@ -155,7 +168,7 @@ class RecordingReplayer:
         leader_gripper = leader_gripper[:-delay_frames]
         follower_gripper = follower_gripper[delay_frames:]
 
-        hold_state_detector = HoldStateDetector(diff_threshold=0.3)
+        hold_state_detector = HoldStateDetector(diff_threshold=self.diff_threshold)
         hold_state_detector.replay_teleop(leader_gripper, follower_gripper)
         hold_state = hold_state_detector.get_hold_state()
 
@@ -164,9 +177,17 @@ class RecordingReplayer:
 
         return hold_state
 
-    def set_robot_state(self, frame_id):
-        robot_state = self.recording_loader.frame_observation_state(frame_id)
-        self.arm.genesis.entity.set_dofs_position(robot_state)
+    def get_motor_pos(self, frame_id):
+        return self.recording_loader.frame_observation_state(frame_id)
+
+    def get_joint_qpos(self, frame_id):
+        pos = self.get_motor_pos(frame_id)
+        return self.feetech.pos_to_qpos(pos)
+
+    def get_link_pos(self, pos):
+        qpos = self.feetech.pos_to_qpos(pos)
+        self.arm.genesis.entity.set_dofs_position(qpos)
+        return self.arm.genesis.link_translate(self.arm.genesis.link, self.fixed_jaw_translate)
 
     def golf_ball_in_cup(self):
         diff = self.golf_ball.get_pos() - self.cup.get_pos()
@@ -203,10 +224,13 @@ class RecordingReplayer:
         self.rerun_metrics.encode_frame(self.camera_metric_name(camera_id), None, self.streams[camera_id])
 
     def handle_step(self, simulation_frame: SimulationFrame):
+        pass
+        '''
         self.rerun_metrics.handle_step(simulation_frame)
 
         self.log_sim_camera_frame(simulation_frame.side_camera_frame, "side")
         self.log_sim_camera_frame(simulation_frame.link_camera_frame, "link")
+        '''
 
     def log_sim_camera_frame(self, camera_frame: CameraFrame, camera_id: str):
         frame = av.VideoFrame.from_ndarray(camera_frame.rgb, format="rgb24")

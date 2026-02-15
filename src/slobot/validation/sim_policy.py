@@ -13,7 +13,6 @@ class SimPolicy:
     
     LOGGER = Configuration.logger(__name__)    
 
-    INCHES_TO_METERS = 0.0254
     CUP_Z = 6 # inches
 
     def __init__(self, **kwargs):
@@ -34,14 +33,14 @@ class SimPolicy:
 
         # Convert positions from inches to meters
         self.ball_pos = torch.tensor([
-            ball_x * self.INCHES_TO_METERS,
-            ball_y * self.INCHES_TO_METERS,
+            ball_x * Configuration.INCHES_TO_METERS,
+            ball_y * Configuration.INCHES_TO_METERS,
             Configuration.GOLF_BALL_RADIUS
         ])
         
         self.cup_pos = torch.tensor([
-            cup_x * self.INCHES_TO_METERS,
-            cup_y * self.INCHES_TO_METERS,
+            cup_x * Configuration.INCHES_TO_METERS,
+            cup_y * Configuration.INCHES_TO_METERS,
             0.0
         ])
         
@@ -98,20 +97,25 @@ class SimPolicy:
         return self.ik_path_plan(target_pos, target_quat, gripper_opened_qpos, rot_mask=[False, True, False])
 
     def move_to_cup(self):
+        self.pick_qpos = self.arm.genesis.entity.get_dofs_position()
+        self.LOGGER.info(f"pick frame joint configuration={self.pick_qpos}")
+
         target_quat = self.radial_quat()
 
         tcp_offset_world = -gu.transform_by_quat(self.arm.tcp_offset, target_quat)
         target_pos = self.cup.get_pos() + tcp_offset_world
 
-        target_pos[0][2] = target_pos[0][2] + SimPolicy.CUP_Z * self.INCHES_TO_METERS
+        target_pos[0][2] = target_pos[0][2] + SimPolicy.CUP_Z * Configuration.INCHES_TO_METERS
 
         gripper_closed_qpos = 0.1
         return self.ik_path_plan(target_pos, target_quat, gripper_closed_qpos, rot_mask=[False, False, True])
 
     def open_gripper(self):
-        qpos = self.arm.genesis.entity.get_dofs_position()
-        self.set_gripper_qpos(qpos, 1.0)
-        self.arm.genesis.entity.control_dofs_position(qpos)
+        self.place_qpos = self.arm.genesis.entity.get_dofs_position()
+        self.LOGGER.info(f"place frame jointconfiguration={self.place_qpos}")
+
+        self.set_gripper_qpos(self.place_qpos, 1.0)
+        self.arm.genesis.entity.control_dofs_position(self.place_qpos)
         for step in range(self.arm.genesis.fps * 1):
             self.arm.genesis.scene.step()
             self.arm.genesis.side_camera.render()

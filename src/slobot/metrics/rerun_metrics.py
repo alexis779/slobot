@@ -26,7 +26,6 @@ class RerunMetrics:
         self.operation_mode = kwargs['operation_mode']
         self.worker_name = kwargs.get('worker_name', 'worker')
 
-        self.step = 0
         self.steps = []  # sequence of step ids that had a frame added to the video stream
 
     def init_rerun(self, recording_id: str):
@@ -47,6 +46,9 @@ class RerunMetrics:
                 rr.connect_grpc()
 
         self.add_joint_metric_labels()
+
+        self.step = 0
+        self.steps.clear()
 
     def add_video_stream(self, metric_name: str):
         rr.log(metric_name, rr.VideoStream(codec="h264"), static=True)
