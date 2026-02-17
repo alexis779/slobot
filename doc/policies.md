@@ -5,10 +5,13 @@
 This policy relies on Inverse Kinematics + Path Planning to perform the task.
 
 ```
-python scripts/validation/run_sim_policy.py --ball_x -5 --ball_y -11 --cup_x 8 --cup_y -11
+python scripts/validation/run_sim_policy.py --ball_x -5 --ball_y -11 --cup_x 8 --cup_y -11 --pre-grasp-mode vertical
+python scripts/validation/run_sim_policy.py --ball_x -5 --ball_y -11 --cup_x 8 --cup_y -11 --pre-grasp-mode horizontal
 ```
 
-<video controls src="https://github.com/user-attachments/assets/14c96939-5c3c-46ea-9dce-c858aae510a9"></video>
+Pre-Grasp Mode|Vertical|Horizontal
+-|-|-
+Preview|<video controls src="https://github.com/user-attachments/assets/14a9975d-fed2-4b0f-a565-ef9def5a2eb4"></video>|<video controls src="https://github.com/user-attachments/assets/8b3bd395-d1fa-4977-864c-03e603945e65"></video>
 
 ### ACT
 

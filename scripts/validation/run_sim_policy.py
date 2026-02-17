@@ -4,10 +4,11 @@ CLI script to run the golf ball pickup simulation policy.
 
 Usage:
     python run_sim_policy.py --ball_x -5 --ball_y -2 --cup_x -7 --cup_y -13
+    python run_sim_policy.py --ball_x -5 --ball_y -2 --cup_x -7 --cup_y -13 --pre-grasp-mode vertical
 """
 
 import argparse
-from slobot.validation.sim_policy import SimPolicy
+from slobot.validation.sim_policy import PreGraspMode, SimPolicy
 
 def main():
     parser = argparse.ArgumentParser(
@@ -42,14 +43,24 @@ def main():
         help='Cup Y position in inches'
     )
     
+    parser.add_argument(
+        '--pre-grasp-mode',
+        type=str,
+        choices=['vertical', 'horizontal'],
+        default='horizontal',
+        help='Pre-grasp approach mode: vertical or horizontal (default: horizontal)'
+    )
+
     args = parser.parse_args()
-    
+
+    # Convert pre-grasp-mode string to enum
+    args.pre_grasp_mode = PreGraspMode(args.pre_grasp_mode)
+
     # Create and execute policy
     policy = SimPolicy(**vars(args))
     
     # Execute the task
     success = policy.execute()
-    #policy.arm.genesis.hold_entity()
     
     # Report result
     if success:

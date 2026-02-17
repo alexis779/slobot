@@ -20,7 +20,7 @@ There are 2 main use cases
 
 ## Goal
 
-The goal is to replay a recorded LeRobot dataset episode or Rerun.io recording in a simulation environment.
+The goal is to replay an episode recorded in REAL into a SIM environment.
 
 | Real | Sim Visual | Sim Collision |
 |------|------------|---------------|

@@ -1,4 +1,5 @@
 import torch
+from enum import Enum
 from importlib.resources import files
 
 import genesis as gs
@@ -7,6 +8,12 @@ import genesis.utils.geom as gu
 from slobot.so_arm_100 import SoArm100
 from slobot.configuration import Configuration
 from slobot.lerobot.episode_replayer import EpisodeReplayer
+
+
+class PreGraspMode(Enum):
+    VERTICAL = "vertical"
+    HORIZONTAL = "horizontal"
+
 
 class SimPolicy:
     """Policy to pick up a golf ball and place it in a cup using IK with vertical wrist constraint."""
@@ -43,7 +50,9 @@ class SimPolicy:
             cup_y * Configuration.INCHES_TO_METERS,
             0.0
         ])
-        
+
+        self.pre_grasp_mode = kwargs['pre_grasp_mode']
+
         # Create SoArm100 instance
         self.arm = SoArm100(
             should_start=False,
@@ -78,37 +87,44 @@ class SimPolicy:
     def execute(self):
         self.arm.genesis.side_camera.start_recording()
 
-        self.move_to_pregrasp()
+        match self.pre_grasp_mode:
+            case PreGraspMode.VERTICAL:
+                self.move_to_ball_vertical()
+            case PreGraspMode.HORIZONTAL:
+                target_z = 2 * Configuration.GOLF_BALL_RADIUS # TODO Path planning will push the ball away if not going through this pre-grasp position
+                self.move_to_ball_horizontal(target_z)
+                target_z = Configuration.GOLF_BALL_RADIUS
+                self.move_to_ball_horizontal(target_z)
+            case _:
+                raise ValueError(f"Invalid pre-grasp mode: {self.pre_grasp_mode}")
+
         self.move_to_cup()
         self.open_gripper()
 
         self.arm.genesis.side_camera.stop_recording("./so_arm_100.mp4", fps=self.arm.genesis.fps)
         return self.validate_success()
 
-    def move_to_pregrasp(self):
-        target_quat = self.down_quat()
-
-        tcp_offset_world = -gu.transform_by_quat(self.arm.tcp_offset.unsqueeze(0), target_quat)
-
-        ball_pos = self.golf_ball.get_pos()
-        target_pos = ball_pos + tcp_offset_world
+    def move_to_ball_vertical(self):
+        target_pos, target_quat = self.vertical_3dpose(self.golf_ball)
 
         gripper_opened_qpos = 1.0
-        return self.ik_path_plan(target_pos, target_quat, gripper_opened_qpos, rot_mask=[False, True, False])
+        return self.ik_path_plan(target_pos, target_quat, gripper_opened_qpos)
+
+    def move_to_ball_horizontal(self, target_z):
+        target_pos, target_quat = self.radial_3dpose(self.golf_ball, target_z)
+
+        gripper_opened_qpos = 1.0
+        return self.ik_path_plan(target_pos, target_quat, gripper_opened_qpos)
 
     def move_to_cup(self):
         self.pick_qpos = self.arm.genesis.entity.get_dofs_position()
         self.LOGGER.info(f"pick frame joint configuration={self.pick_qpos}")
 
-        target_quat = self.radial_quat()
-
-        tcp_offset_world = -gu.transform_by_quat(self.arm.tcp_offset, target_quat)
-        target_pos = self.cup.get_pos() + tcp_offset_world
-
-        target_pos[0][2] = target_pos[0][2] + SimPolicy.CUP_Z * Configuration.INCHES_TO_METERS
+        target_z = SimPolicy.CUP_Z * Configuration.INCHES_TO_METERS
+        target_pos, target_quat = self.radial_3dpose(self.cup, target_z)
 
         gripper_closed_qpos = 0.1
-        return self.ik_path_plan(target_pos, target_quat, gripper_closed_qpos, rot_mask=[False, False, True])
+        return self.ik_path_plan(target_pos, target_quat, gripper_closed_qpos)
 
     def open_gripper(self):
         self.place_qpos = self.arm.genesis.entity.get_dofs_position()
@@ -120,16 +136,17 @@ class SimPolicy:
             self.arm.genesis.scene.step()
             self.arm.genesis.side_camera.render()
 
-    def ik_path_plan(self, target_pos, target_quat, gripper_qpos, rot_mask=[True, True, True]):
-
+    def ik_path_plan(self, target_pos, target_quat, gripper_qpos):
         self.LOGGER.info(f"IK target_pos={target_pos}")
         self.LOGGER.info(f"IK target_quat={target_quat}")
+
+        target_pos = target_pos.unsqueeze(0)
+        target_quat = target_quat.unsqueeze(0)
 
         qpos, ik_err = self.arm.genesis.entity.inverse_kinematics(
             link=self.arm.genesis.link, 
             pos=target_pos, 
             quat=target_quat,
-            rot_mask=rot_mask,
             return_error=True
         )
         self.LOGGER.info(f"IK position error (m): {ik_err[0, :3]}")
@@ -139,6 +156,7 @@ class SimPolicy:
 
         path = self.arm.genesis.entity.plan_path(
             qpos,
+            planner='RRTConnect', # TODO RRT has runtime error
         )
 
         for waypoint_qpos in path:
@@ -191,37 +209,57 @@ class SimPolicy:
         link_pos = self.arm.genesis.link.get_pos()
         return link_pos + tcp_offset_world
 
-    def down_quat(self):
+    def vertical_3dpose(self, target_object):
         x_axis = torch.tensor([1.0, 0.0, 0.0])
         quat_x = gu.axis_angle_to_quat(torch.tensor(torch.pi / 2), x_axis)  # -90° around x
 
         y_axis = torch.tensor([0.0, 1.0, 0.0])
         quat_y = gu.axis_angle_to_quat(torch.tensor(torch.pi), y_axis)  # 180° around y
 
-        return gu.transform_quat_by_quat(quat_y, quat_x).unsqueeze(0)
+        down_quat = gu.transform_quat_by_quat(quat_y, quat_x)
 
-    def radial_quat(self):
-        """Compute quaternion for link staying horizontal and facing radially toward the cup."""
+        link_offset_world = gu.transform_by_quat(-self.arm.tcp_offset, down_quat)
+
+        target_pos = target_object.get_pos()[0]
+        target_link_pos = target_pos + link_offset_world
+
+        return target_link_pos, down_quat
+
+    def radial_3dpose(self, target_object, target_z):
+        """Compute link pose: flip link first (180° around Y), then rotate around Z toward target."""
         rotation_pitch = self.arm.genesis.entity.get_link('Rotation_Pitch')
+
         rotation_pitch_pos = rotation_pitch.get_pos()[0]
-        cup_pos = self.cup.get_pos()[0]
+        target_pos = target_object.get_pos()[0]
 
-        # Direction from rotation_pitch to cup in XY plane
-        radial_dir = cup_pos - rotation_pitch_pos
+        target_pos[2] = target_z
+
+        # Direction from rotation_pitch to target in XY plane
+        radial_dir = target_pos - rotation_pitch_pos
         radial_dir_xy = radial_dir[:2]
-        
-        # Compute yaw angle from -Y axis to radial direction
-        # Use atan2(x, -y) to measure angle from -Y axis
-        yaw_angle = torch.atan2(radial_dir_xy[0], -radial_dir_xy[1])
-        
-        # Create yaw rotation around Z
-        z_axis = torch.tensor([0.0, 0.0, 1.0])
-        radial_quat = gu.axis_angle_to_quat(yaw_angle, z_axis)
 
+        # 1. Flip link first (180° around Y)
         y_axis = torch.tensor([0.0, 1.0, 0.0])
-        quat_y = gu.axis_angle_to_quat(torch.tensor(torch.pi), y_axis)  # 180° around y
+        flip_quat = gu.axis_angle_to_quat(torch.tensor(torch.pi), y_axis)
 
-        return gu.transform_quat_by_quat(quat_y, radial_quat).unsqueeze(0)
+        # 2. Then rotate around Z to align with radial direction
+        z_axis = torch.tensor([0.0, 0.0, 1.0])
+        radial_theta = torch.atan2(radial_dir_xy[0], -radial_dir_xy[1])
+
+        rotate_quat = gu.axis_angle_to_quat(radial_theta, z_axis)
+        rotate_quat = gu.transform_quat_by_quat(flip_quat, rotate_quat)
+
+        link_offset_world = gu.transform_by_quat(-self.arm.tcp_offset, rotate_quat)
+        target_link_pos = target_pos + link_offset_world
+
+        radial_dir = target_link_pos - rotation_pitch_pos
+        radial_dir_xy = radial_dir[:2]
+        radial_theta = torch.atan2(radial_dir_xy[0], -radial_dir_xy[1])
+
+        rotate_quat = gu.axis_angle_to_quat(radial_theta, z_axis)
+        rotate_quat = gu.transform_quat_by_quat(flip_quat, rotate_quat)
+
+        return target_link_pos, rotate_quat
 
     def validate_success(self) -> bool:
         """
