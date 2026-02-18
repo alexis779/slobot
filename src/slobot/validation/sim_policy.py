@@ -12,6 +12,7 @@ from slobot.lerobot.episode_replayer import EpisodeReplayer
 
 class PreGraspMode(Enum):
     VERTICAL = "vertical"
+    VERTICAL_FLIP = "vertical_flip"
     HORIZONTAL = "horizontal"
 
 
@@ -90,6 +91,8 @@ class SimPolicy:
         match self.pre_grasp_mode:
             case PreGraspMode.VERTICAL:
                 self.move_to_ball_vertical()
+            case PreGraspMode.VERTICAL_FLIP:
+                self.move_to_ball_vertical_flip()
             case PreGraspMode.HORIZONTAL:
                 target_z = 2 * Configuration.GOLF_BALL_RADIUS # TODO Path planning will push the ball away if not going through this pre-grasp position
                 self.move_to_ball_horizontal(target_z)
@@ -106,6 +109,12 @@ class SimPolicy:
 
     def move_to_ball_vertical(self):
         target_pos, target_quat = self.vertical_3dpose(self.golf_ball)
+
+        gripper_opened_qpos = 1.0
+        return self.ik_path_plan(target_pos, target_quat, gripper_opened_qpos)
+
+    def move_to_ball_vertical_flip(self):
+        target_pos, target_quat = self.vertical_flip_3dpose(self.golf_ball)
 
         gripper_opened_qpos = 1.0
         return self.ik_path_plan(target_pos, target_quat, gripper_opened_qpos)
@@ -210,6 +219,17 @@ class SimPolicy:
         return link_pos + tcp_offset_world
 
     def vertical_3dpose(self, target_object):
+        x_axis = torch.tensor([1.0, 0.0, 0.0])
+        quat_x = gu.axis_angle_to_quat(torch.tensor(torch.pi / 2), x_axis)  # -90° around x
+
+        link_offset_world = gu.transform_by_quat(-self.arm.tcp_offset, quat_x)
+
+        target_pos = target_object.get_pos()[0]
+        target_link_pos = target_pos + link_offset_world
+
+        return target_link_pos, quat_x
+
+    def vertical_flip_3dpose(self, target_object):
         x_axis = torch.tensor([1.0, 0.0, 0.0])
         quat_x = gu.axis_angle_to_quat(torch.tensor(torch.pi / 2), x_axis)  # -90° around x
 
