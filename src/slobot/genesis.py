@@ -49,7 +49,7 @@ class Genesis():
 
         show_viewer = kwargs.get('show_viewer', True)
 
-        self.fps = kwargs.get('fps', 24)
+        self.fps = kwargs.get('fps', 30)
 
         dt = 1 / self.fps
 
@@ -66,7 +66,7 @@ class Genesis():
             ),
             rigid_options = gs.options.RigidOptions(
                 enable_collision = not requires_grad, # TODO, collision dection is not supported with autograd
-                #noslip_iterations = 0,
+                noslip_iterations = substeps,
             ),
             viewer_options = gs.options.ViewerOptions(
                 res           = res,

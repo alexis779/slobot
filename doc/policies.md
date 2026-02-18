@@ -5,14 +5,14 @@
 This policy relies on Inverse Kinematics + Path Planning to perform the task.
 
 ```
-python scripts/validation/run_sim_policy.py --ball_x -5 --ball_y -11 --cup_x 8 --cup_y -11 --pre-grasp-mode vertical
-python scripts/validation/run_sim_policy.py --ball_x -5 --ball_y -11 --cup_x 8 --cup_y -11 --pre-grasp-mode vertical-flip
-python scripts/validation/run_sim_policy.py --ball_x -5 --ball_y -11 --cup_x 8 --cup_y -11 --pre-grasp-mode horizontal
+python scripts/validation/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode vertical
+python scripts/validation/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode vertical-flip
+python scripts/validation/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode horizontal
 ```
 
 Vertical|Vertical Flip|Horizontal
 -|-|-
-<video controls src="https://github.com/user-attachments/assets/14a9975d-fed2-4b0f-a565-ef9def5a2eb4"></video>|<video controls src="https://github.com/user-attachments/assets/3bc96430-851f-48df-8568-91f101078101"></video>|<video controls src="https://github.com/user-attachments/assets/8b3bd395-d1fa-4977-864c-03e603945e65"></video>
+<video controls src="https://github.com/user-attachments/assets/b7399174-2efd-4c83-ba23-272a68035944"></video>|<video controls src="https://github.com/user-attachments/assets/553ffa4d-49e6-4c7e-ba79-3dd6d59368c3"></video>|<video controls src="https://github.com/user-attachments/assets/d636b6ca-564c-475a-8a24-ff853995bbcb"></video>
 
 ### ACT
 

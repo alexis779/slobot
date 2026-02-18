@@ -12,16 +12,20 @@ from slobot.lerobot.episode_replayer import EpisodeReplayer
 
 class PreGraspMode(Enum):
     VERTICAL = "vertical"
-    VERTICAL_FLIP = "vertical_flip"
+    VERTICAL_FLIP = "vertical-flip"
     HORIZONTAL = "horizontal"
 
 
 class SimPolicy:
-    """Policy to pick up a golf ball and place it in a cup using IK with vertical wrist constraint."""
+    """Policy to pick up a golf ball and place it in a cup using IK with wrist orientation constraint."""
     
     LOGGER = Configuration.logger(__name__)    
 
     CUP_Z = 6 # inches
+
+    GRIPPER_OPENED_QPOS = 1.0
+    GRIPPER_GRASPING_QPOS = 0.25
+    GRIPPER_CLOSED_QPOS = -1.0
 
     def __init__(self, **kwargs):
         """
@@ -101,8 +105,13 @@ class SimPolicy:
             case _:
                 raise ValueError(f"Invalid pre-grasp mode: {self.pre_grasp_mode}")
 
+        self.pick_qpos = self.arm.genesis.entity.get_dofs_position()
+        self.LOGGER.info(f"pick frame joint configuration={self.pick_qpos}")
         self.move_to_cup()
-        self.open_gripper()
+        self.place_qpos = self.arm.genesis.entity.get_dofs_position()
+        self.LOGGER.info(f"place frame joint configuration={self.place_qpos}")
+        self.go_home()
+        self.close_gripper()
 
         self.arm.genesis.side_camera.stop_recording("./so_arm_100.mp4", fps=self.arm.genesis.fps)
         return self.validate_success()
@@ -110,39 +119,37 @@ class SimPolicy:
     def move_to_ball_vertical(self):
         target_pos, target_quat = self.vertical_3dpose(self.golf_ball)
 
-        gripper_opened_qpos = 1.0
-        return self.ik_path_plan(target_pos, target_quat, gripper_opened_qpos)
+        return self.ik_path_plan(target_pos, target_quat, SimPolicy.GRIPPER_OPENED_QPOS)
 
     def move_to_ball_vertical_flip(self):
         target_pos, target_quat = self.vertical_flip_3dpose(self.golf_ball)
 
-        gripper_opened_qpos = 1.0
-        return self.ik_path_plan(target_pos, target_quat, gripper_opened_qpos)
+        return self.ik_path_plan(target_pos, target_quat, SimPolicy.GRIPPER_OPENED_QPOS)
 
     def move_to_ball_horizontal(self, target_z):
         target_pos, target_quat = self.radial_3dpose(self.golf_ball, target_z)
 
-        gripper_opened_qpos = 1.0
-        return self.ik_path_plan(target_pos, target_quat, gripper_opened_qpos)
+        return self.ik_path_plan(target_pos, target_quat, SimPolicy.GRIPPER_OPENED_QPOS)
 
     def move_to_cup(self):
-        self.pick_qpos = self.arm.genesis.entity.get_dofs_position()
-        self.LOGGER.info(f"pick frame joint configuration={self.pick_qpos}")
-
         target_z = SimPolicy.CUP_Z * Configuration.INCHES_TO_METERS
         target_pos, target_quat = self.radial_3dpose(self.cup, target_z)
 
-        gripper_closed_qpos = 0.1
-        return self.ik_path_plan(target_pos, target_quat, gripper_closed_qpos)
+        return self.ik_path_plan(target_pos, target_quat, SimPolicy.GRIPPER_GRASPING_QPOS)
 
-    def open_gripper(self):
-        self.place_qpos = self.arm.genesis.entity.get_dofs_position()
-        self.LOGGER.info(f"place frame jointconfiguration={self.place_qpos}")
+    def go_home(self):
+        qpos = self.arm.genesis.home_qpos
+        self.plan_path(qpos, SimPolicy.GRIPPER_OPENED_QPOS)
 
-        self.set_gripper_qpos(self.place_qpos, 1.0)
-        self.arm.genesis.entity.control_dofs_position(self.place_qpos)
-        for step in range(self.arm.genesis.fps * 1):
-            self.arm.genesis.scene.step()
+    def close_gripper(self):
+        self.control_gripper(SimPolicy.GRIPPER_CLOSED_QPOS)
+
+    def control_gripper(self, gripper_qpos):
+        qpos = self.arm.genesis.entity.get_dofs_position()
+        self.set_gripper_qpos(qpos, gripper_qpos)
+        self.arm.genesis.entity.control_dofs_position(qpos)
+        for _ in range(self.arm.genesis.fps * 1):
+            self.arm.genesis.step()
             self.arm.genesis.side_camera.render()
 
     def ik_path_plan(self, target_pos, target_quat, gripper_qpos):
@@ -163,19 +170,7 @@ class SimPolicy:
         self.LOGGER.info(f"IK rotation error (deg): {torch.rad2deg(ik_err[0, 3:])}")
         #self.entity.control_dofs_position(qpos)
 
-        path = self.arm.genesis.entity.plan_path(
-            qpos,
-            planner='RRTConnect', # TODO RRT has runtime error
-        )
-
-        for waypoint_qpos in path:
-            self.set_gripper_qpos(waypoint_qpos, gripper_qpos)
-            self.arm.genesis.entity.control_dofs_position(waypoint_qpos)
-            self.arm.genesis.scene.step()
-            self.arm.genesis.scene.clear_debug_objects()
-            self.arm.draw_single_link_frame()
-            self.arm.draw_link_arrow()
-            self.arm.genesis.side_camera.render()
+        self.plan_path(qpos, gripper_qpos)
 
         # Set tolerances
         pos_eps = 0.02  # 2cm position tolerance
@@ -207,9 +202,23 @@ class SimPolicy:
         if pos_error > pos_eps:
             self.LOGGER.error(f"Position error is too large (tolerance: {pos_eps:.4f} m)")
 
+    def plan_path(self, qpos, gripper_qpos):
+        path = self.arm.genesis.entity.plan_path(
+            qpos,
+        )
+
+        for waypoint_qpos in path:
+            self.set_gripper_qpos(waypoint_qpos, gripper_qpos)
+            self.arm.genesis.entity.control_dofs_position(waypoint_qpos)
+            self.arm.genesis.scene.step()
+            self.arm.genesis.scene.clear_debug_objects()
+            self.arm.draw_single_link_frame()
+            self.arm.draw_link_arrow()
+            self.arm.genesis.side_camera.render()
+
     def set_gripper_qpos(self, qpos, gripper_qpos):
         gripper_id = self.arm.genesis.joint.qs_idx_local[0]
-        qpos[0][gripper_id] = gripper_qpos # open gripper 
+        qpos[0][gripper_id] = gripper_qpos
 
     def tcp_pos(self):
         link_quat = self.arm.genesis.link.get_quat()
@@ -218,7 +227,7 @@ class SimPolicy:
         link_pos = self.arm.genesis.link.get_pos()
         return link_pos + tcp_offset_world
 
-    def vertical_3dpose(self, target_object):
+    def vertical_flip_3dpose(self, target_object):
         x_axis = torch.tensor([1.0, 0.0, 0.0])
         quat_x = gu.axis_angle_to_quat(torch.tensor(torch.pi / 2), x_axis)  # -90° around x
 
@@ -229,7 +238,7 @@ class SimPolicy:
 
         return target_link_pos, quat_x
 
-    def vertical_flip_3dpose(self, target_object):
+    def vertical_3dpose(self, target_object):
         x_axis = torch.tensor([1.0, 0.0, 0.0])
         quat_x = gu.axis_angle_to_quat(torch.tensor(torch.pi / 2), x_axis)  # -90° around x
 

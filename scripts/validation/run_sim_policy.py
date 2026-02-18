@@ -3,8 +3,7 @@
 CLI script to run the golf ball pickup simulation policy.
 
 Usage:
-    python run_sim_policy.py --ball_x -5 --ball_y -2 --cup_x -7 --cup_y -13
-    python run_sim_policy.py --ball_x -5 --ball_y -2 --cup_x -7 --cup_y -13 --pre-grasp-mode vertical
+    python run_sim_policy.py --ball-x -5 --ball-y -2 --cup-x -7 --cup-y -13 --pre-grasp-mode (vertical|vertical-flip|horizontal)
 """
 
 import argparse
@@ -16,28 +15,28 @@ def main():
     )
     
     parser.add_argument(
-        '--ball_x',
+        '--ball-x',
         type=float,
         required=True,
         help='Golf ball X position in inches'
     )
     
     parser.add_argument(
-        '--ball_y',
+        '--ball-y',
         type=float,
         required=True,
         help='Golf ball Y position in inches'
     )
     
     parser.add_argument(
-        '--cup_x',
+        '--cup-x',
         type=float,
         required=True,
         help='Cup X position in inches'
     )
     
     parser.add_argument(
-        '--cup_y',
+        '--cup-y',
         type=float,
         required=True,
         help='Cup Y position in inches'
@@ -46,9 +45,9 @@ def main():
     parser.add_argument(
         '--pre-grasp-mode',
         type=str,
-        choices=['vertical', 'horizontal'],
+        choices=['vertical', 'vertical-flip', 'horizontal'],
         default='horizontal',
-        help='Pre-grasp approach mode: vertical or horizontal (default: horizontal)'
+        help='Pre-grasp approach mode (default: horizontal)'
     )
 
     args = parser.parse_args()
