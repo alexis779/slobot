@@ -1,14 +1,11 @@
 from functools import cached_property
 
-import genesis as gs
 import torch
-import json
 import av
-from importlib.resources import files
 
 from slobot.configuration import Configuration
-from slobot.so_arm_100 import SoArm100
 from slobot.feetech import Feetech
+from slobot.sim.golf_ball_env import GolfBallEnv
 from slobot.lerobot.episode_replayer import EpisodeReplayer
 from slobot.teleop.recording_loader import RecordingLoader
 from slobot.lerobot.episode_replayer import InitialState
@@ -23,26 +20,18 @@ class RecordingReplayer:
 
     CAMERA_IDS = ["side", "link"]
 
-    def __init__(self, **kwargs):
-        self.fps = kwargs['fps']
-
-        self.golf_ball_pos_str = kwargs.get('golf_ball_pos', None)
-
-        rrd_file = kwargs['rrd_file']
-        self.recording_loader = RecordingLoader(rrd_file)
-
-        kwargs['should_start'] = False
-
-        kwargs['rgb'] = True
-        kwargs['step_handler'] = self
-
-        self.diff_threshold = kwargs['diff_threshold']
+    def __init__(self, golf_ball_env: GolfBallEnv, diff_threshold):
+        self.diff_threshold = diff_threshold
+        self.golf_ball_env = golf_ball_env
 
         self.feetech = Feetech(connect=False)
 
+        self.step_id = 0
+        self.fixed_jaw_translate = torch.tensor(self.golf_ball_env.arm.tcp_offset)
+
+    def init_rerun_metrics(self, recording_id: str):
         self.worker_name = WorkerBase.WORKER_SIM
         self.rerun_metrics = RerunMetrics(operation_mode=WorkerBase.OPERATION_MODE, worker_name=self.worker_name)
-        recording_id = kwargs['recording_id']
         self.rerun_metrics.init_rerun(recording_id)
 
         for camera_id in RecordingReplayer.CAMERA_IDS:
@@ -54,47 +43,10 @@ class RecordingReplayer:
             camera_id: self.create_stream() for camera_id in RecordingReplayer.CAMERA_IDS
         }
 
-        self.step_id = 0
-        self.arm: SoArm100 = SoArm100(**kwargs)
-        self.build_scene()
+    def replay(self, rrd_file: str):
+        self.invalidate_cached_properties()
+        self.recording_loader = RecordingLoader(rrd_file)
 
-    def build_scene(self):
-        vis_mode = self.arm.genesis.vis_mode
-
-        self.arm.genesis.start()
-
-        golf_ball_radius = Configuration.GOLF_BALL_RADIUS
-        '''
-        golf_ball_morph = gs.morphs.Mesh(
-            file="meshes/sphere.obj",
-            scale=golf_ball_radius,
-            pos=(0.25, 0, golf_ball_radius),
-        )
-        '''
-        golf_ball_morph = gs.morphs.Sphere(
-            radius=golf_ball_radius,
-            pos=(0.25, 0, golf_ball_radius),
-        )
-        self.golf_ball = self.arm.genesis.scene.add_entity(
-            golf_ball_morph,
-            visualize_contact=False,
-            vis_mode=vis_mode,
-        )
-
-        cup_filename = str(files('slobot.config') / 'assets' / 'cup.stl')
-        cup_morph = gs.morphs.Mesh(
-            file=cup_filename,
-            pos=(-0.25, 0, 0)
-        )
-        self.cup = self.arm.genesis.scene.add_entity(
-            cup_morph,
-            visualize_contact=False,
-            vis_mode=vis_mode,
-        )
-
-        self.arm.genesis.build()
-
-    def replay(self):
         self.set_object_initial_positions()
 
         actions = self.recording_loader.observation_state # use follower state instead of leader state
@@ -104,65 +56,71 @@ class RecordingReplayer:
         ]
 
         # Set initial position
-        self.arm.genesis.entity.set_dofs_position(actions[0])
+        self.golf_ball_env.arm.genesis.entity.set_dofs_position(actions[0])
         self.step()
 
         # Replay remaining frames
         for step in range(1, len(actions)):
             control_pos = actions[step]
-
-            if step == self.hold_state.pick_frame_id:
-                self.debug_tcp()
-
-            self.arm.genesis.entity.control_dofs_position(control_pos)
+            self.golf_ball_env.arm.genesis.entity.control_dofs_position(control_pos)
             self.step()
 
         success = self.golf_ball_in_cup()
         RecordingReplayer.LOGGER.info(f"Episode success: {success}")
-        self.stop()
 
     # set the initial positions of the ball and the cup
     def set_object_initial_positions(self):
-        self.golf_ball.set_pos([self.golf_ball_pos])
+        golf_ball_pos = [
+            [self.initial_state.ball[0].item(), self.initial_state.ball[1].item(), Configuration.GOLF_BALL_RADIUS]
+        ]
+        self.golf_ball_env.golf_ball.set_pos(golf_ball_pos)
 
         cup_pos = [
             [self.initial_state.cup[0].item(), self.initial_state.cup[1].item(), 0]
         ]
-        self.cup.set_pos(cup_pos)
+        self.golf_ball_env.cup.set_pos(cup_pos)
 
-    @cached_property
-    def golf_ball_pos(self):
-        if self.golf_ball_pos_str is not None:
-             return json.loads(self.golf_ball_pos_str)
-        else:
-            return [self.initial_state.ball[0].item(), self.initial_state.ball[1].item(), Configuration.GOLF_BALL_RADIUS]
+    def invalidate_cached_properties(self):
+        if hasattr(self, 'hold_state'):
+            del self.hold_state
+        if hasattr(self, 'initial_state'):
+            del self.initial_state
+        if hasattr(self, 'pick_motor_pos'):
+            del self.pick_motor_pos
+        if hasattr(self, 'place_motor_pos'):
+            del self.place_motor_pos
 
     @cached_property
     def initial_state(self) -> InitialState:
         self.LOGGER.info(f"hold_state = {self.hold_state}")
-        self.fixed_jaw_translate = torch.tensor(self.arm.tcp_offset)
 
-        pick_motor_pos = self.get_motor_pos(self.hold_state.pick_frame_id)
-        self.LOGGER.info(f"pick frame motor configuration={pick_motor_pos}")
-        pick_link_pos = self.get_link_pos(pick_motor_pos)
+        self.LOGGER.info(f"pick frame motor configuration={self.pick_motor_pos}")
+        self.pick_link_pos = self.get_link_pos(self.pick_motor_pos)
 
-        place_motor_pos = self.get_motor_pos(self.hold_state.place_frame_id)
-        self.LOGGER.info(f"place frame motor configuration={place_motor_pos}")
-        place_link_pos = self.get_link_pos(place_motor_pos)
+        self.LOGGER.info(f"place frame motor configuration={self.place_motor_pos}")
+        self.place_link_pos = self.get_link_pos(self.place_motor_pos)
 
         return InitialState(
-            ball=pick_link_pos[0],
-            cup=place_link_pos[0],
-            ball_motor_pos=pick_motor_pos[0],
-            cup_motor_pos=place_motor_pos[0],
+            ball=self.pick_link_pos[0],
+            cup=self.place_link_pos[0],
+            ball_motor_pos=self.pick_motor_pos[0],
+            cup_motor_pos=self.place_motor_pos[0],
         )
+
+    @cached_property
+    def pick_motor_pos(self):
+        return self.get_motor_pos(self.hold_state.pick_frame_id)
+
+    @cached_property
+    def place_motor_pos(self):
+        return self.get_motor_pos(self.hold_state.place_frame_id)
 
     @cached_property
     def hold_state(self) -> HoldState:
         leader_gripper = self.recording_loader.action[:, Configuration.GRIPPER_ID]
         follower_gripper = self.recording_loader.observation_state[:, Configuration.GRIPPER_ID]
 
-        frame_delay_detector = FrameDelayDetector(fps=self.fps)
+        frame_delay_detector = FrameDelayDetector(fps=self.golf_ball_env.arm.genesis.fps)
         delay_frames = frame_delay_detector.detect_frame_delay(leader_gripper, follower_gripper)
 
         leader_gripper = leader_gripper[:-delay_frames]
@@ -186,32 +144,21 @@ class RecordingReplayer:
 
     def get_link_pos(self, pos):
         qpos = self.feetech.pos_to_qpos(pos)
-        self.arm.genesis.entity.set_dofs_position(qpos)
-        return self.arm.genesis.link_translate(self.arm.genesis.link, self.fixed_jaw_translate)
+        self.golf_ball_env.arm.genesis.entity.set_dofs_position(qpos)
+        return self.golf_ball_env.arm.genesis.link_translate(self.golf_ball_env.arm.genesis.link, self.fixed_jaw_translate)
 
     def golf_ball_in_cup(self):
-        diff = self.golf_ball.get_pos() - self.cup.get_pos()
+        diff = self.golf_ball_env.golf_ball.get_pos() - self.golf_ball_env.cup.get_pos()
         diff = diff[0]
         diff = diff[:2]
-        return torch.norm(diff) < EpisodeReplayer.DISTANCE_THRESHOLD
-
-    def debug_tcp(self):
-        #self.arm.genesis.draw_arrow(self.arm.genesis.link, self.fixed_jaw_translate, Configuration.GOLF_BALL_RADIUS, (1, 0, 0, 0.5))
-        tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.link, self.fixed_jaw_translate)
-        RecordingReplayer.LOGGER.info(f"pick frame id = {self.hold_state.pick_frame_id}")
-        RecordingReplayer.LOGGER.info(f"initial golf ball position = {self.golf_ball_pos}")
-        current_golf_ball_pos = self.golf_ball.get_pos()
-        RecordingReplayer.LOGGER.info(f"current golf ball position = {current_golf_ball_pos}")
-        RecordingReplayer.LOGGER.info(f"TCP position = {tcp_pos}") # use this position for the golf ball initial position
-        pos_offset = current_golf_ball_pos[0] - torch.tensor(self.golf_ball_pos)
-        RecordingReplayer.LOGGER.info(f"pos_offset = {pos_offset}")
+        return torch.norm(diff) < Configuration.DISTANCE_THRESHOLD
 
     def step(self):
-        self.arm.genesis.step()
+        self.golf_ball_env.arm.genesis.step()
         self.step_id += 1
 
     def stop(self):
-        self.arm.genesis.stop()
+        self.golf_ball_env.arm.genesis.stop()
 
         # flush video streams
         for camera_id in RecordingReplayer.CAMERA_IDS:
@@ -240,6 +187,6 @@ class RecordingReplayer:
         return f"/{self.worker_name}/{camera_id}/video"
 
     def create_stream(self):
-        stream = self.container.add_stream("libx264", rate=self.fps)
+        stream = self.container.add_stream("libx264", rate=self.golf_ball_env.arm.genesis.fps)
         #stream.max_b_frames = 0
         return stream

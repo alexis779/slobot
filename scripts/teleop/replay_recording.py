@@ -8,9 +8,8 @@ parser.add_argument("--recording-id", type=str, required=True, help="The id of t
 parser.add_argument("--fps", type=int, default=30, help="Frames per second for replay")
 parser.add_argument("--substeps", type=int, default=1, help="Substeps per step for replay")
 parser.add_argument("--vis-mode", type=str, default='visual', help="Visualization mode for replay")
-parser.add_argument("--golf-ball-pos", type=str, default=None, help="Initial position of the golf ball")
 parser.add_argument("--diff-threshold", type=int, default=200, help="Threshold for the difference between the leader and follower gripper motor positions")
 args = parser.parse_args()
 
 recording_replayer = RecordingReplayer(**vars(args))
-recording_replayer.replay()
+recording_replayer.replay(args.rrd_file)

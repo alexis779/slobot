@@ -25,8 +25,6 @@ class InitialState:
 class EpisodeReplayer:
     LOGGER = Configuration.logger(__name__)
 
-    DISTANCE_THRESHOLD = 0.01 # the threshold for the distance between the golf ball and the cup for the ball to be considered in the cup, or for the ball to be considered moved from the initial position
-
     def __init__(self, **kwargs):
         self.repo_id = kwargs["repo_id"]
 
@@ -81,7 +79,7 @@ class EpisodeReplayer:
 
         golf_ball_to_initial = torch.norm(golf_ball_pos - initial_golf_ball_pos, dim=1)
 
-        moved = golf_ball_to_initial > EpisodeReplayer.DISTANCE_THRESHOLD
+        moved = golf_ball_to_initial > Configuration.DISTANCE_THRESHOLD
 
         cup_pos = self.cup.get_pos()
 
@@ -89,7 +87,7 @@ class EpisodeReplayer:
 
         golf_ball_to_cup = torch.norm(golf_ball_pos - cup_pos, dim=1)
 
-        successes = golf_ball_to_cup < EpisodeReplayer.DISTANCE_THRESHOLD
+        successes = golf_ball_to_cup < Configuration.DISTANCE_THRESHOLD
 
         return moved, successes
 

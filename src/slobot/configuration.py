@@ -36,6 +36,10 @@ class Configuration:
 
     INCHES_TO_METERS = 0.0254
 
+    DISTANCE_THRESHOLD = 0.01 # the threshold for the distance between the golf ball and the cup for the ball to be considered in the cup, or for the ball to be considered moved from the initial position
+
+    DIFF_THRESHOLD = 200 # the threshold for the difference between the leader and follower gripper positions for the hold state to be detected
+
     def logger(logger_name):
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.INFO)

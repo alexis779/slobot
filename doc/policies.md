@@ -5,9 +5,9 @@
 This policy relies on Inverse Kinematics + Path Planning to perform the task.
 
 ```
-python scripts/validation/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode vertical
-python scripts/validation/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode vertical-flip
-python scripts/validation/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode horizontal
+python scripts/sim/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode vertical
+python scripts/sim/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode vertical-flip
+python scripts/sim/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode horizontal
 ```
 
 Vertical|Vertical Flip|Horizontal
