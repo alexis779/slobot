@@ -168,21 +168,21 @@ class EpisodeReplayer:
         ]
 
         self.set_robot_states(pick_frame_ids)
-        pick_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.arm.tcp_offset)
+        pick_tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.arm.tcp_offset)
 
         place_frame_ids = [
             hold_state.place_frame_id
             for hold_state in self.episode_loader.hold_states
         ]
         self.set_robot_states(place_frame_ids)
-        place_link_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.arm.tcp_offset)
+        place_tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.arm.tcp_offset)
 
         return [
             InitialState(
-                ball=pick_link_pos_i,
-                cup=place_link_pos_i,
+                ball=pick_tcp_pos_i,
+                cup=place_tcp_pos_i,
             )
-            for pick_link_pos_i, place_link_pos_i, in zip(pick_link_pos, place_link_pos)
+            for pick_tcp_pos_i, place_tcp_pos_i, in zip(pick_tcp_pos, place_tcp_pos)
         ]
 
     def get_initial_state_images(self):

@@ -26,7 +26,7 @@ class SoArm100(RoboticArm):
     GRIPPER_JOINT_NAME = 'Jaw'
 
     # the translation vector from the gripper link position to tool center point, in the frame relative to the link
-    TCP_OFFSET = [-1.4e-2, -9e-2, 0]
+    TCP_OFFSET = [-1.5e-2, -9e-2, 0]
 
     def __init__(self, **kwargs):
         kwargs['mjcf_path'] = SoArm100.SO_ARM_100_MJCF_CONFIG

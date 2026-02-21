@@ -12,6 +12,7 @@ class GolfBallEnv:
         self.arm = SoArm100(
             should_start=False,
             rgb=True,
+            vis_mode='collision',
         )
         
         # Build scene with objects
@@ -25,15 +26,19 @@ class GolfBallEnv:
         )
         self.golf_ball = self.arm.genesis.scene.add_entity(
             golf_ball_morph,
-            visualize_contact=False, # True
-            vis_mode='visual', # collision
+            visualize_contact=True, # False
+            vis_mode=self.arm.genesis.vis_mode
         )
 
         cup_filename = str(files('slobot.config') / 'assets' / 'cup.stl')
         cup_morph = gs.morphs.Mesh(
             file=cup_filename,
         )
-        self.cup = self.arm.genesis.scene.add_entity(cup_morph)
+        self.cup = self.arm.genesis.scene.add_entity(
+            cup_morph,
+            visualize_contact=False, # True
+            vis_mode=self.arm.genesis.vis_mode
+        )
 
         n_envs = 1
         self.arm.genesis.build(n_envs=n_envs)

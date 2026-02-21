@@ -53,7 +53,8 @@ class Genesis():
 
         dt = 1 / self.fps
 
-        substeps = kwargs.get('substeps', 10)
+        substeps = kwargs.get('substeps', 2) # 40
+        noslip_iterations = substeps
 
         requires_grad = kwargs.get('requires_grad', False)
 
@@ -66,7 +67,7 @@ class Genesis():
             ),
             rigid_options = gs.options.RigidOptions(
                 enable_collision = not requires_grad, # TODO, collision dection is not supported with autograd
-                noslip_iterations = substeps,
+                noslip_iterations = noslip_iterations,
             ),
             viewer_options = gs.options.ViewerOptions(
                 res           = res,
@@ -102,6 +103,7 @@ class Genesis():
             res    = res,
             pos    = camera_pos,
             lookat = lookat,
+            fov    = 60,
             env_idx = 0,
         )
 
@@ -142,14 +144,14 @@ class Genesis():
         qpos = self.entity.get_qpos()
         print("qpos=", qpos)
 
-        Kp = 50
+        Kp = 150
         Kp = torch.full((self.entity.n_dofs,), Kp)
-        #self.entity.set_dofs_kp(Kp)
+        self.entity.set_dofs_kp(Kp)
         print("Kp=", self.entity.get_dofs_kp())
 
         Kv = 8
         Kv = torch.full((self.entity.n_dofs,), Kv)
-        #self.entity.set_dofs_kv(Kv)
+        self.entity.set_dofs_kv(Kv)
         print("Kd=", self.entity.get_dofs_kv())
 
         max_force = self.kwargs.get('max_force', 14)

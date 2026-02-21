@@ -43,9 +43,11 @@ class RecordingReplayer:
             camera_id: self.create_stream() for camera_id in RecordingReplayer.CAMERA_IDS
         }
 
-    def replay(self, rrd_file: str):
+    def replay(self, rrd_file: str, pick_frame_id: int):
         self.invalidate_cached_properties()
         self.recording_loader = RecordingLoader(rrd_file)
+
+        self.pick_frame_id = pick_frame_id
 
         self.set_object_initial_positions()
 
@@ -71,14 +73,21 @@ class RecordingReplayer:
     # set the initial positions of the ball and the cup
     def set_object_initial_positions(self):
         golf_ball_pos = [
-            [self.initial_state.ball[0].item(), self.initial_state.ball[1].item(), Configuration.GOLF_BALL_RADIUS]
+            [self.get_ball_x(), self.get_ball_y(), Configuration.GOLF_BALL_RADIUS]
         ]
         self.golf_ball_env.golf_ball.set_pos(golf_ball_pos)
+        self.LOGGER.info(f"initial ball position = {self.golf_ball_env.golf_ball.get_pos()}")
 
         cup_pos = [
             [self.initial_state.cup[0].item(), self.initial_state.cup[1].item(), 0]
         ]
         self.golf_ball_env.cup.set_pos(cup_pos)
+
+    def get_ball_x(self):
+        return self.initial_state.ball[0].item()
+    
+    def get_ball_y(self):
+        return self.initial_state.ball[1].item()
 
     def invalidate_cached_properties(self):
         if hasattr(self, 'hold_state'):
@@ -95,14 +104,14 @@ class RecordingReplayer:
         self.LOGGER.info(f"hold_state = {self.hold_state}")
 
         self.LOGGER.info(f"pick frame motor configuration={self.pick_motor_pos}")
-        self.pick_link_pos = self.get_link_pos(self.pick_motor_pos)
+        self.pick_tcp_pos = self.get_tcp_pos(self.pick_motor_pos)
 
         self.LOGGER.info(f"place frame motor configuration={self.place_motor_pos}")
-        self.place_link_pos = self.get_link_pos(self.place_motor_pos)
+        self.place_tcp_pos = self.get_tcp_pos(self.place_motor_pos)
 
         return InitialState(
-            ball=self.pick_link_pos[0],
-            cup=self.place_link_pos[0],
+            ball=self.pick_tcp_pos[0],
+            cup=self.place_tcp_pos[0],
             ball_motor_pos=self.pick_motor_pos[0],
             cup_motor_pos=self.place_motor_pos[0],
         )
@@ -123,6 +132,7 @@ class RecordingReplayer:
         frame_delay_detector = FrameDelayDetector(fps=self.golf_ball_env.arm.genesis.fps)
         delay_frames = frame_delay_detector.detect_frame_delay(leader_gripper, follower_gripper)
 
+        self.LOGGER.info(f"delay_frames = {delay_frames}")
         leader_gripper = leader_gripper[:-delay_frames]
         follower_gripper = follower_gripper[delay_frames:]
 
@@ -133,16 +143,16 @@ class RecordingReplayer:
         if hold_state.pick_frame_id is None or hold_state.place_frame_id is None:
             raise ValueError("Hold state not found")
 
+        if self.pick_frame_id is not None:
+            self.LOGGER.info(f"Overriding pick frame id to {self.pick_frame_id}")
+            hold_state.pick_frame_id = self.pick_frame_id
+
         return hold_state
 
     def get_motor_pos(self, frame_id):
         return self.recording_loader.frame_observation_state(frame_id)
 
-    def get_joint_qpos(self, frame_id):
-        pos = self.get_motor_pos(frame_id)
-        return self.feetech.pos_to_qpos(pos)
-
-    def get_link_pos(self, pos):
+    def get_tcp_pos(self, pos):
         qpos = self.feetech.pos_to_qpos(pos)
         self.golf_ball_env.arm.genesis.entity.set_dofs_position(qpos)
         return self.golf_ball_env.arm.genesis.link_translate(self.golf_ball_env.arm.genesis.link, self.fixed_jaw_translate)

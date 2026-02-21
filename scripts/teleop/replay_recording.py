@@ -1,15 +1,15 @@
 import argparse
 
 from slobot.teleop.recording_replayer import RecordingReplayer
+from slobot.sim.golf_ball_env import GolfBallEnv
+from slobot.configuration import Configuration
 
 parser = argparse.ArgumentParser(description="Replay a teleoperation recording")
 parser.add_argument("--rrd-file", type=str, required=True, help="Path to the .rrd recording file")
 parser.add_argument("--recording-id", type=str, required=True, help="The id of the recording to generate")
-parser.add_argument("--fps", type=int, default=30, help="Frames per second for replay")
-parser.add_argument("--substeps", type=int, default=1, help="Substeps per step for replay")
-parser.add_argument("--vis-mode", type=str, default='visual', help="Visualization mode for replay")
-parser.add_argument("--diff-threshold", type=int, default=200, help="Threshold for the difference between the leader and follower gripper motor positions")
+parser.add_argument("--pick-frame-id", type=int, help="The frame id to pick the ball")
 args = parser.parse_args()
 
-recording_replayer = RecordingReplayer(**vars(args))
-recording_replayer.replay(args.rrd_file)
+golf_ball_env = GolfBallEnv()
+recording_replayer = RecordingReplayer(golf_ball_env=golf_ball_env, diff_threshold=Configuration.DIFF_THRESHOLD)
+recording_replayer.replay(args.rrd_file, args.pick_frame_id)
