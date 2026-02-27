@@ -56,7 +56,7 @@ class TestNumpySolver(unittest.TestCase):
         self.assert_almost_equal_atol(link_quat, expected_link_quat, atol=1e-1)
         self.assert_almost_equal_atol(link_pos, expected_link_pos, atol=1e-1)
 
-    def test_direct_kinematics(self):
+    def test_forward_kinematics(self):
         """Test direct kinematics for a specific link."""
         qpos = np.array([-0.0123, -1.2707,  1.8747,  0.3543,  1.4381,  0.4008])
         vel = np.zeros_like(qpos)

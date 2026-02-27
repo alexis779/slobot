@@ -26,7 +26,7 @@ class SoArm100(RoboticArm):
     GRIPPER_JOINT_NAME = 'Jaw'
 
     # the translation vector from the gripper link position to tool center point, in the frame relative to the link
-    TCP_OFFSET = [-1.5e-2, -9e-2, 0]
+    TCP_OFFSET = [-1.5e-2, -9e-2, 0.5e-2]
 
     def __init__(self, **kwargs):
         kwargs['mjcf_path'] = SoArm100.SO_ARM_100_MJCF_CONFIG
@@ -92,11 +92,15 @@ class SoArm100(RoboticArm):
     def check_dofs_limit(self):
         min_pos = torch.tensor(SoArm100.MIN_POS)
         max_pos = torch.tensor(SoArm100.MAX_POS)
+        self.LOGGER.info(f"middle_pos: {(min_pos + max_pos) / 2}")
 
         real_range = (max_pos - min_pos) / SoArm100.MODEL_RESOLUTION
-        SoArm100.LOGGER.info(f"real_range : {real_range}")
+        self.LOGGER.info(f"real_range : {real_range}")
 
         dofs_limit = self.genesis.entity.get_dofs_limit()
         min_qpos, max_qpos = dofs_limit
+
+        self.LOGGER.info(f"middle_qpos: {(min_qpos + max_qpos) / 2}")
+
         sim_range = (max_qpos - min_qpos) / (2 * torch.pi)
-        SoArm100.LOGGER.info(f"sim_range: {sim_range}")
+        self.LOGGER.info(f"sim_range: {sim_range}")

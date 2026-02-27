@@ -7,16 +7,18 @@ from slobot.configuration import Configuration
 
 
 class GolfBallEnv:
-    def __init__(self):
+    def __init__(self, requires_grad: bool = False):
         # Create SoArm100 instance
         self.arm = SoArm100(
             should_start=False,
             rgb=True,
             vis_mode='collision',
+            requires_grad=requires_grad,
         )
         
         # Build scene with objects
         self.build_scene()
+        self.arm.check_dofs_limit()
 
     def build_scene(self):
         self.arm.genesis.start()

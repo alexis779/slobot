@@ -54,7 +54,7 @@ def main():
     # Convert pre-grasp-mode string to enum
     pre_grasp_mode = PreGraspMode(args.pre_grasp_mode)
 
-    recording_layout = RecordingLayout(rrd_file=None, pre_grasp_mode=pre_grasp_mode, ball_x=args.ball_x, ball_y=args.ball_y, cup_x=args.cup_x, cup_y=args.cup_y)
+    recording_layout = RecordingLayout(rrd_file=None, pre_pick_frame_id=None, pick_frame_id=None, pre_grasp_mode=pre_grasp_mode, ball_x=args.ball_x, ball_y=args.ball_y, cup_x=args.cup_x, cup_y=args.cup_y)
 
     # Execute the task
     success = sim_policy.execute(recording_layout)

@@ -53,10 +53,12 @@ class Genesis():
 
         dt = 1 / self.fps
 
-        substeps = kwargs.get('substeps', 2) # 40
+        substeps = kwargs.get('substeps', 40) # 40
         noslip_iterations = substeps
 
         requires_grad = kwargs.get('requires_grad', False)
+        if requires_grad:
+            noslip_iterations = 0 # no slip is not supported with autograd
 
         self.scene = gs.Scene(
             show_viewer = show_viewer,
@@ -304,12 +306,3 @@ class Genesis():
     def euler_to_quat(self, euler):
         quat = Rotation.from_euler(self.EXTRINSIC_SEQ, euler).as_quat(scalar_first=True)
         return torch.tensor(quat)
-
-    def draw_arrow(self, link, arrow_t, sphere_radius, sphere_color):
-        link_pos = link.get_pos()
-        sphere_pos = self.link_translate(link, arrow_t)
-        arrow_vec = sphere_pos - link_pos
-        self.scene.clear_debug_objects()
-        self.scene.draw_debug_arrow(link_pos[0], arrow_vec[0], radius = 0.003, color = (1, 0, 0, 0.5))
-        self.scene.draw_debug_sphere(sphere_pos[0], sphere_radius, color = sphere_color)
-        return sphere_pos[0]

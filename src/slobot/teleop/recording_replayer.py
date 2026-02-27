@@ -66,9 +66,12 @@ class RecordingReplayer:
             control_pos = actions[step]
             self.golf_ball_env.arm.genesis.entity.control_dofs_position(control_pos)
             self.step()
+            if step == self.pick_frame_id-self.golf_ball_env.arm.genesis.fps:
+                #input("Press Enter to continue...")
+                pass
 
         success = self.golf_ball_in_cup()
-        RecordingReplayer.LOGGER.info(f"Episode success: {success}")
+        self.LOGGER.info(f"Episode success: {success}")
 
     # set the initial positions of the ball and the cup
     def set_object_initial_positions(self):

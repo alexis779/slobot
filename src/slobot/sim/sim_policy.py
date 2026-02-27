@@ -40,11 +40,13 @@ class SimPolicy:
             case PreGraspMode.HORIZONTAL:
                 self.move_to_ball_horizontal()
             case _:
-                raise ValueError(f"Invalid pre-grasp mode: {self.pre_grasp_mode}")
+                raise ValueError(f"Invalid pre-grasp mode: {recording_layout.pre_grasp_mode}")
 
+        self.pick_link_quat = self.golf_ball_env.arm.genesis.link.get_quat()
         self.grasp()
         self.pick_qpos = self.golf_ball_env.arm.genesis.entity.get_dofs_position()
         self.LOGGER.info(f"pick frame joint configuration={self.pick_qpos}")
+        #input("Press Enter to continue...")
         #self.golf_ball_env.arm.genesis.hold_entity()
         self.move_to_cup()
         self.place_qpos = self.golf_ball_env.arm.genesis.entity.get_dofs_position()
@@ -181,7 +183,7 @@ class SimPolicy:
             self.golf_ball_env.arm.genesis.scene.step()
             self.golf_ball_env.arm.genesis.scene.clear_debug_objects()
             self.golf_ball_env.arm.draw_single_link_frame()
-            self.golf_ball_env.arm.draw_link_arrow()
+            self.golf_ball_env.arm.draw_arrow_from_link_to_tcp()
             self.golf_ball_env.arm.genesis.side_camera.render()
 
     def set_gripper_qpos(self, qpos, gripper_qpos):

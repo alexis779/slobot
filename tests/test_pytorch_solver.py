@@ -57,7 +57,7 @@ class TestPytorchSolver(unittest.TestCase):
         self.assert_almost_equal_atol(link_pos, expected_link_pos, atol=1e-1)
 
 
-    def test_direct_kinematics(self):
+    def test_forward_kinematics(self):
         qpos = torch.tensor([-0.0123, -1.2707,  1.8747,  0.3543,  1.4381,  0.4008])
         vel = torch.zeros_like(qpos)
         self.pytorch_solver.set_pos(qpos)

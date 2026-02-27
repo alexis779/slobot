@@ -1,17 +1,12 @@
 from dataclasses import dataclass
-import torch
 import csv
-from slobot.sim.recording_layout import PreGraspMode, RecordingLayout
+from slobot.sim.recording_layout import RecordingLayout
+from slobot.sim.configuration_mapping import ConfigurationMapping
+from slobot.sim.recording_dataset_loader import RecordingDatasetLoader
 from slobot.sim.sim_policy import SimPolicy
 from slobot.teleop.recording_replayer import RecordingReplayer
 from slobot.configuration import Configuration
 from slobot.sim.golf_ball_env import GolfBallEnv
-
-
-@dataclass
-class ConfigurationMapping:
-    qpos: torch.Tensor
-    motor_pos: torch.Tensor
 
 
 class Real2SimReplay:
@@ -26,42 +21,31 @@ class Real2SimReplay:
         )
 
     def replay_dataset(self, dataset_file: str, output_csv_file: str):
+        recording_dataset_loader = RecordingDatasetLoader(dataset_file, output_csv_file)
         with open(output_csv_file, 'w') as output_file:
             writer = csv.writer(output_file)
-            writer.writerow(["episode_id", "motor_pos", "qpos"])
-
-            with open(dataset_file, 'r') as input_file:
-                reader = csv.reader(input_file)
-                next(reader)  # skip header row
-                for row in reader:
-                    recording_layout = RecordingLayout(
-                        rrd_file=row[0],
-                        pick_frame_id=int(row[1]),
-                        pre_grasp_mode=PreGraspMode(row[2]),
-                        ball_x=float(row[3]),
-                        ball_y=float(row[4]),
-                        cup_x=float(row[5]),
-                        cup_y=float(row[6]),
-                    )
-                    configuration_mapping = self.replay_episode(recording_layout)
-                    writer.writerow([recording_layout.rrd_file, configuration_mapping.motor_pos, configuration_mapping.qpos])
+            writer.writerow(["episode_id", "motor_pos", "qpos", "link_quat"])
+            for recording_layout in recording_dataset_loader.load_recording_layouts():
+                configuration_mapping = self.replay_episode(recording_layout)
+                writer.writerow([recording_layout.rrd_file, configuration_mapping.motor_pos, configuration_mapping.qpos, configuration_mapping.link_quat])
 
     def replay_episode(self, recording_layout: RecordingLayout):
         self.LOGGER.info(f"recording layout = {recording_layout}")
 
-        pick_qpos = self.play_sim(recording_layout)
+        pick_qpos, pick_link_quat = self.play_sim(recording_layout)
         pick_qpos = pick_qpos[0].tolist()
+        pick_link_quat = pick_link_quat[0].tolist()
 
         pick_pos = self.replay_real_in_sim(recording_layout)
         pick_pos = [int(x) for x in pick_pos.tolist()]
 
-        configuration_mapping = ConfigurationMapping(qpos=pick_qpos, motor_pos=pick_pos)
+        configuration_mapping = ConfigurationMapping(episode_id=recording_layout.rrd_file, qpos=pick_qpos, motor_pos=pick_pos, link_quat=pick_link_quat)
         self.LOGGER.info(f"configuration mapping = {configuration_mapping}")
         return configuration_mapping
 
     def play_sim(self, recording_layout: RecordingLayout):
         self.sim_policy.execute(recording_layout)
-        return self.sim_policy.pick_qpos
+        return self.sim_policy.pick_qpos, self.sim_policy.pick_link_quat
 
     def replay_real_in_sim(self, recording_layout: RecordingLayout):
         self.recording_replayer.replay(recording_layout.rrd_file, pick_frame_id=recording_layout.pick_frame_id)

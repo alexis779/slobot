@@ -6,6 +6,7 @@ dependencies = [
     # "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
 
     "torch",
+    "tensorboard",
 
     # "lerobot @ git+https://github.com/huggingface/lerobot.git",
 

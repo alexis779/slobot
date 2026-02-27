@@ -132,11 +132,14 @@ class RoboticArm():
         self.genesis.entity.control_dofs_position(feetech_frame.control_pos)
         self.genesis.step()
 
-    def draw_link_arrow(self):
+    def draw_arrow_from_link_to_tcp(self):
+        """Draw arrow from the link to the TCP"""
         link_pos = self.genesis.link.get_pos()
 
         link_quat = self.genesis.link.get_quat()
         tcp_offset_world = gu.transform_by_quat(self.tcp_offset, link_quat)
+
+        tcp_pos = link_pos + tcp_offset_world
 
         for env_idx in range(self.genesis.scene.n_envs):
             self.genesis.scene.draw_debug_arrow(torch.from_numpy(self.genesis.scene.envs_offset[env_idx]) + link_pos[env_idx], tcp_offset_world[env_idx], color=(1, 1, 1), radius=0.005)
