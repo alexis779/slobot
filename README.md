@@ -37,7 +37,6 @@ With pub/sub, workers repeatedly poll tasks from their dedicated queue, pushing 
 See [Tele-operation](doc/teleoperate.md) for more details.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#e1f5fe', 'secondaryColor': '#fff3e0', 'tertiaryColor': '#f3e5f5'}}}%%
 flowchart LR
     subgraph main [Cron]
         Cron["Infinite Loop - 30 Hz"]
@@ -66,7 +65,7 @@ flowchart LR
         Q4([webcam_capture_q])
     end
 
-    subgraph shm ["-"]
+    subgraph shm [SHM]
         SHM{{Shared Memory}}
     end
 
