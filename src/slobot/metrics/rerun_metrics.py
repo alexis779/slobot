@@ -1,6 +1,6 @@
 from rerun.datatypes.color_model import ColorModel
 from slobot.feetech_frame import FeetechFrame
-from slobot.simulation_frame import SimulationFrame
+from slobot.simulation_frame import SimulationFrame, CameraFrame
 from slobot.configuration import Configuration
 
 import rerun as rr
@@ -21,6 +21,8 @@ class RerunMetrics:
     TIME_METRIC = "step"
     CONTROL_POS_METRIC = "/leader/qpos"
     REAL_QPOS_METRIC = "/follower/qpos"
+    SIM_SIDE_VIDEO_METRIC = "/sim/side/video"
+    SIM_LINK_VIDEO_METRIC = "/sim/link/video"
 
     def __init__(self, **kwargs):
         self.operation_mode = kwargs['operation_mode']
@@ -35,9 +37,9 @@ class RerunMetrics:
 
         match self.operation_mode:
             case OperationMode.SAVE:
-                rrd_folder = f"{Configuration.WORK_DIR}/{recording_id}"
+                rrd_folder = f"{Configuration.WORK_DIR}/recordings"
                 os.makedirs(rrd_folder, exist_ok=True)
-                rrd_file = f"{rrd_folder}/{self.worker_name}.rrd"
+                rrd_file = f"{rrd_folder}/{recording_id}.rrd"
                 rr.save(rrd_file)
                 RerunMetrics.LOGGER.info("Recording %s started.", rrd_file)
             case OperationMode.SPAWN:
@@ -50,8 +52,30 @@ class RerunMetrics:
         self.step = 0
         self.steps.clear()
 
+    def init_container(self, fps: int):
+        self.container = av.open("/dev/null", "w", format="h264")
+        self.streams = {}
+        self.fps = fps
+
+    def create_stream(self):
+        stream = self.container.add_stream("libx264", rate=self.fps)
+        stream.max_b_frames = 0 # current limitation of rerun.io
+        return stream
+
+    def flush_stream(self, metric_name: str):
+        self.encode_frame(metric_name, None)
+
+    def close_container(self):
+        # flush video streams
+        for metric_name in self.streams:
+           self.flush_stream(metric_name)
+
+        # Close the container
+        self.container.close()
+
     def add_video_stream(self, metric_name: str):
         rr.log(metric_name, rr.VideoStream(codec="h264"), static=True)
+        self.streams[metric_name] = self.create_stream()
 
     def add_joint_metric_labels(self):
         self.add_child_metric_label(f"/latency", self.worker_name, f"{self.worker_name} latency (ms)")
@@ -76,6 +100,11 @@ class RerunMetrics:
 
         if simulation_frame.feetech_frame is not None:
             self.log_real_qpos(simulation_frame.feetech_frame)
+
+        if simulation_frame.side_camera_frame is not None:
+            self.log_sim_camera_frame(simulation_frame.side_camera_frame, RerunMetrics.SIM_SIDE_VIDEO_METRIC)
+        if simulation_frame.link_camera_frame is not None:
+            self.log_sim_camera_frame(simulation_frame.link_camera_frame, RerunMetrics.SIM_LINK_VIDEO_METRIC)
 
         self.step += 1
 
@@ -124,14 +153,15 @@ class RerunMetrics:
         for i, joint_name in enumerate(Configuration.JOINT_NAMES):
             self.add_metric(f"/{worker_name}/control_force", joint_name, control_force[i])
 
-    def log_frame(self, step: int, video_metric: str, frame: av.VideoFrame, stream: av.VideoStream):
+    def log_frame(self, step: int, video_metric: str, frame: av.VideoFrame):
         # check if self.steps last element is step, only add step once
         if len(self.steps) == 0 or self.steps[-1] < step:
             self.steps.append(step)
 
-        self.encode_frame(video_metric, frame, stream)
+        self.encode_frame(video_metric, frame)
 
-    def encode_frame(self, video_metric: str, frame: av.VideoFrame, stream: av.VideoStream):
+    def encode_frame(self, video_metric: str, frame: av.VideoFrame):
+        stream: av.VideoStream = self.streams[video_metric]
         for p in stream.encode(frame):
             packet: av.Packet = p
             self.set_time(self.steps[packet.pts]) # frames may be emitted out of order and some steps may not have a corresponding frame
@@ -164,3 +194,7 @@ class RerunMetrics:
             metric_name,
             rr.Points2D(points, radii=3),
         )
+
+    def log_sim_camera_frame(self, camera_frame: CameraFrame, metric_name: str):
+        frame = av.VideoFrame.from_ndarray(camera_frame.rgb, format="rgb24")
+        self.log_frame(self.step, metric_name, frame)

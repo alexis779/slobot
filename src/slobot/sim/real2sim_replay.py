@@ -6,17 +6,15 @@ from slobot.sim.recording_dataset_loader import RecordingDatasetLoader
 from slobot.sim.sim_policy import SimPolicy
 from slobot.teleop.recording_replayer import RecordingReplayer
 from slobot.configuration import Configuration
-from slobot.sim.golf_ball_env import GolfBallEnv
 
 
 class Real2SimReplay:
     LOGGER = Configuration.logger(__name__)
 
     def __init__(self):
-        golf_ball_env = GolfBallEnv()
-        self.sim_policy = SimPolicy(golf_ball_env)
+        self.sim_policy = SimPolicy(recording_id="recording_id")
         self.recording_replayer = RecordingReplayer(
-            golf_ball_env=golf_ball_env,
+            golf_ball_env=self.sim_policy.golf_ball_env,
             diff_threshold=Configuration.DIFF_THRESHOLD,
         )
 

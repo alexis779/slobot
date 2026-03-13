@@ -1,3 +1,4 @@
+from typing import Callable
 import torch
 import genesis as gs
 from importlib.resources import files
@@ -7,13 +8,15 @@ from slobot.configuration import Configuration
 
 
 class GolfBallEnv:
-    def __init__(self, requires_grad: bool = False):
+    def __init__(self, requires_grad: bool = False, step_handler: Callable = None):
         # Create SoArm100 instance
         self.arm = SoArm100(
             should_start=False,
             rgb=True,
-            vis_mode='collision',
+            vis_mode='visual', # collision
             requires_grad=requires_grad,
+            step_handler=step_handler,
+            show_world_frame=False, # True
         )
         
         # Build scene with objects
@@ -23,12 +26,14 @@ class GolfBallEnv:
     def build_scene(self):
         self.arm.genesis.start()
 
+        visualize_contact = False # True
+
         golf_ball_morph = gs.morphs.Sphere(
             radius=Configuration.GOLF_BALL_RADIUS,
         )
         self.golf_ball = self.arm.genesis.scene.add_entity(
             golf_ball_morph,
-            visualize_contact=True, # False
+            visualize_contact=visualize_contact,
             vis_mode=self.arm.genesis.vis_mode
         )
 
@@ -38,7 +43,7 @@ class GolfBallEnv:
         )
         self.cup = self.arm.genesis.scene.add_entity(
             cup_morph,
-            visualize_contact=False, # True
+            visualize_contact=visualize_contact,
             vis_mode=self.arm.genesis.vis_mode
         )
 

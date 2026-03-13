@@ -1,9 +1,5 @@
-from slobot.configuration import Configuration
 from slobot.robotic_arm import RoboticArm
-from slobot.so_arm_100 import SoArm100
 import gradio as gr
-import math
-import torch
 
 class GradioControlSimApp:
     def __init__(self, robotic_arm: RoboticArm):

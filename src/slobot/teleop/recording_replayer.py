@@ -34,14 +34,9 @@ class RecordingReplayer:
         self.rerun_metrics = RerunMetrics(operation_mode=WorkerBase.OPERATION_MODE, worker_name=self.worker_name)
         self.rerun_metrics.init_rerun(recording_id)
 
+        self.rerun_metrics.init_container(self.golf_ball_env.arm.genesis.fps)
         for camera_id in RecordingReplayer.CAMERA_IDS:
             self.rerun_metrics.add_video_stream(self.camera_metric_name(camera_id))
-
-        # initialize the video streams
-        self.container = av.open("/dev/null", "w", format="h264")
-        self.streams = {
-            camera_id: self.create_stream() for camera_id in RecordingReplayer.CAMERA_IDS
-        }
 
     def replay(self, rrd_file: str, pick_frame_id: int):
         self.invalidate_cached_properties()
@@ -173,33 +168,16 @@ class RecordingReplayer:
     def stop(self):
         self.golf_ball_env.arm.genesis.stop()
 
-        # flush video streams
-        for camera_id in RecordingReplayer.CAMERA_IDS:
-           self.flush_stream(camera_id)
-
-        # Close the container
-        self.container.close()
-
-    def flush_stream(self, camera_id: str):
-        self.rerun_metrics.encode_frame(self.camera_metric_name(camera_id), None, self.streams[camera_id])
+        self.rerun_metrics.close_container()
 
     def handle_step(self, simulation_frame: SimulationFrame):
         pass
         '''
         self.rerun_metrics.handle_step(simulation_frame)
 
-        self.log_sim_camera_frame(simulation_frame.side_camera_frame, "side")
-        self.log_sim_camera_frame(simulation_frame.link_camera_frame, "link")
+        self.rerun_metrics.log_sim_camera_frame(simulation_frame.side_camera_frame, "side")
+        self.rerun_metrics.log_sim_camera_frame(simulation_frame.link_camera_frame, "link")
         '''
-
-    def log_sim_camera_frame(self, camera_frame: CameraFrame, camera_id: str):
-        frame = av.VideoFrame.from_ndarray(camera_frame.rgb, format="rgb24")
-        self.rerun_metrics.log_frame(self.step_id, self.camera_metric_name(camera_id), frame, self.streams[camera_id])
 
     def camera_metric_name(self, camera_id: str):
         return f"/{self.worker_name}/{camera_id}/video"
-
-    def create_stream(self):
-        stream = self.container.add_stream("libx264", rate=self.golf_ball_env.arm.genesis.fps)
-        #stream.max_b_frames = 0
-        return stream

@@ -70,11 +70,9 @@ class SimStepWorker(WorkerBase):
         for render_mode in RenderMode:
             self.rerun_metrics.add_video_stream(self.metric_name(render_mode))
 
-        # initialize the video streams
-        self.container = av.open("/dev/null", "w", format="h264")
-        self.streams = {
-            render_mode: self.create_stream() for render_mode in RenderMode
-        }
+        self.rerun_metrics.init_container(self.fps)
+        for render_mode in RenderMode:
+            self.rerun_metrics.add_video_stream(self.render_mode_metric_name(render_mode))
 
         res = (self.width, self.height)
         self.arm = SoArm100(show_viewer=False, fps=self.fps, substeps=self.substeps, rgb=True, depth=True, segmentation=True, normal=True, res=res, vis_mode=self.vis_mode)
@@ -82,12 +80,8 @@ class SimStepWorker(WorkerBase):
         self.LOGGER.info(f"Genesis simulation started with {self.fps} FPS, {self.substeps} substeps, {self.width}x{self.height} resolution, and {self.vis_mode} visualization mode")
 
     def teardown(self):
-        # flush video streams
-        for render_mode in RenderMode:
-           self.flush_stream(render_mode)
-
         # Close the container
-        self.container.close()
+        self.rerun_metrics.close_container()
 
         # Stop the Genesis simulation
         self.arm.genesis.stop()
@@ -147,15 +141,7 @@ class SimStepWorker(WorkerBase):
     def log_rgb(self, step: int, rgb: Any, render_mode: RenderMode):
         # transcode image into a video stream to reduce disk space
         frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
-        self.rerun_metrics.log_frame(step, self.render_mode_metric_name(render_mode), frame, self.streams[render_mode])
-
-    def flush_stream(self, render_mode: RenderMode):
-        self.rerun_metrics.encode_frame(self.render_mode_metric_name(render_mode), None, self.streams[render_mode])
+        self.rerun_metrics.log_frame(step, self.render_mode_metric_name(render_mode), frame)
 
     def render_mode_metric_name(self, render_mode: RenderMode):
         return f"/{self.worker_name}/{render_mode.value}/video"
-
-    def create_stream(self):
-        stream = self.container.add_stream("libx264", rate=self.fps)
-        stream.max_b_frames = 0
-        return stream

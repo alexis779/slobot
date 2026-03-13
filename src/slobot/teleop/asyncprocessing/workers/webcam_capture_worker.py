@@ -74,10 +74,8 @@ class WebcamCaptureWorker(WorkerBase):
 
         # Shared memory will be initialized in setup if needed
 
-
-        # initialize the video stream
-        self.container = av.open("/dev/null", "w", format="h264")
-        self.stream = self.create_stream()
+        self.rerun_metrics.init_container(self.fps)
+        self.rerun_metrics.add_video_stream(self.metric_name())
 
         # Open the webcam
         self.cap = cv2.VideoCapture(self.camera_id)
@@ -112,15 +110,14 @@ class WebcamCaptureWorker(WorkerBase):
     def reset(self):
         '''Reset the video stream.'''
         super().reset()
-        self.flush_stream()
-        self.stream = self.create_stream()
+        self.rerun_metrics.flush_stream(self.metric_name())
+        self.rerun_metrics.add_video_stream(self.metric_name())
 
     def teardown(self):
         """Release the webcam."""
         self.cap.release()
 
-        self.flush_stream()
-        self.container.close()
+        self.rerun_metrics.close_container()
 
         if self.shm_block:
             self.shm_block.close()
@@ -179,15 +176,7 @@ class WebcamCaptureWorker(WorkerBase):
 
         # transcode image into a video stream to reduce disk space
         frame = av.VideoFrame.from_ndarray(rgb, format="rgb24")
-        self.rerun_metrics.log_frame(step, self.metric_name(), frame, self.stream)
-
-    def create_stream(self):
-        stream = self.container.add_stream("libx264", rate=self.fps)
-        stream.max_b_frames = 0
-        return stream
-
-    def flush_stream(self):
-        self.rerun_metrics.encode_frame(self.metric_name(), None, self.stream)
+        self.rerun_metrics.log_frame(step, self.metric_name(), frame)
 
     def metric_name(self):
         return f"/{self.worker_name}/video"

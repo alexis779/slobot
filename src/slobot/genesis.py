@@ -53,12 +53,14 @@ class Genesis():
 
         dt = 1 / self.fps
 
-        substeps = kwargs.get('substeps', 40) # 40
+        substeps = kwargs.get('substeps', 40) # 1
         noslip_iterations = substeps
 
         requires_grad = kwargs.get('requires_grad', False)
         if requires_grad:
             noslip_iterations = 0 # no slip is not supported with autograd
+
+        show_world_frame = kwargs.get('show_world_frame', True)
 
         self.scene = gs.Scene(
             show_viewer = show_viewer,
@@ -78,7 +80,7 @@ class Genesis():
                 max_FPS       = self.fps,
             ),
             vis_options    = gs.options.VisOptions(
-                show_world_frame = True, # True
+                show_world_frame = show_world_frame,
                 lights           = lights,
             ),
             profiling_options = gs.options.ProfilingOptions(

@@ -1,6 +1,5 @@
 import argparse
 from slobot.sim.sim_policy import SimPolicy
-from slobot.sim.golf_ball_env import GolfBallEnv
 from slobot.sim.recording_layout import PreGraspMode, RecordingLayout
 
 def main():
@@ -46,10 +45,8 @@ def main():
 
     args = parser.parse_args()
 
-    golf_ball_env = GolfBallEnv()
-
     # Create and execute policy
-    sim_policy = SimPolicy(golf_ball_env)
+    sim_policy = SimPolicy(recording_id="recording_id")
 
     # Convert pre-grasp-mode string to enum
     pre_grasp_mode = PreGraspMode(args.pre_grasp_mode)

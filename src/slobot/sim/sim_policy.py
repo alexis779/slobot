@@ -6,6 +6,8 @@ from slobot.configuration import Configuration
 from slobot.sim.golf_ball_env import GolfBallEnv
 from slobot.sim.recording_layout import PreGraspMode, RecordingLayout
 from slobot.sim.ompl_path_planner import OMPLPathPlanner
+from slobot.simulation_frame import SimulationFrame
+from slobot.metrics.rerun_metrics import RerunMetrics, OperationMode
 
 class SimPolicy:
     """Policy to pick up a golf ball and place it in a cup using IK with wrist orientation constraint."""
@@ -18,16 +20,20 @@ class SimPolicy:
     GRIPPER_GRASPING_QPOS = 0.25
     GRIPPER_CLOSED_QPOS = -1.0
 
-    def __init__(self, golf_ball_env: GolfBallEnv):
-        self.golf_ball_env = golf_ball_env
-        self.ompl_path_planner = OMPLPathPlanner(golf_ball_env.arm.genesis.entity, golf_ball_env.arm.genesis.scene)
+    def __init__(self, recording_id: str):
+        self.rerun_metrics = RerunMetrics(operation_mode=OperationMode.SAVE)
+
+        self.golf_ball_env = GolfBallEnv(step_handler=self.rerun_metrics)
+
+        self.ompl_path_planner = OMPLPathPlanner(self.golf_ball_env.arm.genesis.entity, self.golf_ball_env.arm.genesis.scene)
+
+        self.rerun_metrics.init_rerun(recording_id)
+        self.rerun_metrics.init_container(self.golf_ball_env.arm.genesis.fps)
+        self.rerun_metrics.add_video_stream(RerunMetrics.SIM_SIDE_VIDEO_METRIC)
+        self.rerun_metrics.add_video_stream(RerunMetrics.SIM_LINK_VIDEO_METRIC)
 
     def execute(self, recording_layout: RecordingLayout) -> bool:
-        self.golf_ball_env.arm.genesis.side_camera.start_recording()
-        try:
-            return self.execute_policy(recording_layout)
-        finally:
-            self.golf_ball_env.arm.genesis.side_camera.stop_recording()
+        return self.execute_policy(recording_layout)
 
     def execute_policy(self, recording_layout: RecordingLayout) -> bool:
         self.golf_ball_env.set_object_initial_positions(recording_layout.ball_x, recording_layout.ball_y, recording_layout.cup_x, recording_layout.cup_y)
@@ -54,6 +60,8 @@ class SimPolicy:
         self.go_home()
         self.close_gripper()
         self.golf_ball_env.arm.genesis.scene.clear_debug_objects()
+
+        self.rerun_metrics.close_container()
 
         success = self.golf_ball_env.is_golf_ball_in_cup()
         if not success:
@@ -102,8 +110,7 @@ class SimPolicy:
     def stabilize(self):
         for _ in range(self.golf_ball_env.arm.genesis.fps * 1):
             #input("Press Enter to step...")
-            self.golf_ball_env.arm.genesis.step()
-            self.golf_ball_env.arm.genesis.side_camera.render()
+            self.step()
 
     def ik_path_plan(self, target_pos, target_quat, gripper_qpos):
         self.LOGGER.info(f"IK target_pos={target_pos}")
@@ -180,11 +187,16 @@ class SimPolicy:
         for waypoint_qpos in path:
             self.set_gripper_qpos(waypoint_qpos, gripper_qpos)
             self.golf_ball_env.arm.genesis.entity.control_dofs_position(waypoint_qpos)
-            self.golf_ball_env.arm.genesis.scene.step()
-            self.golf_ball_env.arm.genesis.scene.clear_debug_objects()
-            self.golf_ball_env.arm.draw_single_link_frame()
-            self.golf_ball_env.arm.draw_arrow_from_link_to_tcp()
-            self.golf_ball_env.arm.genesis.side_camera.render()
+            self.step()
+
+    def step(self):
+        self.golf_ball_env.arm.genesis.step()
+        #self.draw_debug()
+
+    def draw_debug(self):
+        self.golf_ball_env.arm.genesis.scene.clear_debug_objects()
+        self.golf_ball_env.arm.draw_single_link_frame()
+        self.golf_ball_env.arm.draw_arrow_from_link_to_tcp()
 
     def set_gripper_qpos(self, qpos, gripper_qpos):
         gripper_id = self.golf_ball_env.arm.genesis.joint.qs_idx_local[0]
@@ -209,7 +221,7 @@ class SimPolicy:
 
         return target_link_pos, quat_x
 
-    def vertical_3dpose(self, target_object, target_z):
+    def vertical_3dpose(self, target_object):
         x_axis = torch.tensor([1.0, 0.0, 0.0])
         quat_x = gu.axis_angle_to_quat(torch.tensor(torch.pi / 2), x_axis)  # -90° around x
 
@@ -221,7 +233,6 @@ class SimPolicy:
         link_offset_world = gu.transform_by_quat(-self.golf_ball_env.arm.tcp_offset, down_quat)
 
         target_pos = target_object.get_pos()[0]
-        target_pos[2] = target_z
 
         target_link_pos = target_pos + link_offset_world
 
