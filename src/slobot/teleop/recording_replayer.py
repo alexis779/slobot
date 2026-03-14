@@ -34,9 +34,8 @@ class RecordingReplayer:
         self.rerun_metrics = RerunMetrics(operation_mode=WorkerBase.OPERATION_MODE, worker_name=self.worker_name)
         self.rerun_metrics.init_rerun(recording_id)
 
-        self.rerun_metrics.init_container(self.golf_ball_env.arm.genesis.fps)
         for camera_id in RecordingReplayer.CAMERA_IDS:
-            self.rerun_metrics.add_video_stream(self.camera_metric_name(camera_id))
+            self.rerun_metrics.add_video_stream(self.camera_metric_name(camera_id), self.golf_ball_env.arm.genesis.fps)
 
     def replay(self, rrd_file: str, pick_frame_id: int):
         self.invalidate_cached_properties()

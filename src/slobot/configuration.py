@@ -1,8 +1,9 @@
 import torch
 import logging
+import os
 
 class Configuration:
-    WORK_DIR = "/tmp/slobot"
+    WORK_DIR = f"{os.environ['HOME']}/.slobot"
 
     # 4:3 aspect ratio
     QVGA = (320, 240)

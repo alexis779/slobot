@@ -28,7 +28,7 @@ class EpisodeReplayer:
     def __init__(self, **kwargs):
         self.repo_id = kwargs["repo_id"]
 
-        self.episode_ids = kwargs["episode_ids"]
+        self.episode_ids = kwargs.get("episode_ids")
         self.episode_loader = EpisodeLoader(repo_id=self.repo_id, episode_ids=self.episode_ids)
 
         # FPS
@@ -44,20 +44,41 @@ class EpisodeReplayer:
         kwargs["res"] = self.res
 
         self.add_metrics = kwargs.get("add_metrics", False)
+        step_handler = kwargs.get("step_handler")
         if self.add_metrics:
             self.metrics = RerunMetrics()
             kwargs["step_handler"] = self.metrics
+        elif step_handler is not None:
+            kwargs["step_handler"] = step_handler
 
         self.arm = SoArm100(**kwargs)
 
         self.build_scene()
+
+    def load_episodes(self, episode_ids):
+        """Reload episode loader with the given episode IDs."""
+        self.episode_ids = episode_ids
+        self.episode_loader = EpisodeLoader(repo_id=self.repo_id, episode_ids=episode_ids)
+        self.episode_loader.set_dofs_limit(
+            self.arm.genesis.entity.get_dofs_limit()
+        )
+        self.set_object_initial_positions()
+
+    def load_dataset(self, episode_id):
+        """Return iterable of rows for the given episode."""
+        from lerobot.datasets.lerobot_dataset import LeRobotDataset
+
+        ds = LeRobotDataset(repo_id=self.repo_id, episodes=[episode_id])
+        for i in range(len(ds.hf_dataset)):
+            row = ds.hf_dataset[i]
+            yield {"action": row["action"], "observation.state": row["observation.state"]}
 
     def replay_episodes(self):
         moved, success = self.replay_episode_batch()
 
         # Log failed episodes
         failed_episode_ids = [self.episode_ids[i] for i in range(len(success)) if not success[i]]
-        EpisodeReplayer.LOGGER.info(f"Failed episodes: {','.join(map(str, failed_episode_ids))}")
+        self.LOGGER.info(f"Failed episodes: {','.join(map(str, failed_episode_ids))}")
 
         score = (sum(moved) + sum(success)) / (2 * self.episode_loader.episode_count)
 
@@ -135,6 +156,7 @@ class EpisodeReplayer:
 
         n_envs = len(self.episode_ids)
         self.arm.genesis.build(n_envs=n_envs)
+        self.arm.set_kinematic_path()
 
         qpos_limits = self.arm.genesis.entity.get_dofs_limit()
         self.episode_loader.set_dofs_limit(qpos_limits)
@@ -148,7 +170,7 @@ class EpisodeReplayer:
         ]
         leader_robot_states = self.episode_loader.get_robot_states(EpisodeLoader.LEADER_STATE_COLUMN, frame_ids)
 
-        #EpisodeReplayer.LOGGER.info(f"frame_id = {frame_id}")
+        #self.LOGGER.info(f"frame_id = {frame_id}")
 
         if frame_id == 0:
             self.arm.genesis.entity.set_dofs_position(leader_robot_states)
@@ -168,21 +190,31 @@ class EpisodeReplayer:
         ]
 
         self.set_robot_states(pick_frame_ids)
-        pick_tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.arm.tcp_offset)
+        pick_tcp_pos = self.arm.genesis.link_translate(self.arm.fixed_jaw, self.arm.tcp_offset)
+        pick_motor_pos = self.episode_loader.get_robot_states(
+            EpisodeLoader.LEADER_STATE_COLUMN, pick_frame_ids
+        )
 
         place_frame_ids = [
             hold_state.place_frame_id
             for hold_state in self.episode_loader.hold_states
         ]
         self.set_robot_states(place_frame_ids)
-        place_tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.fixed_jaw, self.arm.tcp_offset)
+        place_tcp_pos = self.arm.genesis.link_translate(self.arm.fixed_jaw, self.arm.tcp_offset)
+        place_motor_pos = self.episode_loader.get_robot_states(
+            EpisodeLoader.LEADER_STATE_COLUMN, place_frame_ids
+        )
 
         return [
             InitialState(
                 ball=pick_tcp_pos_i,
                 cup=place_tcp_pos_i,
+                ball_motor_pos=pick_motor_pos[i],
+                cup_motor_pos=place_motor_pos[i],
             )
-            for pick_tcp_pos_i, place_tcp_pos_i, in zip(pick_tcp_pos, place_tcp_pos)
+            for i, (pick_tcp_pos_i, place_tcp_pos_i) in enumerate(
+                zip(pick_tcp_pos, place_tcp_pos)
+            )
         ]
 
     def get_initial_state_images(self):

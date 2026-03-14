@@ -74,8 +74,7 @@ class WebcamCaptureWorker(WorkerBase):
 
         # Shared memory will be initialized in setup if needed
 
-        self.rerun_metrics.init_container(self.fps)
-        self.rerun_metrics.add_video_stream(self.metric_name())
+        self.rerun_metrics.add_video_stream(self.metric_name(), self.fps)
 
         # Open the webcam
         self.cap = cv2.VideoCapture(self.camera_id)
@@ -110,7 +109,7 @@ class WebcamCaptureWorker(WorkerBase):
     def reset(self):
         '''Reset the video stream.'''
         super().reset()
-        self.rerun_metrics.flush_stream(self.metric_name())
+        self.rerun_metrics.flush_streams()
         self.rerun_metrics.add_video_stream(self.metric_name())
 
     def teardown(self):

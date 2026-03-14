@@ -10,10 +10,10 @@ class PreGraspMode(Enum):
 @dataclass
 class RecordingLayout:
     rrd_file: str
-    pre_pick_frame_id: int
     pick_frame_id: int
     pre_grasp_mode: PreGraspMode
     ball_x: float
     ball_y: float
     cup_x: float
     cup_y: float
+    recording_id: str # the destination recording id

@@ -68,11 +68,7 @@ class SimStepWorker(WorkerBase):
         self.feetech = Feetech(connect=False)
 
         for render_mode in RenderMode:
-            self.rerun_metrics.add_video_stream(self.metric_name(render_mode))
-
-        self.rerun_metrics.init_container(self.fps)
-        for render_mode in RenderMode:
-            self.rerun_metrics.add_video_stream(self.render_mode_metric_name(render_mode))
+            self.rerun_metrics.add_video_stream(self.metric_name(render_mode), self.fps)
 
         res = (self.width, self.height)
         self.arm = SoArm100(show_viewer=False, fps=self.fps, substeps=self.substeps, rgb=True, depth=True, segmentation=True, normal=True, res=res, vis_mode=self.vis_mode)

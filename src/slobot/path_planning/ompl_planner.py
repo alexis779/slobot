@@ -8,19 +8,20 @@ Installation options:
   - PyPI (Python 3.10-3.12): uv pip install ompl
   - Built from source (e.g. ~/Documents/python/robotics/ompl):
     cd ompl/build/Release && cmake ../.. -DOMPL_BUILD_PYTHON_BINDINGS=ON && make
-    PYTHONPATH=ompl/build/Release/nanobinds:$PYTHONPATH python examples/ompl_path_planning.py
+    PYTHONPATH=ompl/build/Release/nanobinds:$PYTHONPATH python -m slobot.path_planning.ompl_planner
 
 Usage:
-    planner = OMPLPathPlanner(entity, scene)
+    planner = OmplPathPlanner(entity, scene)
     path = planner.plan(target_qpos=goal)
 """
 
 from __future__ import annotations
 
 import torch
-import torch.nn.functional as F
 
 import genesis as gs
+
+from slobot.path_planning.path_interpolator import PathInterpolator
 
 try:
     from ompl import base as ob
@@ -31,14 +32,17 @@ except ImportError as e:
         "Note: OMPL supports Python 3.10-3.12; use a compatible Python version."
     ) from e
 
+from slobot.configuration import Configuration
 
-class OMPLPathPlanner:
+class OmplPathPlanner:
     """
     Path planner using OMPL for collision-free motion in joint space.
 
     Uses the scene's collision detection to validate states. Plans from the
     entity's current configuration to a target configuration.
     """
+
+    LOGGER = Configuration.logger(__name__)
 
     def __init__(self, entity, scene):
         """
@@ -56,6 +60,7 @@ class OMPLPathPlanner:
         self._collider = self._rigid_solver.collider
         self._n_dofs = entity.n_dofs
         self._exclude_geom_pairs: set[tuple[int, int]] = set()
+        self.interpolator = PathInterpolator()
 
     def _get_exclude_geom_pairs(self, qposs: list[torch.Tensor]) -> set[tuple[int, int]]:
         """Get geom pairs in contact at given configs (e.g. start/goal) to exclude from validity check."""
@@ -124,7 +129,7 @@ class OMPLPathPlanner:
         Returns
         -------
         path : torch.Tensor
-            Path of shape (n_waypoints, n_dofs) from current to target qpos.
+            Path of shape (n_waypoints, 1, n_dofs) from current to target qpos.
         """
         # Ensure tensors on CPU for OMPL (Python floats)
         target_qpos = torch.as_tensor(target_qpos, device="cpu").float().flatten()
@@ -182,9 +187,6 @@ class OMPLPathPlanner:
         if not solved:
             raise RuntimeError("OMPL failed to find a path to the target configuration.")
 
-        # Simplify path if possible
-        #ss.simplifySolution()
-
         # Restore start configuration
         self._entity.set_dofs_position(start_qpos0, zero_velocity=False)
 
@@ -192,10 +194,11 @@ class OMPLPathPlanner:
         path_ompl = ss.getSolutionPath()
         n_waypoints = path_ompl.getStateCount()
         if n_waypoints < 2:
-            return torch.stack(
+            path = torch.stack(
                 [start_qpos.to(gs.device), target_qpos.to(gs.device)],
                 dim=0,
             )
+            return path.unsqueeze(1)  # (n_waypoints, 1, n_dofs)
 
         # Get waypoints from OMPL path (OMPL 2.0: state[j] direct indexing)
         waypoints = torch.zeros(n_waypoints, self._n_dofs, dtype=torch.float32, device=gs.device)
@@ -204,65 +207,7 @@ class OMPLPathPlanner:
             for j in range(self._n_dofs):
                 waypoints[i, j] = s[j]
 
-        return waypoints
-
-    def interpolate(
-        self,
-        x: torch.Tensor,
-        path_length: int,
-    ) -> torch.Tensor:
-        """
-        Resample an existing joint-space path to the requested number of waypoints.
-
-        No collision checking is performed.
-
-        Parameters
-        ----------
-        x : torch.Tensor
-            Path tensor of shape (n_waypoints, n_dofs).
-        path_length : int
-            Number of waypoints in the output path.
-
-        Returns
-        -------
-        path : torch.Tensor
-            Path of shape (path_length, n_dofs).
-        """
-        x = torch.as_tensor(x, device=gs.device, dtype=torch.float32)
-        if x.ndim != 2:
-            raise ValueError(f"Expected x with shape (n_waypoints, n_dofs), got {tuple(x.shape)}")
-        if path_length < 1:
-            raise ValueError(f"path_length must be >= 1, got {path_length}")
-        if x.shape[0] == path_length:
-            return x
-        if x.shape[0] == 1:
-            return x.repeat(path_length, 1)
-
-        # F.interpolate expects (N, C, L), where C is n_dofs and L is n_waypoints.
-        x = x.T.unsqueeze(0)  # (1, n_dofs, n_waypoints)
-        path = F.interpolate(x, size=path_length, mode="linear", align_corners=True)
-        return path.squeeze(0).T  # (path_length, n_dofs)
-
-
-if __name__ == "__main__":
-    """Minimal example: plan a path for a Franka arm."""
-    gs.init(backend=gs.cpu)
-    scene = gs.Scene(
-        rigid_options=gs.options.RigidOptions(enable_collision=True),
-    )
-    scene.add_entity(gs.morphs.Plane())
-    franka = scene.add_entity(gs.morphs.MJCF(file="xml/franka_emika_panda/panda.xml"))
-    scene.build()
-
-    planner = OMPLPathPlanner(franka, scene)
-    lower, upper = franka.get_dofs_limit()
-    lower = torch.as_tensor(lower).float().flatten()
-    upper = torch.as_tensor(upper).float().flatten()
-    start = torch.as_tensor(franka.get_dofs_position()).float().flatten()
-    # Target: small offset from start, clamped to limits
-    offset = torch.tensor([0.1, 0.05, -0.05, 0.02, 0.0, 0.0, 0.0, 0.0, 0.0][: len(start)])
-    target = torch.clamp(start + offset, lower, upper)
-
-    path = planner.plan(target_qpos=target)
-    print(f"Planned path: {path.shape[0]} waypoints, {path.shape[1]} DOFs")
-    print(f"Start: {path[0, :4]}... -> Goal: {path[-1, :4]}...")
+        path = waypoints.unsqueeze(1)  # (n_waypoints, 1, n_dofs)
+        self.LOGGER.info(f"path = {path}")
+        path = self.interpolator.interpolate(path)
+        return path

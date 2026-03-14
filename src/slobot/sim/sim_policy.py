@@ -5,8 +5,8 @@ import genesis.utils.geom as gu
 from slobot.configuration import Configuration
 from slobot.sim.golf_ball_env import GolfBallEnv
 from slobot.sim.recording_layout import PreGraspMode, RecordingLayout
-from slobot.sim.ompl_path_planner import OMPLPathPlanner
-from slobot.simulation_frame import SimulationFrame
+#from slobot.path_planning.genesis_planner import GenesisPathPlanner
+from slobot.path_planning.ompl_planner import OmplPathPlanner
 from slobot.metrics.rerun_metrics import RerunMetrics, OperationMode
 
 class SimPolicy:
@@ -20,22 +20,27 @@ class SimPolicy:
     GRIPPER_GRASPING_QPOS = 0.25
     GRIPPER_CLOSED_QPOS = -1.0
 
-    def __init__(self, recording_id: str):
+    def __init__(self):
         self.rerun_metrics = RerunMetrics(operation_mode=OperationMode.SAVE)
 
         self.golf_ball_env = GolfBallEnv(step_handler=self.rerun_metrics)
 
-        self.ompl_path_planner = OMPLPathPlanner(self.golf_ball_env.arm.genesis.entity, self.golf_ball_env.arm.genesis.scene)
-
-        self.rerun_metrics.init_rerun(recording_id)
-        self.rerun_metrics.init_container(self.golf_ball_env.arm.genesis.fps)
-        self.rerun_metrics.add_video_stream(RerunMetrics.SIM_SIDE_VIDEO_METRIC)
-        self.rerun_metrics.add_video_stream(RerunMetrics.SIM_LINK_VIDEO_METRIC)
+        #self.path_planner = GenesisPathPlanner(self.golf_ball_env.arm.genesis.entity)
+        self.path_planner = OmplPathPlanner(self.golf_ball_env.arm.genesis.entity, self.golf_ball_env.arm.genesis.scene)
 
     def execute(self, recording_layout: RecordingLayout) -> bool:
-        return self.execute_policy(recording_layout)
+        try:
+            return self.execute_throwable(recording_layout)
+        finally:
+            self.rerun_metrics.flush_streams()
+            self.rerun_metrics.end_recording()
 
-    def execute_policy(self, recording_layout: RecordingLayout) -> bool:
+    def execute_throwable(self, recording_layout: RecordingLayout) -> bool:
+        self.LOGGER.info(f"Executing recording layout: {recording_layout}")
+        self.rerun_metrics.init_rerun(recording_layout.recording_id)
+        self.rerun_metrics.add_video_stream(RerunMetrics.SIM_SIDE_VIDEO_METRIC, self.golf_ball_env.arm.genesis.fps)
+        self.rerun_metrics.add_video_stream(RerunMetrics.SIM_LINK_VIDEO_METRIC, self.golf_ball_env.arm.genesis.fps)
+
         self.golf_ball_env.set_object_initial_positions(recording_layout.ball_x, recording_layout.ball_y, recording_layout.cup_x, recording_layout.cup_y)
 
         match recording_layout.pre_grasp_mode:
@@ -61,12 +66,9 @@ class SimPolicy:
         self.close_gripper()
         self.golf_ball_env.arm.genesis.scene.clear_debug_objects()
 
-        self.rerun_metrics.close_container()
-
         success = self.golf_ball_env.is_golf_ball_in_cup()
         if not success:
             raise ValueError("Golf ball not in cup")
-
         return success
 
     def move_to_ball_vertical(self):
@@ -169,20 +171,11 @@ class SimPolicy:
             raise ValueError(f"Position error is too large {pos_error} > {pos_eps}")
 
     def plan_path(self, qpos, gripper_qpos):
-        '''
-        path, valid_mask = self.golf_ball_env.arm.genesis.entity.plan_path(
-            qpos,
-            return_valid_mask=True,
-        )
-        if not valid_mask.all():
-            raise ValueError("Path planning failed")
-        '''
-        path = self.ompl_path_planner.plan(qpos)
+        path = self.path_planner.plan(qpos)
         self.LOGGER.info(f"path start: {path[0]}")
         self.LOGGER.info(f"path end: {path[-1]}")
-        self.LOGGER.info(f"path before interpolation has {path.shape[0]} waypoints")
-        self.LOGGER.info(f"path = {path}")
-        path = self.ompl_path_planner.interpolate(path, path_length=200)
+
+        path = path.squeeze(1)
 
         for waypoint_qpos in path:
             self.set_gripper_qpos(waypoint_qpos, gripper_qpos)

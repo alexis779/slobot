@@ -8,6 +8,8 @@ from slobot.configuration import Configuration
 
 
 class GolfBallEnv:
+    IDENTITY_QUAT = torch.tensor([1.0, 0.0, 0.0, 0.0])
+
     def __init__(self, requires_grad: bool = False, step_handler: Callable = None):
         # Create SoArm100 instance
         self.arm = SoArm100(
@@ -67,7 +69,11 @@ class GolfBallEnv:
             0.0
         ]])
         self.golf_ball.set_pos(self.ball_pos)
+
         self.cup.set_pos(self.cup_pos)
+        self.cup.set_quat(self.IDENTITY_QUAT) # sometimes the robot may tip the cup, so it needs to be straightened
+
+        self.arm.genesis.entity.set_dofs_position(self.arm.genesis.home_qpos)
 
     def is_golf_ball_in_cup(self) -> bool:
         """

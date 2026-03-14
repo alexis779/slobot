@@ -1,8 +1,7 @@
 import argparse
-from slobot.configuration import Configuration
 from slobot.lerobot.episode_replayer import EpisodeReplayer
 
-parser = argparse.ArgumentParser(description="Replay a specific episode from a dataset.")
+parser = argparse.ArgumentParser(description="Replay a LeRobot dataset.")
 parser.add_argument("--dataset-repo-id", type=str, required=True, help="Hugging Face Hub repository ID of the dataset.")
 parser.add_argument("--episode-ids", type=str, default=None, help="Specific episode ID or comma-separated list of IDs to replay (optional).")
 

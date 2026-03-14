@@ -16,11 +16,14 @@ class OperationMode(Enum):
 
 class RerunMetrics:
     LOGGER = Configuration.logger(__name__)
+
     APPLICATION_ID = "teleoperation"
-    RRD_FOLDER = f"{Configuration.WORK_DIR}/{APPLICATION_ID}"
+
     TIME_METRIC = "step"
+
     CONTROL_POS_METRIC = "/leader/qpos"
     REAL_QPOS_METRIC = "/follower/qpos"
+
     SIM_SIDE_VIDEO_METRIC = "/sim/side/video"
     SIM_LINK_VIDEO_METRIC = "/sim/link/video"
 
@@ -30,8 +33,14 @@ class RerunMetrics:
 
         self.steps = []  # sequence of step ids that had a frame added to the video stream
 
+        self.container = av.open("/dev/null", "w", format="h264")
+        self.streams = {}
+
+    def recording_path(self, recording_id: str) -> str:
+        return f"{Configuration.WORK_DIR}/recordings/{recording_id}.rrd"
+
     def init_rerun(self, recording_id: str):
-        RerunMetrics.LOGGER.info(f"Initializing recording ID {recording_id} for application {RerunMetrics.APPLICATION_ID} and worker {self.worker_name}")
+        self.LOGGER.info(f"Initializing recording ID {recording_id} for application {RerunMetrics.APPLICATION_ID} and worker {self.worker_name}")
 
         rr.init(RerunMetrics.APPLICATION_ID, recording_id=recording_id)
 
@@ -39,9 +48,9 @@ class RerunMetrics:
             case OperationMode.SAVE:
                 rrd_folder = f"{Configuration.WORK_DIR}/recordings"
                 os.makedirs(rrd_folder, exist_ok=True)
-                rrd_file = f"{rrd_folder}/{recording_id}.rrd"
+                rrd_file = self.recording_path(recording_id)
                 rr.save(rrd_file)
-                RerunMetrics.LOGGER.info("Recording %s started.", rrd_file)
+                self.LOGGER.info("Recording %s started.", rrd_file)
             case OperationMode.SPAWN:
                 rr.spawn()
             case OperationMode.GRPC:
@@ -52,30 +61,29 @@ class RerunMetrics:
         self.step = 0
         self.steps.clear()
 
-    def init_container(self, fps: int):
-        self.container = av.open("/dev/null", "w", format="h264")
-        self.streams = {}
-        self.fps = fps
+    def end_recording(self):
+        """Flush and close the current recording stream so the RRD file has a valid footer."""
+        if self.operation_mode == OperationMode.SAVE:
+            rr.disconnect()
 
-    def create_stream(self):
-        stream = self.container.add_stream("libx264", rate=self.fps)
+    def create_stream(self, fps: int):
+        stream = self.container.add_stream("libx264", rate=fps)
         stream.max_b_frames = 0 # current limitation of rerun.io
         return stream
 
-    def flush_stream(self, metric_name: str):
-        self.encode_frame(metric_name, None)
+    def flush_streams(self):
+        for metric_name in self.streams:
+            self.encode_frame(metric_name, None)
 
     def close_container(self):
-        # flush video streams
-        for metric_name in self.streams:
-           self.flush_stream(metric_name)
+        self.flush_streams()
 
         # Close the container
         self.container.close()
 
-    def add_video_stream(self, metric_name: str):
+    def add_video_stream(self, metric_name: str, fps: int):
         rr.log(metric_name, rr.VideoStream(codec="h264"), static=True)
-        self.streams[metric_name] = self.create_stream()
+        self.streams[metric_name] = self.create_stream(fps)
 
     def add_joint_metric_labels(self):
         self.add_child_metric_label(f"/latency", self.worker_name, f"{self.worker_name} latency (ms)")

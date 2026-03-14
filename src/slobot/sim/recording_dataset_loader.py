@@ -15,13 +15,13 @@ class RecordingDatasetLoader:
             for row in reader:
                 recording_layout = RecordingLayout(
                     rrd_file=row[0],
-                    pre_pick_frame_id=int(row[1]),
-                    pick_frame_id=int(row[2]),
-                    pre_grasp_mode=PreGraspMode(row[3]),
-                    ball_x=float(row[4]),
-                    ball_y=float(row[5]),
-                    cup_x=float(row[6]),
-                    cup_y=float(row[7]),
+                    pick_frame_id=int(row[1]),
+                    pre_grasp_mode=PreGraspMode(row[2]),
+                    ball_x=float(row[3]),
+                    ball_y=float(row[4]),
+                    cup_x=float(row[5]),
+                    cup_y=float(row[6]),
+                    recording_id="recording_id",
                 )
                 yield recording_layout
 

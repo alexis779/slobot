@@ -12,6 +12,8 @@ There are 2 main use cases
 - [Camera](doc/camera.md)
 - [Calibration & Validation](doc/calibration_validation.md)
 - [Real 2 Sim](doc/real2sim.md)
+- [Path Planning](doc/path_planning.md)
+- [Dataset Generation](doc/dataset_generation.md)
 - [Policies](doc/policies.md)
 - [Tele-operation](doc/teleoperate.md)
 - [Examples](doc/examples.md)
