@@ -32,7 +32,7 @@ class Genesis():
     def start(self):
         kwargs = self.kwargs
 
-        res = kwargs.get('res', Configuration.VGA)
+        self.res = kwargs.get('res', Configuration.VGA)
 
         camera_x = 0
         camera_y = -30 * Configuration.INCHES_TO_METERS
@@ -74,7 +74,7 @@ class Genesis():
                 noslip_iterations = noslip_iterations,
             ),
             viewer_options = gs.options.ViewerOptions(
-                res           = res,
+                res           = self.res,
                 camera_lookat = lookat,
                 camera_pos    = camera_pos,
                 max_FPS       = self.fps,
@@ -104,7 +104,7 @@ class Genesis():
         )
 
         self.side_camera = self.scene.add_camera(
-            res    = res,
+            res    = self.res,
             pos    = camera_pos,
             lookat = lookat,
             fov    = 60,
@@ -115,7 +115,7 @@ class Genesis():
         if link_name:
             self.link = self.entity.get_link(link_name)
             self.link_camera = self.scene.add_camera(
-                res    = res,
+                res    = self.res,
                 env_idx = 0,
             )
 

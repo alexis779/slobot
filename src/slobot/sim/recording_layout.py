@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 
 class PreGraspMode(Enum):
@@ -9,9 +10,9 @@ class PreGraspMode(Enum):
 
 @dataclass
 class RecordingLayout:
-    rrd_file: str
-    pick_frame_id: int
-    pre_grasp_mode: PreGraspMode
+    rrd_file: Optional[str]
+    pick_frame_id: Optional[int]
+    pre_grasp_mode: Optional[PreGraspMode]
     ball_x: float
     ball_y: float
     cup_x: float

@@ -1,5 +1,14 @@
 ## Policies
 
+### Random policy
+
+The **agent** generates 1 random sample of the **action** space, then sends it as action to the Gym **environment**.
+The environment **step** triggers `--sim-steps` Genesis simulation steps.
+
+```
+uv run python scripts/sim/run_gym_agent.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --sim-steps 12
+```
+
 ### Scripted policy
 
 This policy relies on Inverse Kinematics + Path Planning to perform the task.

@@ -1,10 +1,15 @@
-from typing import Callable
-import torch
+from __future__ import annotations
+
+from typing import Callable, Optional
+
 import genesis as gs
+import numpy as np
+import torch
 from importlib.resources import files
 
-from slobot.so_arm_100 import SoArm100
 from slobot.configuration import Configuration
+from slobot.sim.gym.types import GolfBallEnvAction, GolfBallEnvObservation
+from slobot.so_arm_100 import SoArm100
 
 
 class GolfBallEnv:
@@ -24,6 +29,14 @@ class GolfBallEnv:
         # Build scene with objects
         self.build_scene()
         self.arm.check_dofs_limit()
+
+        w, h = self.arm.genesis.res
+        n = self.arm.genesis.entity.n_dofs
+        self.observation: GolfBallEnvObservation = {
+            "qpos": np.zeros(n, dtype=np.float32),
+            "side_camera_image": np.zeros((h, w, 3), dtype=np.uint8),
+            "link_camera_image": np.zeros((h, w, 3), dtype=np.uint8),
+        }
 
     def build_scene(self):
         self.arm.genesis.start()
@@ -90,3 +103,33 @@ class GolfBallEnv:
         distance = torch.norm(diff)
 
         return distance < Configuration.DISTANCE_THRESHOLD
+
+    def load_observation(self) -> None:
+        q = self.arm.genesis.entity.get_qpos()[0]
+        self.observation["qpos"] = q.detach().cpu().numpy().astype(np.float32)
+        self.observation["side_camera_image"] = self.arm.genesis.side_camera.render()[0]
+        self.observation["link_camera_image"] = self.arm.genesis.link_camera.render()[0]
+
+    def reset(self, options: dict) -> GolfBallEnvObservation:
+        recording_layout = options["recording_layout"]
+        self.set_object_initial_positions(
+            recording_layout.ball_x,
+            recording_layout.ball_y,
+            recording_layout.cup_x,
+            recording_layout.cup_y,
+        )
+        self.sim_steps = options["sim_steps"]
+        self.load_observation()
+        return self.observation
+
+    def step(self, action: GolfBallEnvAction) -> GolfBallEnvObservation:
+        self.arm.genesis.entity.control_dofs_position(
+            torch.as_tensor(action["control_qpos"], dtype=torch.float32)
+        )
+        for _ in range(self.sim_steps):
+            self.arm.genesis.step()
+        self.load_observation()
+        return self.observation
+
+    def close(self) -> None:
+        self.arm.genesis.stop()

@@ -11,7 +11,7 @@ uv run python scripts/sim/generate_sim_dataset.py --episode-count 40
 ## Rerun to LeRobot conversion
 
 ```
-uv run python scripts/sim/convert_rerun_to_lerobot_dataset.py --rerun-dir ~/.slobot/recordings --dataset-id alexis779/so100_ball_cup_sim --episode-ids 0
+uv run python scripts/sim/convert_rerun_to_lerobot_dataset.py --rerun-dir ~/.slobot/recordings --dataset-id alexis779/so100_ball_cup_sim
 ```
 
 Upload the dataset to the HuggingFace hub

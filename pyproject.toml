@@ -5,27 +5,18 @@ requires-python = ">=3.13"
 
 dependencies = [
     # "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
-
     "torch",
     "tensorboard",
-
     # "lerobot @ git+https://github.com/huggingface/lerobot.git",
-
     "feetech-servo-sdk", # to control motors
-
     "gradio", # to build webapps
-
     # "nvidia-gr00t-sdk" @ git+https://github.com/NVIDIA/Isaac-GR00T.git
-
     "ipykernel", # to run notebooks
-
     "modal", # serverless GPU compute platform
-
     "pyscipopt", # SCIP solver
-
     "ultralytics", # YOLO models
-
     "rerun-sdk[datafusion]", # to store tele-operated episode data
+    "gymnasium>=1.2.3",
 ]
 
 [tool.setuptools.packages.find]
