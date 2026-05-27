@@ -11,11 +11,13 @@ import genesis.utils.geom as gu
 _CONFIG = files(slobot.config)
 
 class SoArm100(RoboticArm):
-    SO_ARM_100_MJCF_CONFIG = str(_CONFIG.joinpath("trs_so_arm100", "so_arm100.xml")) # "../mujoco_menagerie/trs_so_arm100/so_arm100.xml"
+    # MJCF
+    MJCF_CONFIG = str(_CONFIG.joinpath("trs_so_arm100", "so_arm100.xml")) # "../mujoco_menagerie/trs_so_arm100/so_arm100.xml"
     MJCF_GRIPPER_LINK_NAME = 'Fixed_Jaw'
     MJCF_GRIPPER_JOINT_NAME = 'Jaw'
 
-    SO_ARM_100_URDF_CONFIG = str(_CONFIG.joinpath("SO100", "so100.urdf")) # "../SO-ARM100/Simulation/SO100/so100.urdf"
+    # URDF
+    URDF_CONFIG = str(_CONFIG.joinpath("SO100", "so100.urdf")) # "../SO-ARM100/Simulation/SO100/so100.urdf"
     URDF_GRIPPER_LINK_NAME = 'gripper'
     URDF_GRIPPER_JOINT_NAME = 'gripper_joint'
 
@@ -27,17 +29,22 @@ class SoArm100(RoboticArm):
     TCP_OFFSET = [-1.5e-2, -9e-2, 0.5e-2]
 
     def __init__(self, **kwargs):
-        #kwargs['mjcf_path'] = SoArm100.SO_ARM_100_MJCF_CONFIG
+        #kwargs['mjcf_path'] = SoArm100.MJCF_CONFIG
         #kwargs['link_name'] = SoArm100.MJCF_GRIPPER_LINK_NAME
         #kwargs['joint_name'] = SoArm100.MJCF_GRIPPER_JOINT_NAME
+        #self.qpos_map = Configuration.MJCF_QPOS_MAP
 
-        kwargs['urdf_path'] = SoArm100.SO_ARM_100_URDF_CONFIG
+        kwargs['urdf_path'] = SoArm100.URDF_CONFIG
         kwargs['link_name'] = SoArm100.URDF_GRIPPER_LINK_NAME
         kwargs['joint_name'] = SoArm100.URDF_GRIPPER_JOINT_NAME
+        self.qpos_map = Configuration.URDF_QPOS_MAP
 
         kwargs['camera_offset'] = self.camera_offset()
 
         super().__init__(**kwargs)
+
+    def preset_qpos(self, preset):
+        return self.qpos_map[preset]
 
     def camera_offset(self):
         # 3 vertices from the STL 3d Mesh, measured in Blender, located at the holes of the mounting plate

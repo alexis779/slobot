@@ -11,11 +11,18 @@ class Configuration:
     XGA = (1024, 768)
     UXGA = (1600, 1200)
 
-    QPOS_MAP = {
+    MJCF_QPOS_MAP = {
         "middle": [0, -torch.pi/2, torch.pi/2, 0, 0, -0.15],
         "zero": [0, 0, 0, 0, 0, 0],
         "rotated": [-torch.pi/2, -torch.pi/2, torch.pi/2, torch.pi/2, -torch.pi/2, torch.pi/2],
         "rest": [0.049, -3.32, 3.14, 1.21, -0.17, -0.17],
+    }
+
+    URDF_QPOS_MAP = {
+        "middle": [0, 1.75, -1.5, -0.6, 0, -0.15],
+        "zero": [0, 0, 0, 0, 0, 0],
+        "rotated": [-1.6, 1.79, -1.6, 0.95, -1.7, 1.63],
+        "rest": [0, 0, 0, 0.7, 0, 0],
     }
 
     POS_MAP = {

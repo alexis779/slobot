@@ -34,6 +34,8 @@ class Feetech():
         feetech.control_position(pos)
 
     def __init__(self, **kwargs):
+        self.qpos_map = Configuration.URDF_QPOS_MAP # simulator should load the URDF configuration
+
         self.port = kwargs.get('port', Feetech.PORT_FOLLOWER)
         self.robot_id = kwargs.get('robot_id', Feetech.FOLLOWER_ID)
         self.qpos_handler = kwargs.get('qpos_handler', None)
@@ -170,12 +172,12 @@ class Feetech():
         return motors_bus
 
     def _qpos_to_steps(self, qpos, motor_index):
-        steps = Configuration.MOTOR_DIRECTION[motor_index] * (qpos[motor_index] - Configuration.QPOS_MAP[Configuration.REFERENCE_FRAME][motor_index]) / self.radian_per_step
+        steps = Configuration.MOTOR_DIRECTION[motor_index] * (qpos[motor_index] - self.qpos_map[Configuration.REFERENCE_FRAME][motor_index]) / self.radian_per_step
         return Configuration.POS_MAP[Configuration.REFERENCE_FRAME][motor_index] + int(steps)
 
     def _steps_to_qpos(self, pos, motor_index):
         steps = pos[motor_index] - Configuration.POS_MAP[Configuration.REFERENCE_FRAME][motor_index]
-        return Configuration.QPOS_MAP[Configuration.REFERENCE_FRAME][motor_index] + Configuration.MOTOR_DIRECTION[motor_index] * steps * self.radian_per_step
+        return self.qpos_map[Configuration.REFERENCE_FRAME][motor_index] + Configuration.MOTOR_DIRECTION[motor_index] * steps * self.radian_per_step
 
     def _stepvelocity_to_velocity(self, step_velocity, motor_index):
         return step_velocity[motor_index] * self.radian_per_step

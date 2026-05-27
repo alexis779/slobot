@@ -1,4 +1,5 @@
 from slobot.configuration import Configuration
+from slobot.so_arm_100 import SoArm100
 from slobot.feetech import Feetech
 
 import gradio as gr
@@ -6,7 +7,8 @@ import gradio as gr
 
 class GradioJointControlRealApp:
     def __init__(self):
-        self.feetech = Feetech()
+        so_arm_100 = SoArm100()
+        self.feetech = Feetech(qpos_handler=so_arm_100)
 
     def launch(self):
         self.current_pos = self.feetech.get_pos()

@@ -13,8 +13,8 @@ if len(sys.argv) < 2:
 feetech = Feetech()
 
 preset = sys.argv[1]
-qpos = Configuration.QPOS_MAP[preset]
 
 arm = SoArm100(step_handler=feetech)
+qpos = arm.preset_qpos(preset)
 arm.genesis.entity.control_dofs_position(qpos)
 arm.genesis.hold_entity()

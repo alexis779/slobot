@@ -42,7 +42,7 @@ class GradioJointControlSimApp:
         current_pos_texts = []
         control_force_texts = []
 
-        with gr.Blocks() as app:
+        with gr.Blocks(title="Sim Joint Controller") as app:
             # Header row
             with gr.Row():
                 gr.Textbox(value="Joint Control", label=" ", interactive=False, scale=3)
