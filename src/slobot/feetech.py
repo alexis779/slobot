@@ -2,7 +2,8 @@ from lerobot.motors.feetech import TorqueMode
 from lerobot.robots.config import RobotConfig
 from lerobot.robots import make_robot_from_config
 from lerobot.motors.motors_bus import SerialMotorsBus
-import lerobot.robots.so_follower.config_so_follower
+
+import lerobot.robots.so_follower.config_so_follower # register so100_follower
 
 from slobot.configuration import Configuration
 from slobot.simulation_frame import SimulationFrame
@@ -21,7 +22,7 @@ class Feetech():
     DOFS = 6
 
     PORT_FOLLOWER = '/dev/ttyACM1'
-    PORT_LEADER = '/dev/ttyACM0'
+    PORT_LEADER = '/dev/ttyACM1'
 
     def calibrate_pos(preset):
         feetech = Feetech()

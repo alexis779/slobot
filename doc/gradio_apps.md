@@ -4,13 +4,25 @@ Gradio app is a UI web framework to demo ML applications.
 
 Navigate to the [local URL](http://127.0.0.1:7860) in the browser. Then click _Run_ button.
 
-#### Joint Control
+#### Sim Joint Control
+
+The sim joint control app exposes sliders for each simulated robot joint.
 
 ```
 python scripts/teleop/gradio_control_sim_app.py
 ```
 
 <video controls src="https://github.com/user-attachments/assets/cc28532c-921d-4c24-908f-d9194f17f8f3"></video>
+
+#### Real Joint Control
+
+The real joint control app exposes sliders for each real robot joint and displays the current position, control force, torque state, and PID gains.
+
+```
+python scripts/teleop/gradio_joint_control_real_app.py
+```
+
+<video controls src="https://github.com/user-attachments/assets/cc1db671-7fe3-42b8-a58e-3ef99042c4c2"></video>
 
 #### Image
 
