@@ -1,13 +1,23 @@
+import math
+
 from slobot.robotic_arm import RoboticArm
 import gradio as gr
 
-class GradioControlSimApp:
+class GradioJointControlSimApp:
     def __init__(self, robotic_arm: RoboticArm):
         self.robotic_arm = robotic_arm
 
-    def round_float(self, value, decimals=3):
-        """Round a float value to specified number of decimals."""
-        return round(value, decimals)
+    def round_float(self, value):
+        """Round to 1/100 of the value's order of magnitude (scientific-notation exponent)."""
+        if value == 0 or not math.isfinite(value):
+            return value
+        sign = math.copysign(1.0, value)
+        v = abs(value)
+        exponent = math.floor(math.log10(v))
+        step = (10.0 ** exponent) / 100.0
+        rounded = round(v / step) * step
+        decimals = max(0, 2 - exponent)
+        return sign * round(rounded, decimals)
 
     def launch(self):
         K_p = [self.round_float(v) for v in self.robotic_arm.genesis.entity.get_dofs_kp().tolist()]

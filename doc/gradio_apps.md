@@ -9,7 +9,7 @@ Navigate to the [local URL](http://127.0.0.1:7860) in the browser. Then click _R
 The sim joint control app exposes sliders for each simulated robot joint.
 
 ```
-python scripts/teleop/gradio_control_sim_app.py
+python scripts/teleop/gradio_joint_control_sim_app.py
 ```
 
 <video controls src="https://github.com/user-attachments/assets/cc28532c-921d-4c24-908f-d9194f17f8f3"></video>

@@ -1,5 +1,6 @@
 from lerobot.motors.feetech import TorqueMode
 from lerobot.robots.config import RobotConfig
+from lerobot.robots.robot import Robot
 from lerobot.robots import make_robot_from_config
 from lerobot.motors.motors_bus import SerialMotorsBus
 
@@ -43,7 +44,9 @@ class Feetech():
         connect = kwargs.get('connect', True)
         torque = kwargs.get('torque', True)
 
-        self.motors_bus : SerialMotorsBus = self._create_motors_bus(self.port, self.robot_id)
+        self.robot = self.create_robot()
+
+        self.motors_bus : SerialMotorsBus = self._create_motors_bus()
         if connect:
             self.connect(torque)
 
@@ -153,11 +156,13 @@ class Feetech():
         pos_json = json.dumps(pos)
         print(f"Current position is {pos_json}")
 
-    def _create_motors_bus(self, port, robot_id) -> SerialMotorsBus:
+    def create_robot(self) -> Robot:
         robot_config_class = RobotConfig.get_choice_class(Feetech.ROBOT_TYPE)
-        robot_config = robot_config_class(port=port, id=robot_id)
-        robot = make_robot_from_config(robot_config)
-        motors_bus = robot.bus
+        robot_config = robot_config_class(port=self.port, id=self.robot_id)
+        return make_robot_from_config(robot_config)
+
+    def _create_motors_bus(self) -> SerialMotorsBus:
+        motors_bus = self.robot.bus
 
         self.model_resolution = motors_bus.model_resolution_table[Feetech.MOTOR_MODEL]
         self.radian_per_step = (2 * np.pi) / self.model_resolution

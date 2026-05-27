@@ -5,7 +5,7 @@ import genesis as gs
 gs.init(backend=gs.gpu if torch.cuda.is_available() else gs.cpu)
 
 from genesis.engine.entities import RigidEntity
-from genesis.engine.entities.rigid_entity import RigidLink, RigidJoint
+from genesis.engine.entities.rigid_entity import RigidLink
 from genesis.utils import geom as gu
 
 from slobot.configuration import Configuration
@@ -60,7 +60,7 @@ class Genesis():
         if requires_grad:
             noslip_iterations = 0 # no slip is not supported with autograd
 
-        show_world_frame = kwargs.get('show_world_frame', True)
+        show_world_frame = kwargs.get('show_world_frame', False)
 
         self.scene = gs.Scene(
             show_viewer = show_viewer,
@@ -132,11 +132,10 @@ class Genesis():
     def build(self, n_envs=1):
         self.scene.build(n_envs=n_envs, env_spacing=(0.5, 0.5))
 
-        # initialize the robot position to the rest position
-        if 'home_qpos' in self.kwargs:
-            self.home_qpos = self.kwargs['home_qpos']
-            self.home_qpos = torch.tensor([self.home_qpos])
-            self.entity.set_dofs_position(self.home_qpos)
+        # set the home position to the zero preset
+        self.home_qpos = torch.zeros((self.entity.n_dofs,))
+
+        self.entity.set_dofs_position(self.home_qpos)
 
         self.record = self.kwargs.get('record', False)
         if self.record:
@@ -183,13 +182,13 @@ class Genesis():
         print("control_force=", control_force)
 
     def parse_robot_configuration(self, **kwargs):
-        mjcf_path = kwargs['mjcf_path']
+        mjcf_path = kwargs.get('mjcf_path', None)
         if mjcf_path is not None:
             return gs.morphs.MJCF(
                 file = mjcf_path,
             )
 
-        urdf_path = kwargs['urdf_path']
+        urdf_path = kwargs.get('urdf_path', None)
         if urdf_path is not None:
             return gs.morphs.URDF(
                 file  = urdf_path,

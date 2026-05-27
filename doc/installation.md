@@ -32,13 +32,26 @@ pip install -e .
 
 ### 2. Robot Configuration
 
-Ensure the robot [configuration](https://github.com/google-deepmind/mujoco_menagerie/tree/main/trs_so_arm100) in available in `slobot.config` package.
+#### URDF
+
+Ensure the URDF [configuration](https://github.com/TheRobotStudio/SO-ARM100/blob/main/Simulation/SO100/so100.urdf) in available in `slobot.config` package.
+
+```
+cd ..
+git clone https://github.com/TheRobotStudio/SO-ARM100
+cd slobot
+ln -s `pwd`/../SO-ARM100/Simulation/SO100 src/slobot/config/SO100
+```
+
+#### MJCF
+
+Ensure the Mujoco [configuration](https://github.com/google-deepmind/mujoco_menagerie/tree/main/trs_so_arm100) in available in `slobot.config` package.
 
 ```
 cd ..
 git clone https://github.com/google-deepmind/mujoco_menagerie
 cd slobot
-ln -s ../mujoco_menagerie/trs_so_arm100 src/slobot/config/trs_so_arm100
+ln -s `pwd`/../mujoco_menagerie/trs_so_arm100 src/slobot/config/trs_so_arm100
 ```
 
 ### 3. LeRobot

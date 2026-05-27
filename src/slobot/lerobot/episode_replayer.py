@@ -190,7 +190,7 @@ class EpisodeReplayer:
         ]
 
         self.set_robot_states(pick_frame_ids)
-        pick_tcp_pos = self.arm.genesis.link_translate(self.arm.fixed_jaw, self.arm.tcp_offset)
+        pick_tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.link, self.arm.tcp_offset)
         pick_motor_pos = self.episode_loader.get_robot_states(
             EpisodeLoader.LEADER_STATE_COLUMN, pick_frame_ids
         )
@@ -200,7 +200,7 @@ class EpisodeReplayer:
             for hold_state in self.episode_loader.hold_states
         ]
         self.set_robot_states(place_frame_ids)
-        place_tcp_pos = self.arm.genesis.link_translate(self.arm.fixed_jaw, self.arm.tcp_offset)
+        place_tcp_pos = self.arm.genesis.link_translate(self.arm.genesis.link, self.arm.tcp_offset)
         place_motor_pos = self.episode_loader.get_robot_states(
             EpisodeLoader.LEADER_STATE_COLUMN, place_frame_ids
         )

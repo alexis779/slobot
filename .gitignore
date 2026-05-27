@@ -6,4 +6,5 @@ __pycache__
 /dist
 *.egg-info
 /src/slobot/config/trs_so_arm100
+/src/slobot/config/SO100
 /uv.lock

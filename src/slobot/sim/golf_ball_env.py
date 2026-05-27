@@ -23,7 +23,6 @@ class GolfBallEnv:
             vis_mode='visual', # collision
             requires_grad=requires_grad,
             step_handler=step_handler,
-            show_world_frame=False, # True
         )
         
         # Build scene with objects

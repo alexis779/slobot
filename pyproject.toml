@@ -23,7 +23,8 @@ dependencies = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-"slobot.config" = ["trs_so_arm100/*", "trs_so_arm100/assets/*", "assets/*"]
+# MJCF & URDF configurations, 3d models
+"slobot.config" = ["trs_so_arm100/*", "trs_so_arm100/assets/*", "SO100/*", "SO100/assets/*", "assets/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

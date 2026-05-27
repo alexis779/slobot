@@ -15,20 +15,17 @@ class Real2SimOptimizer:
     LOGGER = Configuration.logger(__name__)
 
     @staticmethod
-    def random_init_position() -> torch.Tensor:
-        """Return a random motor position within [MIN_POS, MAX_POS] for each dof."""
-        min_pos = torch.tensor(SoArm100.MIN_POS, dtype=torch.float32)
-        max_pos = torch.tensor(SoArm100.MAX_POS, dtype=torch.float32)
-        return min_pos + (max_pos - min_pos) * torch.rand(SoArm100.DOFS)
+    def init_position() -> torch.Tensor:
+        middle_position = SoArm100.MODEL_RESOLUTION / 2
+        return torch.full((SoArm100.DOFS,), middle_position)
 
     def __init__(self):
         self.golf_ball_env = GolfBallEnv()
         self.pytorch_solver = PytorchSolver(device=torch.device("cpu"))
 
     def optimize(self, input_csv_file: str, output_csv_file: str):
-        self.motor_pos0 = Real2SimOptimizer.random_init_position()
+        self.motor_pos0 = Real2SimOptimizer.init_position()
 
-        #self.motor_pos0 = [2004.385986328125, 2994, 1049.453125, 2070.1083984375, 2030.36474609375, 1902]
         self.motor_pos0 = torch.tensor(self.motor_pos0, dtype=torch.float32)
 
         self.motor_pos0 = torch.nn.Parameter(self.motor_pos0)
@@ -93,7 +90,7 @@ class Real2SimOptimizer:
                         f"NaN in grad at step {step}, reinitializing motor_pos0 to random position"
                     )
                     with torch.no_grad():
-                        self.motor_pos0.data.copy_(Real2SimOptimizer.random_init_position())
+                        self.motor_pos0.data.copy_(Real2SimOptimizer.init_position())
                     optimizer.state.clear()
                     scheduler.step()
                     prev_best_loss = None
@@ -122,7 +119,7 @@ class Real2SimOptimizer:
                             )
 
                             with torch.no_grad():
-                                self.motor_pos0.data.copy_(Real2SimOptimizer.random_init_position())
+                                self.motor_pos0.data.copy_(Real2SimOptimizer.init_position())
                             optimizer.state.clear()
                             scheduler.step()
                             prev_best_loss = None
