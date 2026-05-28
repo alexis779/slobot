@@ -233,18 +233,13 @@ class Genesis():
         )
 
         self.follow_path(target_qpos)
-        self.validate_target(self.fixed_jaw, target_pos, target_quat)
+        self.validate_target(self.link, target_pos, target_quat)
 
     def step(self):
         self.scene.step()
 
         if self.step_handler is not None:
             self.step_handler.handle_step()
-
-    def render_cameras(self):
-        self.side_camera.render()
-        if self.link_camera:
-            self.link_camera.render()
 
     def hold_entity(self):
         while True:

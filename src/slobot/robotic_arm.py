@@ -41,8 +41,8 @@ class RoboticArm():
 
     def elemental_rotations(self):
         self.go_home()
-        pos = self.genesis.fixed_jaw.get_pos()
-        quat = self.genesis.fixed_jaw.get_quat()
+        pos = self.genesis.link.get_pos()
+        quat = self.genesis.link.get_quat()
 
         print("pos=", pos)
         print("quat=", quat)
@@ -58,20 +58,20 @@ class RoboticArm():
         for roll in torch.linspace(torch.pi/2, 0, steps):
             euler[0] = roll
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
+            self.genesis.move(self.genesis.link, pos, quat.unsqueeze(0))
 
         # turn the fixed jaw around the global y axis
         for pitch in torch.linspace(0, torch.pi, steps):
             euler[1] = pitch
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
+            self.genesis.move(self.genesis.link, pos, quat.unsqueeze(0))
 
         # turn the fixed jaw around the global z axis
         pos = None
         for yaw in torch.linspace(0, torch.pi/2, steps):
             euler[2] = yaw
             quat = self.genesis.euler_to_quat(euler)
-            self.genesis.move(self.genesis.fixed_jaw, pos, quat.unsqueeze(0))
+            self.genesis.move(self.genesis.link, pos, quat.unsqueeze(0))
 
     def go_home(self):
         target_qpos = self.genesis.home_qpos

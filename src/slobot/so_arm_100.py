@@ -29,15 +29,15 @@ class SoArm100(RoboticArm):
     TCP_OFFSET = [-1.5e-2, -9e-2, 0.5e-2]
 
     def __init__(self, **kwargs):
-        #kwargs['mjcf_path'] = SoArm100.MJCF_CONFIG
-        #kwargs['link_name'] = SoArm100.MJCF_GRIPPER_LINK_NAME
-        #kwargs['joint_name'] = SoArm100.MJCF_GRIPPER_JOINT_NAME
-        #self.qpos_map = Configuration.MJCF_QPOS_MAP
+        kwargs['mjcf_path'] = SoArm100.MJCF_CONFIG
+        kwargs['link_name'] = SoArm100.MJCF_GRIPPER_LINK_NAME
+        kwargs['joint_name'] = SoArm100.MJCF_GRIPPER_JOINT_NAME
+        self.qpos_map = Configuration.MJCF_QPOS_MAP
 
-        kwargs['urdf_path'] = SoArm100.URDF_CONFIG
-        kwargs['link_name'] = SoArm100.URDF_GRIPPER_LINK_NAME
-        kwargs['joint_name'] = SoArm100.URDF_GRIPPER_JOINT_NAME
-        self.qpos_map = Configuration.URDF_QPOS_MAP
+        #kwargs['urdf_path'] = SoArm100.URDF_CONFIG
+        #kwargs['link_name'] = SoArm100.URDF_GRIPPER_LINK_NAME
+        #kwargs['joint_name'] = SoArm100.URDF_GRIPPER_JOINT_NAME
+        #self.qpos_map = Configuration.URDF_QPOS_MAP
 
         kwargs['camera_offset'] = self.camera_offset()
 

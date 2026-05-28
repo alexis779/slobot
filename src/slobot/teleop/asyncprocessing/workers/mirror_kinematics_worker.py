@@ -92,7 +92,7 @@ class MirrorKinematicsWorker(WorkerBase):
         self.arm.genesis.entity.control_dofs_position(so_arm_100_control_qpos)
 
         # Perform forward kinematics on the SO-ARM-100
-        fixed_jaw_pos = self.arm.genesis.fixed_jaw.get_pos()
+        fixed_jaw_pos = self.arm.genesis.link.get_pos()
 
         # translate from SO-ARM-100 base to the other robot base
         robot_link_pos = self.robot_pos + fixed_jaw_pos
