@@ -29,12 +29,20 @@ class GradioCartesianControlSimApp:
         decimals = max(0, 2 - exponent)
         return sign * round(rounded, decimals)
 
-    def _joint_positions_display(self):
+    def _joint_qpos(self):
         qpos = self.robotic_arm.genesis.entity.get_qpos()[0].tolist()
         return [self.round_float(v) for v in qpos]
 
-    def _apply_active_motion(self):
-        kind, axis_id, direction = self.active_motion
+    def _joint_ui_update(self):
+        qpos = self._joint_qpos()
+        return qpos + qpos
+
+    def _apply_active_motion(self, motion=None):
+        if motion is None:
+            motion = self.active_motion
+        if motion is None:
+            return
+        kind, axis_id, direction = motion
         if kind == "translate":
             self.controller.translate_local(axis_id, direction)
         else:
@@ -44,23 +52,25 @@ class GradioCartesianControlSimApp:
         motion = (kind, axis_id, direction)
         if self.active_motion == motion:
             self.active_motion = None
-        else:
-            self.active_motion = motion
-            self.controller.sync_targets_from_link()
-            self._apply_active_motion()
-        return self._joint_positions_display()
+            return self._joint_ui_update()
+        self.active_motion = motion
+        self.controller.sync_targets_from_link()
+        self._apply_active_motion(motion)
+        return gr.skip()
 
     def step_motion(self):
-        if self.active_motion is None:
-            return
-        self._apply_active_motion()
+        motion = self.active_motion
+        if motion is None:
+            return gr.skip()
+        self._apply_active_motion(motion)
+        return gr.skip()
 
     def on_link_selected(self, link_name: str):
         if not link_name:
             return
         self.active_motion = None
         self.controller.set_target_link(link_name)
-        self.controller.draw_link_frame()
+        self.robotic_arm.genesis.step()
 
     def _joint_slider_limits(self, joint_dof_idx: int):
         joint_min, joint_max = self.controller.joint_limits(joint_dof_idx)
@@ -76,7 +86,6 @@ class GradioCartesianControlSimApp:
             default_link = link_names[0]
 
         self.controller.set_target_link(default_link)
-        self.controller.draw_link_frame()
 
         qpos = self.robotic_arm.genesis.entity.get_qpos()[0].tolist()
         qpos = [self.round_float(v) for v in qpos]
@@ -92,7 +101,7 @@ class GradioCartesianControlSimApp:
             ("y", "axis-z"),
         ]
 
-        with gr.Blocks(title="Sim Cartesian Controller", css=AXIS_ROW_CSS) as app:
+        with gr.Blocks(title="Sim Cartesian Controller") as app:
             link_dropdown = gr.Dropdown(
                 choices=link_names,
                 value=default_link,
@@ -159,29 +168,31 @@ class GradioCartesianControlSimApp:
 
                 return on_toggle
 
+            joint_outputs = joint_sliders + joint_positions
+
             for axis_id, (minus_btn, plus_btn) in enumerate(translation_buttons):
                 minus_btn.click(
                     make_toggle_handler("translate", axis_id, -1),
-                    outputs=joint_positions,
+                    outputs=joint_outputs,
                 )
                 plus_btn.click(
                     make_toggle_handler("translate", axis_id, 1),
-                    outputs=joint_positions,
+                    outputs=joint_outputs,
                 )
 
             for axis_id, (minus_btn, plus_btn) in enumerate(rotation_buttons):
                 minus_btn.click(
                     make_toggle_handler("rotate", axis_id, -1),
-                    outputs=joint_positions,
+                    outputs=joint_outputs,
                 )
                 plus_btn.click(
                     make_toggle_handler("rotate", axis_id, 1),
-                    outputs=joint_positions,
+                    outputs=joint_outputs,
                 )
 
             tick_interval = 1 / self.robotic_arm.genesis.fps
             motion_timer = gr.Timer(value=tick_interval, active=True)
-            motion_timer.tick(fn=self.step_motion)
+            motion_timer.tick(fn=self.step_motion, outputs=joint_outputs)
 
             link_dropdown.change(fn=self.on_link_selected, inputs=[link_dropdown])
 
@@ -193,7 +204,7 @@ class GradioCartesianControlSimApp:
                     outputs=[joint_positions[joint_id]],
                 )
 
-        app.launch()
+        app.launch(css=AXIS_ROW_CSS)
 
     def set_goal_position(self, joint_id, *qpos):
         joint_id = int(joint_id)

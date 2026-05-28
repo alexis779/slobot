@@ -1,26 +1,12 @@
 from slobot.robotic_arm import RoboticArm
 from slobot.configuration import Configuration
 
-from importlib.resources import files
 from functools import cached_property
 
-import slobot.config
 import torch
 import genesis.utils.geom as gu
 
-_CONFIG = files(slobot.config)
-
 class SoArm100(RoboticArm):
-    # MJCF
-    MJCF_CONFIG = str(_CONFIG.joinpath("trs_so_arm100", "so_arm100.xml")) # "../mujoco_menagerie/trs_so_arm100/so_arm100.xml"
-    MJCF_GRIPPER_LINK_NAME = 'Fixed_Jaw'
-    MJCF_GRIPPER_JOINT_NAME = 'Jaw'
-
-    # URDF
-    URDF_CONFIG = str(_CONFIG.joinpath("SO100", "so100.urdf")) # "../SO-ARM100/Simulation/SO100/so100.urdf"
-    URDF_GRIPPER_LINK_NAME = 'gripper'
-    URDF_GRIPPER_JOINT_NAME = 'gripper_joint'
-
     DOFS = 6
 
     MODEL_RESOLUTION = 4096
@@ -29,14 +15,14 @@ class SoArm100(RoboticArm):
     TCP_OFFSET = [-1.5e-2, -9e-2, 0.5e-2]
 
     def __init__(self, **kwargs):
-        kwargs['mjcf_path'] = SoArm100.MJCF_CONFIG
-        kwargs['link_name'] = SoArm100.MJCF_GRIPPER_LINK_NAME
-        kwargs['joint_name'] = SoArm100.MJCF_GRIPPER_JOINT_NAME
+        kwargs['mjcf_path'] = Configuration.MJCF_CONFIG
+        kwargs['link_name'] = Configuration.MJCF_GRIPPER_LINK_NAME
+        kwargs['joint_name'] = Configuration.MJCF_GRIPPER_JOINT_NAME
         self.qpos_map = Configuration.MJCF_QPOS_MAP
 
-        #kwargs['urdf_path'] = SoArm100.URDF_CONFIG
-        #kwargs['link_name'] = SoArm100.URDF_GRIPPER_LINK_NAME
-        #kwargs['joint_name'] = SoArm100.URDF_GRIPPER_JOINT_NAME
+        #kwargs['urdf_path'] = Configuration.URDF_CONFIG
+        #kwargs['link_name'] = Configuration.URDF_GRIPPER_LINK_NAME
+        #kwargs['joint_name'] = Configuration.URDF_GRIPPER_JOINT_NAME
         #self.qpos_map = Configuration.URDF_QPOS_MAP
 
         kwargs['camera_offset'] = self.camera_offset()

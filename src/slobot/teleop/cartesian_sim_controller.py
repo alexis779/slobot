@@ -37,6 +37,7 @@ class CartesianSimController:
         return pos, euler
 
     def set_target_link(self, link_name: str):
+        self.target_link_name = link_name
         self._target_link = self.entity.get_link(link_name)
         self.sync_targets_from_link()
 

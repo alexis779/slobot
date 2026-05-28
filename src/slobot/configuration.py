@@ -2,6 +2,11 @@ import torch
 import logging
 import os
 
+from importlib.resources import files
+import slobot.config
+
+_CONFIG = files(slobot.config)
+
 class Configuration:
     WORK_DIR = f"{os.environ['HOME']}/.slobot"
 
@@ -10,6 +15,16 @@ class Configuration:
     VGA = (640, 480)
     XGA = (1024, 768)
     UXGA = (1600, 1200)
+
+    # MJCF
+    MJCF_CONFIG = str(_CONFIG.joinpath("trs_so_arm100", "so_arm100.xml")) # "../mujoco_menagerie/trs_so_arm100/so_arm100.xml"
+    MJCF_GRIPPER_LINK_NAME = 'Fixed_Jaw'
+    MJCF_GRIPPER_JOINT_NAME = 'Jaw'
+
+    # URDF
+    URDF_CONFIG = str(_CONFIG.joinpath("SO100", "so100.urdf")) # "../SO-ARM100/Simulation/SO100/so100.urdf"
+    URDF_GRIPPER_LINK_NAME = 'gripper'
+    URDF_GRIPPER_JOINT_NAME = 'gripper_joint'
 
     MJCF_QPOS_MAP = {
         "middle": [0, -torch.pi/2, torch.pi/2, 0, 0, -0.15],

@@ -12,7 +12,7 @@ The sim joint control app exposes sliders for each simulated robot joint.
 python scripts/teleop/gradio_joint_control_sim_app.py
 ```
 
-<video controls src="https://github.com/user-attachments/assets/cc28532c-921d-4c24-908f-d9194f17f8f3"></video>
+<video controls src="https://github.com/user-attachments/assets/68398951-0a28-4bc2-94ee-c979044da43a"></video>
 
 #### Real Joint Control
 
@@ -23,6 +23,17 @@ python scripts/teleop/gradio_joint_control_real_app.py
 ```
 
 <video controls src="https://github.com/user-attachments/assets/cc1db671-7fe3-42b8-a58e-3ef99042c4c2"></video>
+
+
+#### SIM Cartesian Control
+
+The link XYZ - RPY are updated via Inverse Kinematics.
+
+```
+python scripts/teleop/gradio_cartesian_control_sim_app.py
+```
+
+<video controls src="https://github.com/user-attachments/assets/6712b21b-726b-4f7f-bd28-4a02928a39cc"></video>
 
 #### Image
 

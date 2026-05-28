@@ -128,3 +128,21 @@ This validates the robot simulation also controls the physical robot.
 ```
 python scripts/validation/5_validate_sim_to_real.py [middle|zero|rotated|rest]
 ```
+
+### 6. Validate Forward Kinematics
+
+This validates the robot Links 3d pose computed from the motor positions.
+
+It uses [placo library](https://placo.readthedocs.io/en/latest/index.html) and [URDF configuration](https://github.com/TheRobotStudio/SO-ARM100/blob/main/Simulation/SO100/so100.urdf). It requires calibrated qpos for the selected preset, curated in `URDF_QPOS_MAP`.
+
+To come with the preset qpos, use the [SIM Joint controller](./gradio_apps.md#sim-joint-control) after loading the same URDF configuation.
+
+This script will plot the preset robot skeleton in 3d, showing each link frame 3d pose.
+
+```
+python scripts/validation/6_validate_fk.py [middle|zero|rotated|rest]
+```
+
+| middle                           | zero                         | rotated                            | rest                            |
+| -------------------------------- | ---------------------------- | ---------------------------------- | ------------------------------- |
+| ![middle](images/link_frames/LinkFrames_middle.png) | ![zero](images/link_frames/LinkFrames_zero.png) | ![rotated](images/link_frames/LinkFrames_rotated.png) | ![rotated](images/link_frames/LinkFrames_rest.png) |

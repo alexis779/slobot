@@ -1,9 +1,10 @@
 from slobot.teleop.gradio_joint_control_sim_app import GradioJointControlSimApp
-from slobot.so_arm_100 import SoArm100
+from slobot.configuration import Configuration
 from slobot.robotic_arm import RoboticArm
 
 # SO-ARM-100
-arm = SoArm100()
+urdf_path = Configuration.URDF_CONFIG
+arm = RoboticArm(urdf_path=urdf_path)
 
 # UR5e
 #mjcf_path = "../mujoco_menagerie/universal_robots_ur5e/ur5e.xml"
