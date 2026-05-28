@@ -147,12 +147,12 @@ class Genesis():
         qpos = self.entity.get_qpos()
         print("qpos=", qpos)
 
-        Kp = 150
+        Kp = 300
         Kp = torch.full((self.entity.n_dofs,), Kp)
         self.entity.set_dofs_kp(Kp)
         print("Kp=", self.entity.get_dofs_kp())
 
-        Kv = 8
+        Kv = 16
         Kv = torch.full((self.entity.n_dofs,), Kv)
         self.entity.set_dofs_kv(Kv)
         print("Kd=", self.entity.get_dofs_kv())
