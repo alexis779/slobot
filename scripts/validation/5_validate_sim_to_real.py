@@ -10,7 +10,7 @@ if len(sys.argv) < 2:
 
 # Validate the robot is located in the position preset in sim then real
 
-feetech = Feetech()
+feetech = Feetech(qpos_map=Configuration.MJCF_QPOS_MAP)
 
 preset = sys.argv[1]
 

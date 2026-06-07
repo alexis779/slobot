@@ -65,7 +65,7 @@ class SimStepWorker(WorkerBase):
         super().setup()
 
         # Feetech instance for pos (motor steps) to qpos (radians) conversion
-        self.feetech = Feetech(connect=False)
+        self.feetech = Feetech(connect=False, qpos_map=Configuration.MJCF_QPOS_MAP)
 
         for render_mode in RenderMode:
             self.rerun_metrics.add_video_stream(self.metric_name(render_mode), self.fps)

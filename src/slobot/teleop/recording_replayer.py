@@ -24,7 +24,7 @@ class RecordingReplayer:
         self.diff_threshold = diff_threshold
         self.golf_ball_env = golf_ball_env
 
-        self.feetech = Feetech(connect=False)
+        self.feetech = Feetech(connect=False, qpos_map=Configuration.MJCF_QPOS_MAP)
 
         self.step_id = 0
         self.fixed_jaw_translate = torch.tensor(self.golf_ball_env.arm.tcp_offset)
@@ -123,8 +123,9 @@ class RecordingReplayer:
 
     @cached_property
     def hold_state(self) -> HoldState:
-        leader_gripper = self.recording_loader.action[:, Configuration.GRIPPER_ID]
-        follower_gripper = self.recording_loader.observation_state[:, Configuration.GRIPPER_ID]
+        gripper_idx = Configuration.JOINT_NAMES.index("gripper")
+        leader_gripper = self.recording_loader.action[:, gripper_idx]
+        follower_gripper = self.recording_loader.observation_state[:, gripper_idx]
 
         frame_delay_detector = FrameDelayDetector(fps=self.golf_ball_env.arm.genesis.fps)
         delay_frames = frame_delay_detector.detect_frame_delay(leader_gripper, follower_gripper)

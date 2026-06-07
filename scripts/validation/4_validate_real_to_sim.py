@@ -1,5 +1,5 @@
 from slobot.feetech import Feetech
-from slobot.so_arm_100 import SoArm100
+from slobot.robotic_arm import RoboticArm
 from slobot.configuration import Configuration
 import sys
 
@@ -9,12 +9,12 @@ if len(sys.argv) < 2:
 
 # Validate the robot is located in the position preset in real then sim
 
-so_arm_100 = SoArm100()
+robotic_arm = RoboticArm(mjcf_path=Configuration.MJCF_CONFIG)
 
 preset = sys.argv[1]
 pos = Configuration.POS_MAP[preset]
 
-feetech = Feetech(qpos_handler=so_arm_100)
+feetech = Feetech(qpos_map=Configuration.MJCF_QPOS_MAP, qpos_handler=robotic_arm)
 feetech.control_position(pos)
 
-so_arm_100.genesis.hold_entity()
+robotic_arm.genesis.hold_entity()

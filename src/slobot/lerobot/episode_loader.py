@@ -17,7 +17,7 @@ class EpisodeLoader:
     def __init__(self, repo_id, episode_ids):
         self.repo_id = repo_id
         self.load_episodes(episode_ids)
-        self.feetech = Feetech(connect=False)
+        self.feetech = Feetech(connect=False, qpos_map=Configuration.MJCF_QPOS_MAP)
         self.middle_pos_offset = torch.tensor([0,  0.1,  0.1,  0,  torch.pi/2,  0])
 
     def load_episodes(self, episode_ids):
@@ -74,8 +74,9 @@ class EpisodeLoader:
         ]
 
     def get_hold_state(self, episode) -> HoldState:
-        leader_gripper = episode['action'][:, Configuration.GRIPPER_ID]
-        follower_gripper = episode['observation.state'][:, Configuration.GRIPPER_ID]
+        gripper_idx = Configuration.JOINT_NAMES.index("gripper")
+        leader_gripper = episode['action'][:, gripper_idx]
+        follower_gripper = episode['observation.state'][:, gripper_idx]
 
         frame_delay_detector = FrameDelayDetector(fps=self.dataset.meta.fps)
         delay_frames = frame_delay_detector.detect_frame_delay(leader_gripper, follower_gripper)

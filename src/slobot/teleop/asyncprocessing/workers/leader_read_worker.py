@@ -45,6 +45,7 @@ class LeaderReadWorker(WorkerBase):
         
         # Connect to leader arm with torque disabled (it's the input device)
         self.leader = Feetech(
+            qpos_map=Configuration.MJCF_QPOS_MAP,
             port=self.port,
             robot_id=Feetech.LEADER_ID,
             torque=False,

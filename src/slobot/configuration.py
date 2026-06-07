@@ -23,8 +23,8 @@ class Configuration:
 
     # URDF
     URDF_CONFIG = str(_CONFIG.joinpath("SO100", "so100.urdf")) # "../SO-ARM100/Simulation/SO100/so100.urdf"
-    URDF_GRIPPER_LINK_NAME = 'gripper'
-    URDF_GRIPPER_JOINT_NAME = 'gripper_joint'
+    URDF_GRIPPER_LINK_NAME = 'gripper_link'
+    URDF_GRIPPER_JOINT_NAME = 'gripper'
 
     MJCF_QPOS_MAP = {
         "middle": [0, -torch.pi/2, torch.pi/2, 0, 0, -0.15],
@@ -52,7 +52,6 @@ class Configuration:
     MOTOR_DIRECTION = [-1, 1, 1, 1, 1, 1]
 
     JOINT_NAMES = ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]
-    GRIPPER_ID = 5 # the id of the jaw joint
 
     GOLF_BALL_RADIUS = 4.27e-2 / 2
 

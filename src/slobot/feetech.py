@@ -15,26 +15,28 @@ import numpy as np
 import time
 
 class Feetech():
+    LOGGER = Configuration.logger(__name__)
     ROBOT_TYPE = 'so100_follower'
     FOLLOWER_ID = 'follower_arm'
     LEADER_ID = 'leader_arm'
 
     MOTOR_MODEL = 'sts3215'
     DOFS = 6
+    SYNC_READ_ATTEMPTS = 2
 
-    PORT_FOLLOWER = '/dev/ttyACM1'
+    PORT_FOLLOWER = '/dev/ttyACM0'
     PORT_LEADER = '/dev/ttyACM1'
 
     def calibrate_pos(preset):
-        feetech = Feetech()
+        feetech = Feetech(qpos_map=Configuration.MJCF_QPOS_MAP)
         feetech.calibrate(preset)
 
     def move_to_pos(pos):
-        feetech = Feetech()
+        feetech = Feetech(qpos_map=Configuration.MJCF_QPOS_MAP)
         feetech.control_position(pos)
 
     def __init__(self, **kwargs):
-        self.qpos_map = Configuration.URDF_QPOS_MAP # simulator should load the URDF configuration
+        self.qpos_map = kwargs['qpos_map']
 
         self.port = kwargs.get('port', Feetech.PORT_FOLLOWER)
         self.robot_id = kwargs.get('robot_id', Feetech.FOLLOWER_ID)
@@ -47,8 +49,8 @@ class Feetech():
         torque = kwargs.get('torque', True)
 
         self.robot = self.create_robot()
-
-        self.motors_bus : SerialMotorsBus = self._create_motors_bus()
+        motors_bus = kwargs.get('motors_bus', self.robot.bus)
+        self.use_motors_bus(motors_bus)
         if connect:
             self.connect(torque)
 
@@ -88,9 +90,8 @@ class Feetech():
             for i in self.joint_ids ]
 
     def pos_to_qpos(self, pos):
-        ids = self.joint_ids
         return [ self._steps_to_qpos(pos, id)
-            for id in ids]
+            for id in self.joint_ids]
 
     def velocity_to_qvelocity(self, velocity):
         return [ self._stepvelocity_to_velocity(velocity, i)
@@ -98,6 +99,9 @@ class Feetech():
 
     def control_position(self, pos: list[float]):
         self._write_config('Goal_Position', pos)
+        self.sync_real_to_sim(pos)
+
+    def sync_real_to_sim(self, pos: list[float]):
         if self.qpos_handler is not None:
             feetech_frame = self.create_feetech_frame(pos)
             self.qpos_handler.handle_qpos(feetech_frame)
@@ -111,10 +115,9 @@ class Feetech():
 
     def set_torque(self, is_enabled: bool):
         torque_enable = TorqueMode.ENABLED.value if is_enabled else TorqueMode.DISABLED.value
-        ids = self.joint_ids
         torque_enable = [
             torque_enable
-            for joint_id in ids
+            for joint_id in self.joint_ids
         ]
         self._write_config('Torque_Enable', torque_enable)
 
@@ -163,13 +166,11 @@ class Feetech():
         robot_config = robot_config_class(port=self.port, id=self.robot_id)
         return make_robot_from_config(robot_config)
 
-    def _create_motors_bus(self) -> SerialMotorsBus:
-        motors_bus = self.robot.bus
-
+    def use_motors_bus(self, motors_bus: SerialMotorsBus) -> None:
+        """Attach an already-connected LeRobot motors bus (avoids a second serial open)."""
+        self.motors_bus = motors_bus
         self.model_resolution = motors_bus.model_resolution_table[Feetech.MOTOR_MODEL]
         self.radian_per_step = (2 * np.pi) / self.model_resolution
-
-        return motors_bus
 
     def _qpos_to_steps(self, qpos, motor_index):
         steps = Configuration.MOTOR_DIRECTION[motor_index] * (qpos[motor_index] - self.qpos_map[Configuration.REFERENCE_FRAME][motor_index]) / self.radian_per_step
@@ -183,22 +184,35 @@ class Feetech():
         return step_velocity[motor_index] * self.radian_per_step
 
     def _read_config(self, key):
-        ids = self.joint_ids
         motors = [
             Configuration.JOINT_NAMES[id]
-            for id in ids
-        ]
-        pos = self.motors_bus.sync_read(key, motors, normalize=False)
-        return [
-            pos[Configuration.JOINT_NAMES[id]]
-            for id in ids
+            for id in self.joint_ids
         ]
 
+        pos = self._retry_sync_read(key, motors)
+        
+        return [
+            pos[Configuration.JOINT_NAMES[id]]
+            for id in self.joint_ids
+        ]
+
+    def _retry_sync_read(self, key, motors):
+        attempts = 0
+        while attempts < Feetech.SYNC_READ_ATTEMPTS:
+            try:
+                pos = self.motors_bus.sync_read(key, motors, normalize=False)
+                break
+            except ConnectionError:
+                attempts += 1
+                if attempts == Feetech.SYNC_READ_ATTEMPTS:
+                    self.motors_bus.disconnect()
+                    raise
+        return pos
+
     def _write_config(self, key, values):
-        ids = self.joint_ids
         values = {
             Configuration.JOINT_NAMES[id] : values[i]
-            for i, id in enumerate(ids)
+            for i, id in enumerate(self.joint_ids)
         }
         self.motors_bus.sync_write(key, values, normalize=False)
 

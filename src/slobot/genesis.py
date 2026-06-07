@@ -2,10 +2,6 @@ import torch
 
 import genesis as gs
 
-gs.init(backend=gs.gpu if torch.cuda.is_available() else gs.cpu)
-
-from genesis.engine.entities import RigidEntity
-from genesis.engine.entities.rigid_entity import RigidLink
 from genesis.utils import geom as gu
 
 from slobot.configuration import Configuration
@@ -42,7 +38,7 @@ class Genesis():
         lookat = kwargs.get('lookat', (0, 0, 0))
 
         lights = [
-            { "type": "directional", "dir": (1, 1, -1), "color": (1.0, 1.0, 1.0), "intensity": 5.0 },
+            { "type": "directional", "dir": (-1, 1, -1), "color": (1.0, 1.0, 1.0), "intensity": 5.0 },
         ]
 
         self.step_handler = kwargs.get('step_handler', None)
@@ -53,7 +49,7 @@ class Genesis():
 
         dt = 1 / self.fps
 
-        substeps = kwargs.get('substeps', 40) # 1
+        substeps = kwargs.get('substeps', 1) # 1
         noslip_iterations = substeps
 
         requires_grad = kwargs.get('requires_grad', False)
@@ -61,6 +57,8 @@ class Genesis():
             noslip_iterations = 0 # no slip is not supported with autograd
 
         show_world_frame = kwargs.get('show_world_frame', False)
+
+        gs.init(backend=gs.gpu if torch.cuda.is_available() else gs.cpu)
 
         self.scene = gs.Scene(
             show_viewer = show_viewer,
@@ -97,7 +95,7 @@ class Genesis():
 
         arm_morph = self.parse_robot_configuration(**kwargs)
 
-        self.entity: RigidEntity = self.scene.add_entity(
+        self.entity = self.scene.add_entity(
             arm_morph,
             visualize_contact=False,
             vis_mode=self.vis_mode,
@@ -147,12 +145,15 @@ class Genesis():
         qpos = self.entity.get_qpos()
         print("qpos=", qpos)
 
-        Kp = 300
+        limit = self.entity.get_dofs_limit()
+        print("limit=", limit)
+
+        Kp = 50
         Kp = torch.full((self.entity.n_dofs,), Kp)
         self.entity.set_dofs_kp(Kp)
         print("Kp=", self.entity.get_dofs_kp())
 
-        Kv = 16
+        Kv = 8
         Kv = torch.full((self.entity.n_dofs,), Kv)
         self.entity.set_dofs_kv(Kv)
         print("Kd=", self.entity.get_dofs_kv())
@@ -193,6 +194,7 @@ class Genesis():
             return gs.morphs.URDF(
                 file  = urdf_path,
                 fixed = True,
+                decompose_robot_error_threshold=0.0,
             )
 
         raise ValueError(f"Provide either mjcf_path or urdf_path")
@@ -285,7 +287,7 @@ class Genesis():
         diff_qpos = current_qpos - target_qpos
         return torch.norm(diff_qpos)
 
-    def link_translate(self, link: RigidLink, t):
+    def link_translate(self, link, t):
         link_pos = link.get_pos()
         link_quat = link.get_quat()
 

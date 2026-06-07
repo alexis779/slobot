@@ -1,6 +1,7 @@
 from typing import Any
 import torch
 
+from slobot.configuration import Configuration
 from slobot.feetech import Feetech
 from slobot.so_arm_100 import SoArm100
 from slobot.teleop.asyncprocessing.fifo_queue import FifoQueue
@@ -54,7 +55,7 @@ class MirrorKinematicsWorker(WorkerBase):
         super().setup()
 
         # Feetech instance for pos (motor steps) to qpos (radians) conversion
-        self.feetech = Feetech(connect=False)
+        self.feetech = Feetech(connect=False, qpos_map=Configuration.MJCF_QPOS_MAP)
 
         res = (self.width, self.height)
         self.arm = SoArm100(should_start=False, show_viewer=True, fps=self.fps, substeps=self.substeps, rgb=True, res=res, vis_mode=self.vis_mode, camera_pos=(0.5, -2, 0.5), lookat = (0.5, 0, 0))

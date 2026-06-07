@@ -22,8 +22,8 @@ image = (
 
 app = modal.App("lerobot")
 vol = modal.Volume.from_name("lerobot", create_if_missing=True)
-wandb_secret = modal.Secret.from_name("wandb-secret")
-hf_secret = modal.Secret.from_name("hf-secret")
+wandb_secret = modal.Secret.from_name("wandb")
+hf_secret = modal.Secret.from_name("huggingface")
 
 partition = "/data"
 

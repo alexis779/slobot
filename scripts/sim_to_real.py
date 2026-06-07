@@ -4,7 +4,7 @@ from slobot.configuration import Configuration
 
 # Control the robot via Inverse Kinematics against 3 elemental rotations. Each rotation is done in 2 steps.
 
-feetech = Feetech()
+feetech = Feetech(qpos_map=Configuration.MJCF_QPOS_MAP)
 
 arm = SoArm100(step_handler=feetech, show_viewer=True, rgb=True)
  arm.elemental_rotations()

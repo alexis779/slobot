@@ -1,0 +1,235 @@
+{
+    "output_dir": null,
+    "job_name": "hil-serl",
+    "resume": false,
+    "seed": 1000,
+    "num_workers": 4,
+    "batch_size": 256,
+    "steps": 100000,
+    "log_freq": 500,
+    "save_checkpoint": true,
+    "save_freq": 5000,
+    "wandb": {
+        "enable": true,
+        "project": "slobot-hilserl",
+        "disable_artifact": true
+    },
+    "dataset": {
+        "repo_id": "alexis779/so100_cube_rectangle_day",
+        "use_imagenet_stats": false
+    },
+    "algorithm": {
+        "type": "sac",
+        "actor_lr": 3e-4,
+        "critic_lr": 1e-4,
+        "temperature_lr": 3e-4,
+        "discount": 0.97,
+        "use_backup_entropy": true,
+        "critic_target_update_weight": 0.005,
+        "num_critics": 2,
+        "num_subsample_critics": null,
+        "critic_network_kwargs": {
+            "hidden_dims": [256, 256],
+            "activate_final": true,
+            "final_activation": null
+        },
+        "discrete_critic_network_kwargs": {
+            "hidden_dims": [256, 256],
+            "activate_final": true,
+            "final_activation": null
+        },
+        "temperature_init": 0.01,
+        "target_entropy": null,
+        "utd_ratio": 1,
+        "policy_update_freq": 1,
+        "grad_clip_norm": 10.0,
+        "use_torch_compile": false
+    },
+    "mixer": "online_offline",
+    "online_ratio": 0.5,
+    "policy": {
+        "type": "gaussian_actor",
+        "push_to_hub": false,
+        "n_obs_steps": 1,
+        "normalization_mapping": {
+            "VISUAL": "MEAN_STD",
+            "STATE": "MIN_MAX",
+            "ENV": "MIN_MAX",
+            "ACTION": "MIN_MAX"
+        },
+        "input_features": {
+            "observation.images.top": {
+                "type": "VISUAL",
+                "shape": [3, 128, 128]
+            },
+            "observation.images.wrist": {
+                "type": "VISUAL",
+                "shape": [3, 128, 128]
+            },
+            "observation.state": {
+                "type": "STATE",
+                "shape": [7]
+            }
+        },
+        "output_features": {
+            "action": {
+                "type": "ACTION",
+                "shape": [7]
+            }
+        },
+        "dataset_stats": {
+            "observation.images.top": {
+                "mean": [0.485, 0.456, 0.406],
+                "std": [0.229, 0.224, 0.225]
+            },
+            "observation.images.wrist": {
+                "mean": [0.485, 0.456, 0.406],
+                "std": [0.229, 0.224, 0.225]
+            },
+            "observation.state": {
+                "min": [-1.0, -1.0, -1.0, -3.14, -3.14, -3.14, -1.75],
+                "max": [1.0, 1.0, 1.0, 3.14, 3.14, 3.14, 1.75]
+            },
+            "action": {
+                "min": [-1.0, -1.0, -1.0, -3.14, -3.14, -3.14, -1.0],
+                "max": [1.0, 1.0, 1.0, 3.14, 3.14, 3.14, 1.0]
+            }
+        },
+        "num_discrete_actions": null,
+        "device": "cuda",
+        "storage_device": "cpu",
+        "use_amp": false,
+        "vision_encoder_name": "lerobot/resnet10",
+        "freeze_vision_encoder": true,
+        "image_encoder_hidden_dim": 32,
+        "shared_encoder": true,
+        "online_steps": 1000000,
+        "online_buffer_capacity": 30000,
+        "offline_buffer_capacity": 20000,
+        "online_step_before_learning": 30,
+        "state_encoder_hidden_dim": 256,
+        "latent_dim": 64,
+        "actor_network_kwargs": {
+            "hidden_dims": [256, 256],
+            "activate_final": true
+        },
+        "policy_kwargs": {
+            "use_tanh_squash": true,
+            "std_min": -5,
+            "std_max": 2,
+            "init_final": 0.02
+        },
+        "actor_learner_config": {
+            "learner_host": "127.0.0.1",
+            "learner_port": 50051,
+            "policy_parameters_push_frequency": 4
+        },
+        "concurrency": {
+            "actor": "threads",
+            "learner": "threads"
+        },
+        "repo_id": null
+    },
+    "env": {
+        "type": "gym_manipulator",
+        "name": "real_robot",
+        "fps": 10,
+        "task": "Pick cube and place it on the rectangle",
+        "robot": {
+            "type": "slobot_so100_follower",
+            "port": "/dev/ttyACM0",
+            "id": "follower_arm",
+            "cameras": {
+                "top": {
+                    "type": "opencv",
+                    "index_or_path": "/dev/video2",
+                    "height": 480,
+                    "width": 640,
+                    "fps": 30,
+                    "fourcc": "MJPG",
+                    "backend": "V4L2"
+                },
+                "wrist": {
+                    "type": "opencv",
+                    "index_or_path": "/dev/video4",
+                    "height": 480,
+                    "width": 640,
+                    "fps": 30,
+                    "fourcc": "MJPG",
+                    "backend": "V4L2"
+                }
+            }
+        },
+        "teleop": {
+            "type": "slobot_so100_leader",
+            "port": "/dev/ttyACM1",
+            "id": "leader_arm",
+            "use_degrees": true,
+            "show_gui": true
+        },
+        "processor": {
+            "max_gripper_pos": 30,
+            "observation": {
+                "display_cameras": false,
+                "add_joint_velocity_to_observation": false,
+                "add_current_to_observation": false,
+                "add_ee_pose_to_observation": true
+            },
+            "image_preprocessing": {
+                "crop_params_dict": null,
+                "resize_size": [128, 128]
+            },
+            "gripper": {
+                "use_gripper": true,
+                "gripper_penalty": -0.01
+            },
+            "reset": {
+                "fixed_reset_joint_positions": [6.5, -101.3, 91.5, 86.5, 71.7, 1.5],
+                "reset_time_s": 5,
+                "control_time_s": 180,
+                "terminate_on_success": true
+            },
+            "inverse_kinematics": {
+                "gripper_link_name": "Fixed_Jaw",
+                "jaw_joint_name": "Jaw",
+                "end_effector_step_sizes": {
+                    "x": 0.005,
+                    "y": 0.005,
+                    "z": 0.005,
+                    "roll": 0.05,
+                    "pitch": 0.05,
+                    "yaw": 0.05
+                }
+            },
+            "reward_classifier": {
+                "pretrained_path": "alexis779/so100_cube_rectangle_day_reward_classifier",
+                "success_threshold": 0.5,
+                "success_reward": 1.0
+            }
+        },
+        "features": {
+            "observation.images.top": {
+                "type": "VISUAL",
+                "shape": [3, 128, 128]
+            },
+            "observation.images.wrist": {
+                "type": "VISUAL",
+                "shape": [3, 128, 128]
+            },
+            "observation.state": {
+                "type": "STATE",
+                "shape": [7]
+            },
+            "action": {
+                "type": "ACTION",
+                "shape": [7]
+            }
+        },
+        "features_map": {
+            "observation.images.top": "observation.images.top",
+            "observation.images.wrist": "observation.images.wrist",
+            "observation.state": "observation.state",
+            "action": "action"
+        }
+    }
+}

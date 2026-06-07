@@ -10,7 +10,7 @@ if len(sys.argv) < 2:
 
 # Validate the robot is located in the position preset
 
-feetech = Feetech()
+feetech = Feetech(qpos_map=Configuration.MJCF_QPOS_MAP)
 
 preset = sys.argv[1]
 pos = Configuration.POS_MAP[preset]

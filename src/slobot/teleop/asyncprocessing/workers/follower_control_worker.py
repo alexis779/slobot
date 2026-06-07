@@ -57,6 +57,7 @@ class FollowerControlWorker(WorkerBase):
         
         # Connect to follower arm with torque enabled (it's the actuator)
         self.follower = Feetech(
+            qpos_map=Configuration.MJCF_QPOS_MAP,
             port=self.port,
             robot_id=Feetech.FOLLOWER_ID,
             torque=True,

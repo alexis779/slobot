@@ -1,0 +1,85 @@
+{
+    "env": {
+        "name": "real_robot",
+        "fps": 10,
+        "robot": {
+            "type": "slobot_so100_follower",
+            "port": "/dev/ttyACM0",
+            "id": "follower_arm",
+            "cameras": {
+                "top": {
+                    "type": "opencv",
+                    "index_or_path": "/dev/video2",
+                    "height": 480,
+                    "width": 640,
+                    "fps": 30,
+                    "fourcc": "MJPG",
+                    "backend": "V4L2"
+                },
+                "wrist": {
+                    "type": "opencv",
+                    "index_or_path": "/dev/video4",
+                    "height": 480,
+                    "width": 640,
+                    "fps": 30,
+                    "fourcc": "MJPG",
+                    "backend": "V4L2"
+                }
+            }
+        },
+        "teleop": {
+            "type": "slobot_so100_leader",
+            "port": "/dev/ttyACM1",
+            "id": "leader_arm",
+            "show_gui": true,
+            "default_intervention": true
+        },
+        "processor": {
+            "max_gripper_pos": 30,
+            "observation": {
+                "display_cameras": true,
+                "add_joint_velocity_to_observation": false,
+                "add_current_to_observation": false,
+                "add_ee_pose_to_observation": true
+            },
+            "image_preprocessing": {
+                "resize_size": [128, 128]
+            },
+            "gripper": {
+                "use_gripper": true,
+                "gripper_penalty": -0.02
+            },
+            "reset": {
+                "reset_time_s": 5,
+                "control_time_s": 30.0,
+                "terminate_on_success": false,
+                "fixed_reset_joint_positions": [6.5, -101.3, 91.5, 86.5, 71.7, 1.5]
+            },
+            "inverse_kinematics": {
+                "gripper_link_name": "Fixed_Jaw",
+                "jaw_joint_name": "Jaw",
+                "end_effector_step_sizes": {
+                    "x": 0.005,
+                    "y": 0.005,
+                    "z": 0.005,
+                    "roll": 0.05,
+                    "pitch": 0.05,
+                    "yaw": 0.05
+                }
+            },
+            "reward_classifier": {
+                "pretrained_path": "alexis779/so100_cube_rectangle_day_reward_classifier",
+                "success_threshold": 0.5,
+                "success_reward": 1.0
+            }
+        }
+    },
+    "dataset": {
+        "repo_id": "alexis779/so100_cube_rectangle_day_eval",
+        "task": "Pick cube and place it on the rectangle",
+        "num_episodes_to_record": 3,
+        "push_to_hub": true
+    },
+    "mode": "record",
+    "device": "cpu"
+}

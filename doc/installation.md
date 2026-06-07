@@ -1,6 +1,6 @@
-## Installation
+# Installation
 
-### Python
+## Python venv
 
 Create a virtual environment with _venv_
 
@@ -20,6 +20,10 @@ Validate python version in the venv
 Python 3.13.5
 ```
 
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) for faster installs.
+
+## Dependencies
+
 Install following dependencies
 
 ### 1. slobot
@@ -27,7 +31,7 @@ Install following dependencies
 ```
 git clone git+https://github.com/alexis779/slobot.git
 cd slobot
-pip install -e .
+uv pip install -e .
 ```
 
 ### 2. Robot Configuration
@@ -57,37 +61,26 @@ ln -s `pwd`/../mujoco_menagerie/trs_so_arm100 src/slobot/config/trs_so_arm100
 ### 3. LeRobot
 
 ```
-pip install git+https://github.com/huggingface/lerobot.git
+GIT_LFS_SKIP_SMUDGE=1 uv pip install git+https://github.com/huggingface/lerobot.git
+
+uv pip install 'lerobot[dataset]'
+uv pip install 'lerobot[deepdiff-dep]'
+
+uv pip install 'lerobot[training]'
+uv pip install transformers
+
+uv pip uninstall opencv-python-headless
+uv pip install --reinstall opencv-python
+uv pip install torchcodec
 ```
 
 ### 4. Genesis
 
 ```
-pip install git+https://github.com/Genesis-Embodied-AI/Genesis.git
+uv pip install git+https://github.com/Genesis-Embodied-AI/Genesis.git
 ```
 
 Also refer to the [installation guide](https://genesis-world.readthedocs.io/en/latest/user_guide/overview/installation.html). Make sure to run the [hello world example](https://genesis-world.readthedocs.io/en/latest/user_guide/getting_started/hello_genesis.html) successfully.
-
-##### Known issue
-
-On Ubuntu, Qt5 library may be incompatible with [pymeshlab](https://github.com/cnr-isti-vclab/PyMeshLab) native library. See [reported issue](https://github.com/Genesis-Embodied-AI/Genesis/issues/189). As a workaround, give precedence to the _python module_ QT library instead of the _Ubuntu system_ QT library.
-
-```
-SITE_PACKAGES=`pip show pymeshlab | grep Location | sed 's|Location: ||'`
-PYMESHLAB_LIB=$SITE_PACKAGES/pymeshlab/lib
-```
-
-Make sure the symbol is found
-
-```
-strings $PYMESHLAB_LIB/libQt5Core.so.5 | grep _ZdlPvm
-```
-
-Finally, configure `LD_LIBRARY_PATH` to overwrite QT library path,
-
-```
-LD_LIBRARY_PATH=$PYMESHLAB_LIB python <script.py>
-```
 
 ## Docker
 

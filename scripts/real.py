@@ -5,7 +5,7 @@ from slobot.configuration import Configuration
 
 # Move the robot to the preset positions.
 
-feetech = Feetech()
+feetech = Feetech(qpos_map=Configuration.MJCF_QPOS_MAP)
 
 feetech.control_position(Configuration.POS_MAP['zero'])
 sleep(1)

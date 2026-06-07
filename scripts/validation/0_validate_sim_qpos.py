@@ -10,7 +10,7 @@ if len(sys.argv) < 2:
 # Validate the robot is located in the position preset
 
 preset = sys.argv[1]
-arm = SoArm100(record=True)
+arm = SoArm100()
 qpos = arm.preset_qpos(preset)
 
 RoboticArm.sim_qpos(arm, qpos)
