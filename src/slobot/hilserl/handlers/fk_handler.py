@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from scipy.spatial.transform import Rotation as ScipyRotation
-
+from slobot.hilserl.ee_kinematics import quat_wxyz_to_rotation_6d
 from slobot.hilserl.handlers.motor_qpos import motor_to_sim_qpos
 from slobot.hilserl.models.gripper_pose import GripperLinkPose
 from slobot.hilserl.models.motor_io import MotorRadians
@@ -42,8 +41,7 @@ class FkHandler:
 
         pos = tuple(float(v) for v in link_pos.cpu().tolist())
         quat_wxyz = link_quat.cpu().tolist()
-        rotvec = ScipyRotation.from_quat(quat_wxyz, scalar_first=True).as_rotvec()
-        rotvec_tuple = (float(rotvec[0]), float(rotvec[1]), float(rotvec[2]))
+        rotation_6d = quat_wxyz_to_rotation_6d(quat_wxyz)
 
         current_qpos = self._entity.get_qpos()
         if current_qpos.dim() > 1:
@@ -51,6 +49,6 @@ class FkHandler:
         jaw_rad = float(current_qpos[self._jaw_joint_idx].item())
 
         return (
-            GripperLinkPose(position=pos, rotvec=rotvec_tuple),
+            GripperLinkPose(position=pos, rotation_6d=rotation_6d),
             jaw_rad,
         )

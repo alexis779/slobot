@@ -1,4 +1,4 @@
-"""Processor steps for EE pose + gripper command actions."""
+"""Processor steps for EE pose + jaw motor position actions."""
 
 from __future__ import annotations
 
@@ -110,12 +110,14 @@ class PolicyEeActionProcessorStep(ProcessorStep):
         pos = np.array([x, y, z], dtype=float)
         pos = limit_ee_position_step(pos, self._last_pos, self.max_ee_step_m)
         self._last_pos = pos.copy()
+        jaw_min, jaw_max = self.jaw_limits
+        jaw_rad = float(np.clip(ee_action.jaw_rad, jaw_min, jaw_max))
         return EeAction(
             pose=GripperLinkPose(
                 position=(float(pos[0]), float(pos[1]), float(pos[2])),
-                rotvec=ee_action.pose.rotvec,
+                rotation_6d=ee_action.pose.rotation_6d,
             ),
-            command=ee_action.command,
+            jaw_rad=jaw_rad,
         )
 
     def transform_features(self, features):
@@ -146,14 +148,9 @@ class SimCollisionGateProcessorStep(ProcessorStep):
 
         feetech = Factory.get_follower_feetech()
         q_guess = self._current_radians(transition, feetech)
-        jaw_rad = resolve_gripper_command(
-            ee_action.command,
-            self.bundle.jaw_limits,
-            feetech=feetech,
-            jaw_motor_idx=self.bundle.jaw_motor_idx,
-            q_guess=q_guess,
+        target_rad = self.bundle.ik.ik_from_gripper_pose(
+            ee_action.pose, q_guess, ee_action.jaw_rad
         )
-        target_rad = self.bundle.ik.ik_from_gripper_pose(ee_action.pose, q_guess, jaw_rad)
         collision = self.bundle.collision.check_collision(target_rad)
 
         new_transition = transition.copy()
@@ -333,18 +330,12 @@ class LeaderTeleopToEeActionProcessorStep(ProcessorStep):
         )
         merged_rad = MotorRadians.from_list(merged)
 
-        pose, _jaw_rad = self.bundle.fk.fk_to_gripper_pose(merged_rad)
-        ee_action = EeAction(pose=pose, command=teleop_cmd)
+        pose, jaw_rad = self.bundle.fk.fk_to_gripper_pose(merged_rad)
+        ee_action = EeAction(pose=pose, jaw_rad=jaw_rad)
         complementary["ee_action"] = ee_action
         complementary["target_motor_radians"] = merged_rad
         complementary.pop("skip_hardware_action", None)
-        complementary[TELEOP_ACTION_KEY] = normalize_ee_state(
-            [
-                *pose.position,
-                *pose.rotvec,
-                teleop_cmd.to_normalized(),
-            ]
-        )
+        complementary[TELEOP_ACTION_KEY] = ee_action.to_tensor()
         new_transition = transition.copy()
         new_transition[TransitionKey.COMPLEMENTARY_DATA] = complementary
         return new_transition

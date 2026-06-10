@@ -57,13 +57,6 @@ def _configure_env_processor(
     )
 
 
-def _min_steps_after_reset(cfg) -> int:
-    reset_cfg = cfg.processor.reset
-    if reset_cfg is None:
-        return 20
-    return max(int(reset_cfg.reset_time_s * cfg.fps), 10)
-
-
 def _use_slobot_reward_classifier(
     env_processor: DataProcessorPipeline,
     cfg,
@@ -79,8 +72,6 @@ def _use_slobot_reward_classifier(
                 success_threshold=step.success_threshold,
                 success_reward=step.success_reward,
                 terminate_on_success=step.terminate_on_success,
-                min_steps_after_reset=_min_steps_after_reset(cfg),
-                min_consecutive_success_frames=max(cfg.fps // 2, 1),
             )
             break
     return DataProcessorPipeline(

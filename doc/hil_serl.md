@@ -2,9 +2,9 @@ Refer to the [HuggingFace tutorial](https://huggingface.co/docs/lerobot/en/hilse
 
 # Calibrate the follower and leader
 
-Use supported robot.type and teleop.type.
+Pass supported `so100_follower` **robot.type** and `so100_leader` **teleop.type**.
 
-This will ensure the middle motor position (4096 / 2 = 2048) matches exactly the joint range middle angle.
+This calibration ensures the middle motor position (`motor step = 4096 / 2 = 2048`) matches exactly the joint range middle point.
 
 ## Follower
 
@@ -72,10 +72,10 @@ uv run slobot-teleoperate \
 
 # Record the dataset
 
-Choose a dataset id for offline policy learning, for example `alexis779/so100_cube_rectangle`.
+Choose a dataset id for offline policy learning, for example `alexis779/so100_cube_rectangle_day`.
 
 Human reward labels (leader GUI): **s** when the cube is on the rectangle (reward for
-`2 × env.fps` control frames, i.e. 2 seconds at the control rate), move the arm to rest,
+`env.fps` control frames, i.e. 1 second at the control rate), move the arm to rest,
 **q** to end the episode. **r** to rerecord.
 `terminate_on_success` is false so the episode continues after **s**. Set
 `reward_classifier.pretrained_path` to `null` during recording so labels come only from teleop.
@@ -83,7 +83,7 @@ Human reward labels (leader GUI): **s** when the cube is on the rectangle (rewar
 Leader arm joints are FK’d to gripper_link pose; follower jaw uses present follower motor
 position (not the leader gripper).
 
-- `observation.state` / `action`: `[x, y, z, wx, wy, wz, jaw]` — gripper_link position (m), rotation vector (rad), jaw motor position (rad) for observation; action last dim is gripper command `OPEN`/`STAY`/`CLOSE` encoded as `1`/`0`/`-1` before normalization. Press **o** / **c** in the leader GUI to open/close the follower jaw (leader jaw position is not forwarded).
+- `observation.state` / `action`: `[x, y, z, r1_x, r1_y, r1_z, r2_x, r2_y, r2_z, jaw]` — gripper_link position (m), 6D rotation (first two columns of the rotation matrix), jaw motor position (rad). Action dim 9 uses the same jaw motor position representation as `observation.state` (not discrete gripper commands). Press **o** / **c** in the leader GUI to open/close the follower jaw (leader jaw position is not forwarded).
 
 - Leader teleop: arm joints from the leader; follower jaw from present follower motors. Policy path: Genesis sim collision check before sending motor goals; invalid poses get reward penalty `-1` and the arm does not move.
 
@@ -94,13 +94,13 @@ uv run slobot-record --config_path ./src/slobot/hilserl/configs/record_dataset_c
 Delete previously recorded dataset when re-recording it.
 
 ```
-rm -r ~/.cache/huggingface/lerobot/alexis779/so100_cube_rectangle
+rm -r ~/.cache/huggingface/lerobot/alexis779/so100_cube_rectangle_day
 ```
 
 # Visualize a dataset episode
 
 ```
-uv run lerobot-dataset-viz --root ~/.cache/huggingface/lerobot/alexis779/so100_cube_rectangle --repo-id alexis779/so100_cube_rectangle --episode-index 0
+uv run lerobot-dataset-viz --root ~/.cache/huggingface/lerobot/alexis779/so100_cube_rectangle_day --repo-id alexis779/so100_cube_rectangle_day --episode-index 0
 ```
 
 <video controls src="https://github.com/user-attachments/assets/204a97bb-bfe4-4e6b-8749-2ed07ccce6e7">
@@ -123,27 +123,48 @@ uv run lerobot-train \
 uv run modal run src/slobot/hilserl/modal/train_reward_classifier.py
 ```
 
-Checkpoints are written to the Modal volume under `outputs/train/{date}/{time}_reward-classifier/` (same layout as local training).
+Checkpoints are written to the Modal volume under `outputs/train/{date}/{time}_reward-classifier/`.
 
 
 # Evaluate the reward classifier
 
-Update in the record config
-- "pretrained_path" : "outputs/train/2026-05-30/23-31-12_reward-classifier/checkpoints/last/pretrained_model" or "alexis779/so100_cube_rectangle_reward_classifier"
-- "repo_id" : "alexis779/so100_cube_rectangle_eval"
-- "num_episodes_to_record" : 3
+Edit the record config with the following changes
+
+```json
++++ b/src/slobot/hilserl/configs/record_dataset_config.json
+@@ -68,16 +68,16 @@
+                 }
+             },
+             "reward_classifier": {
+-                "pretrained_path": null,
++                "pretrained_path": "alexis779/so100_cube_rectangle_day_reward_classifier",
+                 "success_threshold": 0.5,
+                 "success_reward": 1.0
+             }
+         }
+     },
+     "dataset": {
+-        "repo_id": "alexis779/so100_cube_rectangle_day",
++        "repo_id": "alexis779/so100_cube_rectangle_day_eval",
+         "task": "Pick cube and place it on the rectangle",
+-        "num_episodes_to_record": 10,
++        "num_episodes_to_record": 3,
+         "push_to_hub": true
+     },
+     "mode": "record",
+```
 
 
-Record an eval dataset, but without hinting the success frames. Don't press s key.
+Record an eval dataset, but without pressing the s key.
 ```
 uv run slobot-record --config_path ./src/slobot/hilserl/configs/record_dataset_config.json
 ```
 
-It should detect task-successful frames automatically, without the operator pressing s key while tele-operating. Each frame also records `next.reward.probability` (classifier score; `next.reward` stays the binary label).
+It should detect task-successful frames automatically, without the operator pressing s key while tele-operating. Each frame also records `next.reward.probability` the classifier float value.
 
 
 ```
-uv run lerobot-dataset-viz --root ~/.cache/huggingface/lerobot/alexis779/so100_cube_rectangle_eval --repo-id alexis779/so100_cube_rectangle_eval --episode-index 0
+uv run lerobot-dataset-viz --root ~/.cache/huggingface/lerobot/alexis779/so100_cube_rectangle_day_eval --repo-id alexis779/so100_cube_rectangle_day_eval --episode-index 0
 ```
 
 ![Reward Classification](./images/hilserl/RewardClassificationEpisodeEval.png)
@@ -154,7 +175,7 @@ uv run lerobot-dataset-viz --root ~/.cache/huggingface/lerobot/alexis779/so100_c
 
 Online RL starts in **policy mode** (`IS_INTERVENTION: false`). The follower tracks the policy EE pose via IK. Press **i** in the leader GUI to take over (leader joints → clipped EE → follower joints); press **i** again to return control to the policy. Keep the teleop window focused so keypresses are received. Recording uses `default_intervention: true` so demos start in teleop mode.
 
-- `observation.state` / `action`: normalized `[x, y, z, wx, wy, wz, jaw_or_command]` (7D), same min/max as `dataset_stats`. Keys **o** / **c** open/close gripper during teleop.
+- `observation.state` / `action`: normalized `[x, y, z, r1_x, r1_y, r1_z, r2_x, r2_y, r2_z, jaw]` (10D), same min/max as `dataset_stats`. Keys **o** / **c** open/close gripper during teleop.
 
 ## Learner
 
@@ -185,8 +206,6 @@ Connect the actor (computer) with:
   --policy.actor_learner_config.learner_host=<modal-host>
   --policy.actor_learner_config.learner_port=<modal-port>
 ```
-
-Checkpoints and logs are written to the Modal volume under `outputs/train/{date}/{time}_hil-serl/` (same layout as local training).
 
 ## Actor
 

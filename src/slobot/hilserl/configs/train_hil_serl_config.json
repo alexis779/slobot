@@ -15,7 +15,7 @@
         "disable_artifact": true
     },
     "dataset": {
-        "repo_id": "alexis779/so100_cube_rectangle_day",
+        "repo_id": "alexis779/so100_cube_rectangle_night",
         "use_imagenet_stats": false
     },
     "algorithm": {
@@ -58,7 +58,7 @@
             "ACTION": "MIN_MAX"
         },
         "input_features": {
-            "observation.images.top": {
+            "observation.images.side": {
                 "type": "VISUAL",
                 "shape": [3, 128, 128]
             },
@@ -68,17 +68,17 @@
             },
             "observation.state": {
                 "type": "STATE",
-                "shape": [7]
+                "shape": [10]
             }
         },
         "output_features": {
             "action": {
                 "type": "ACTION",
-                "shape": [7]
+                "shape": [10]
             }
         },
         "dataset_stats": {
-            "observation.images.top": {
+            "observation.images.side": {
                 "mean": [0.485, 0.456, 0.406],
                 "std": [0.229, 0.224, 0.225]
             },
@@ -87,12 +87,12 @@
                 "std": [0.229, 0.224, 0.225]
             },
             "observation.state": {
-                "min": [-1.0, -1.0, -1.0, -3.14, -3.14, -3.14, -1.75],
-                "max": [1.0, 1.0, 1.0, 3.14, 3.14, 3.14, 1.75]
+                "min": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
+                "max": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             },
             "action": {
-                "min": [-1.0, -1.0, -1.0, -3.14, -3.14, -3.14, -1.0],
-                "max": [1.0, 1.0, 1.0, 3.14, 3.14, 3.14, 1.0]
+                "min": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
+                "max": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
         },
         "num_discrete_actions": null,
@@ -140,7 +140,7 @@
             "port": "/dev/ttyACM0",
             "id": "follower_arm",
             "cameras": {
-                "top": {
+                "side": {
                     "type": "opencv",
                     "index_or_path": "/dev/video2",
                     "height": 480,
@@ -184,9 +184,9 @@
                 "gripper_penalty": -0.01
             },
             "reset": {
-                "fixed_reset_joint_positions": [6.5, -101.3, 91.5, 86.5, 71.7, 1.5],
+                "fixed_reset_joint_positions": [-0.16, -3.34, 3.18, 1.35, 1.33, 0.78],
                 "reset_time_s": 5,
-                "control_time_s": 180,
+                "control_time_s": 30,
                 "terminate_on_success": true
             },
             "inverse_kinematics": {
@@ -202,13 +202,13 @@
                 }
             },
             "reward_classifier": {
-                "pretrained_path": "alexis779/so100_cube_rectangle_day_reward_classifier",
+                "pretrained_path": "alexis779/so100_cube_rectangle_night_reward_classifier",
                 "success_threshold": 0.5,
                 "success_reward": 1.0
             }
         },
         "features": {
-            "observation.images.top": {
+            "observation.images.side": {
                 "type": "VISUAL",
                 "shape": [3, 128, 128]
             },
@@ -218,15 +218,15 @@
             },
             "observation.state": {
                 "type": "STATE",
-                "shape": [7]
+                "shape": [10]
             },
             "action": {
                 "type": "ACTION",
-                "shape": [7]
+                "shape": [10]
             }
         },
         "features_map": {
-            "observation.images.top": "observation.images.top",
+            "observation.images.side": "observation.images.side",
             "observation.images.wrist": "observation.images.wrist",
             "observation.state": "observation.state",
             "action": "action"

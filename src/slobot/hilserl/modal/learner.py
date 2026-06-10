@@ -7,6 +7,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -21,7 +22,7 @@ from slobot.hilserl.modal.common import (
 )
 
 REMOTE_CONFIG = f"{REMOTE_REPO}/src/slobot/hilserl/configs/train_hil_serl_config.json"
-RESUME_OUTPUT_DIR = "outputs/train/2026-06-06/19-55-23_hil-serl"
+RESUME_OUTPUT_DIR = "output"
 GRPC_PORT = 50051
 VOLUME_ROOT = "/vol"
 
@@ -34,6 +35,9 @@ def resume_train_config_path(output_dir: str) -> str:
 
 def _ensure_last_checkpoint_link(output_dir: str) -> None:
     checkpoints_dir = Path(output_dir) / "checkpoints"
+    if not checkpoints_dir.is_dir():
+        return
+
     last = checkpoints_dir / "last"
     marker = last / "pretrained_model" / "train_config.json"
     if marker.is_file():
@@ -44,7 +48,7 @@ def _ensure_last_checkpoint_link(output_dir: str) -> None:
         key=lambda d: int(d.name),
     )
     if not step_dirs:
-        raise RuntimeError(f"No numbered checkpoints found under {checkpoints_dir}")
+        return
 
     latest = step_dirs[-1]
     if last.exists() or last.is_symlink():
@@ -52,7 +56,24 @@ def _ensure_last_checkpoint_link(output_dir: str) -> None:
     last.symlink_to(latest.name)
 
 
-def _invoke_learner_cli(*, output_dir: str) -> None:
+def _can_resume(output_dir: str) -> bool:
+    """Return True when a checkpoint exists under output_dir on the Modal volume."""
+    path = Path(output_dir)
+    if not path.is_dir():
+        return False
+
+    _ensure_last_checkpoint_link(output_dir)
+    return Path(resume_train_config_path(output_dir)).is_file()
+
+
+def _prepare_fresh_output_dir(output_dir: str) -> None:
+    """Remove an empty output tree so LeRobot can start with resume=false."""
+    path = Path(output_dir)
+    if path.exists():
+        shutil.rmtree(path)
+
+
+def _invoke_learner_cli(*, output_dir: str, config_path: str) -> None:
     # Register slobot plugins then run LeRobot learner (blocks forever).
     import slobot.hilserl.config_slobot_so100_follower  # noqa: F401
     import slobot.hilserl.config_slobot_so100_leader  # noqa: F401
@@ -63,22 +84,31 @@ def _invoke_learner_cli(*, output_dir: str) -> None:
     register_hilserl_processor_config()
     # LeRobot defaults to outputs/train/{date}/{time}_{job_name}/ relative to cwd.
     os.chdir(VOLUME_ROOT)
-    _ensure_last_checkpoint_link(output_dir)
 
-    resume_config_path = resume_train_config_path(output_dir)
-    if not Path(resume_config_path).is_file():
-        raise FileNotFoundError(
-            f"Checkpoint config not found: {VOLUME_ROOT}/{resume_config_path}. "
-            "Expected checkpoints/last/pretrained_model/train_config.json on the volume."
+    if _can_resume(output_dir):
+        learner_config_path = resume_train_config_path(output_dir)
+        resume = "true"
+        print(f"Resuming training from {VOLUME_ROOT}/{learner_config_path}", flush=True)
+    else:
+        _prepare_fresh_output_dir(output_dir)
+        learner_config_path = config_path
+        resume = "false"
+        print(
+            f"No checkpoint under {VOLUME_ROOT}/{output_dir}; "
+            f"starting fresh with {learner_config_path}",
+            flush=True,
         )
 
     sys.argv = [
         "slobot-learner",
-        f"--config_path={resume_config_path}",
+        f"--config_path={learner_config_path}",
         "--dataset.video_backend=pyav",
         "--num_workers=0",
-        "--resume=true",
+        f"--resume={resume}",
         f"--output_dir={output_dir}",
+        # Modal forwards external TCP to container :50051; gRPC must listen on all interfaces.
+        "--policy.actor_learner_config.learner_host=0.0.0.0",
+        f"--policy.actor_learner_config.learner_port={GRPC_PORT}",
     ]
     train_cli()
 
@@ -106,19 +136,19 @@ def run_hilserl_learner(
         print("=" * 72, flush=True)
         print("SLOBOT HIL-SERL LEARNER (Modal)", flush=True)
         print(f"  CUDA device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'n/a'}", flush=True)
-        print(f"  Resuming from: {VOLUME_ROOT}/{output_dir}", flush=True)
+        print(f"  Output dir: {VOLUME_ROOT}/{output_dir}", flush=True)
         print(f"  gRPC bind (in container): {bind_host}:{grpc_port}", flush=True)
         print("  Connect the actor (computer) with:", flush=True)
         print(f"    --policy.actor_learner_config.learner_host={host}", flush=True)
         print(f"    --policy.actor_learner_config.learner_port={port}", flush=True)
         print("=" * 72, flush=True)
 
-        _invoke_learner_cli(output_dir=output_dir)
+        _invoke_learner_cli(output_dir=output_dir, config_path=config_path)
 
 
 @app.local_entrypoint()
 def main() -> None:
     """Local entrypoint for `modal run`."""
     print("Starting Modal learner. Watch the logs for the actor host:port to use on the computer.")
-    print(f"Resuming from volume path: {RESUME_OUTPUT_DIR}")
+    print(f"Output dir on volume: {RESUME_OUTPUT_DIR}")
     run_hilserl_learner.remote(config_path=REMOTE_CONFIG)

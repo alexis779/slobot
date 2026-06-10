@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class GripperLinkPose:
-    """End-effector pose of gripper_link: position (m) + rotation vector (rad)."""
+    """End-effector pose of gripper_link: position (m) + 6D rotation (Zhou et al.)."""
 
     position: tuple[float, float, float]
-    rotvec: tuple[float, float, float]
+    rotation_6d: tuple[float, float, float, float, float, float]

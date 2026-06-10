@@ -7,7 +7,6 @@ from dataclasses import dataclass
 import torch
 
 from slobot.hilserl.ee_kinematics import EE_STATE_DIM, denormalize_ee_state, normalize_ee_state
-from slobot.hilserl.models.gripper_command import GripperCommand
 from slobot.hilserl.models.gripper_pose import GripperLinkPose
 
 
@@ -19,7 +18,7 @@ class EeObservation:
     def to_tensor(self) -> torch.Tensor:
         values = [
             *self.pose.position,
-            *self.pose.rotvec,
+            *self.pose.rotation_6d,
             self.jaw_rad,
         ]
         return normalize_ee_state(values)
@@ -33,22 +32,22 @@ class EeObservation:
         return cls(
             pose=GripperLinkPose(
                 position=(vals[0], vals[1], vals[2]),
-                rotvec=(vals[3], vals[4], vals[5]),
+                rotation_6d=(vals[3], vals[4], vals[5], vals[6], vals[7], vals[8]),
             ),
-            jaw_rad=vals[6],
+            jaw_rad=vals[9],
         )
 
 
 @dataclass(frozen=True)
 class EeAction:
     pose: GripperLinkPose
-    command: GripperCommand
+    jaw_rad: float
 
     def to_tensor(self) -> torch.Tensor:
         values = [
             *self.pose.position,
-            *self.pose.rotvec,
-            self.command.to_normalized(),
+            *self.pose.rotation_6d,
+            self.jaw_rad,
         ]
         return normalize_ee_state(values)
 
@@ -61,7 +60,7 @@ class EeAction:
         return cls(
             pose=GripperLinkPose(
                 position=(vals[0], vals[1], vals[2]),
-                rotvec=(vals[3], vals[4], vals[5]),
+                rotation_6d=(vals[3], vals[4], vals[5], vals[6], vals[7], vals[8]),
             ),
-            command=GripperCommand.from_normalized(vals[6]),
+            jaw_rad=vals[9],
         )

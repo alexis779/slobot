@@ -16,7 +16,6 @@ from slobot.feetech import Feetech
 from slobot.hilserl.config_slobot_so100_follower import SlobotSO100FollowerConfig
 from slobot.hilserl.config_slobot_so100_leader import SlobotSO100LeaderTeleopConfig
 from slobot.hilserl.corner_env import CornerEnv
-from slobot.hilserl.ee_kinematics import update_jaw_bounds
 from slobot.hilserl.handlers.collision_handler import GenesisCollisionHandler
 from slobot.hilserl.handlers.fk_handler import FkHandler
 from slobot.hilserl.handlers.ik_handler import IkHandler
@@ -112,7 +111,6 @@ class Factory:
             robotic_arm, jaw_joint_name, motor_names
         )
         jaw_limits = jaw_joint_limits(robotic_arm, jaw_joint_name)
-        update_jaw_bounds(jaw_limits[0], jaw_limits[1])
 
         fk = FkHandler(
             robotic_arm,

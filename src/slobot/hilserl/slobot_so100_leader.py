@@ -33,7 +33,7 @@ _HELP_ACTOR = """HIL-SERL actor — keep this window focused
   i = take over with leader (rl_policy -> teleop)
   o = open gripper
   c = close gripper
-  s = task successful (reward for 2 seconds of control frames)
+  s = task successful (reward for 1 second of control frames)
   q = end episode
 """
 
@@ -41,7 +41,7 @@ _HELP_RECORD = """HIL-SERL recording — keep this window focused
 
   o = open gripper
   c = close gripper
-  s = task successful (reward for 2 seconds of control frames)
+  s = task successful (reward for 1 second of control frames)
   q = end episode
   r = rerecord episode
 """
@@ -168,7 +168,7 @@ class SlobotSO100LeaderTeleop(Teleoperator):
             elif key == "s":
                 if self._gui_state.mode == HilSerlGuiMode.RECOVER:
                     continue
-                self._success_frames_remaining = 2 * self._control_fps
+                self._success_frames_remaining = self._control_fps
                 logger.info(
                     "%s success key pressed — reward=1 for %d frames",
                     self,

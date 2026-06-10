@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING, Any
 
 import gymnasium as gym
 import numpy as np
-from lerobot.rl import gym_manipulator
 from lerobot.teleoperators.utils import TeleopEvents
 from lerobot.utils.robot_utils import precise_sleep
 from lerobot.utils.utils import log_say
 
 if TYPE_CHECKING:
+    from slobot.hilserl.slobot_so100_follower import SlobotSO100Follower
     from slobot.hilserl.slobot_so100_leader import SlobotSO100LeaderTeleop
 
 def _log_reset_stage(message: str) -> None:
@@ -40,6 +40,15 @@ def wait_control_step(step_start: float, fps: float, leader_teleop: SlobotSO100L
     sleep_with_gui_pump(remaining, leader_teleop)
 
 
+def reset_follower_to_joint_radians(
+    robot: SlobotSO100Follower,
+    target_radians: list[float] | np.ndarray,
+) -> None:
+    """Send one goal-position command to move the follower to ``target_radians``."""
+    target_qpos = np.asarray(target_radians, dtype=np.float32).tolist()
+    robot._feetech.control_dofs_position(target_qpos)
+
+
 def robot_env_reset(
     env,
     leader_teleop: SlobotSO100LeaderTeleop,
@@ -47,7 +56,7 @@ def robot_env_reset(
     seed: int | None = None,
     options: dict[str, Any] | None = None,
 ) -> tuple[Any, dict]:
-    """Wait ``reset_time_s`` for manual scene reset, then move follower to ``reset_pose``."""
+    """Wait ``reset_time_s`` for manual scene reset, then move follower to ``reset_pose`` (radians)."""
     reset_started_at = time.perf_counter()
     reset_started_ts = datetime.now().isoformat(timespec="milliseconds")
     _log_reset_stage(
@@ -57,15 +66,22 @@ def robot_env_reset(
 
     leader_teleop.notify_resetting()
     leader_teleop.reset_gui_for_episode()
+    manual_wait_started_at = time.perf_counter()
     sleep_with_gui_pump(env.reset_time_s, leader_teleop)
+    manual_wait_elapsed_s = time.perf_counter() - manual_wait_started_at
 
+    arm_homing_elapsed_s = 0.0
     if env.reset_pose is not None:
-        gym_manipulator.reset_follower_position(env.robot, np.array(env.reset_pose))
+        arm_homing_started_at = time.perf_counter()
+        reset_follower_to_joint_radians(env.robot, env.reset_pose)
+        arm_homing_elapsed_s = time.perf_counter() - arm_homing_started_at
 
     reset_elapsed_s = time.perf_counter() - reset_started_at
     reset_ended_ts = datetime.now().isoformat(timespec="milliseconds")
     _log_reset_stage(
-        f"Reset stage ended at {reset_ended_ts} (elapsed={reset_elapsed_s:.2f}s)"
+        f"Reset stage ended at {reset_ended_ts} "
+        f"(elapsed={reset_elapsed_s:.2f}s, manual_wait={manual_wait_elapsed_s:.2f}s, "
+        f"arm_homing={arm_homing_elapsed_s:.2f}s)"
     )
     log_say("Reset the environment done.", play_sounds=True)
 

@@ -190,6 +190,13 @@ def _record_control_loop(env, env_processor, action_processor, teleop_device, cf
                 if isinstance(v, torch.Tensor)
             }
 
+            # Classifier probability is produced by env_processor for the current
+            # observation; read it before stepping so it aligns with saved images.
+            reward_prob = 0.0
+            if record_reward_prob:
+                info = transition.get(TransitionKey.INFO, {})
+                reward_prob = float(info.get(REWARD_PROBABILITY, 0.0))
+
             transition = gym_manipulator.step_env_and_process_transition(
                 env=env,
                 transition=transition,
@@ -218,9 +225,7 @@ def _record_control_loop(env, env_processor, action_processor, teleop_device, cf
                     )
 
                 if record_reward_prob:
-                    info = transition.get(TransitionKey.INFO, {})
-                    prob = float(info.get(REWARD_PROBABILITY, 0.0))
-                    frame[REWARD_PROBABILITY] = np.array([prob], dtype=np.float32)
+                    frame[REWARD_PROBABILITY] = np.array([reward_prob], dtype=np.float32)
 
                 if dataset is not None:
                     frame["task"] = cfg.dataset.task

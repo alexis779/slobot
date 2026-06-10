@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import torch
-from scipy.spatial.transform import Rotation as ScipyRotation
 
+from slobot.hilserl.ee_kinematics import rotation_6d_to_quat_wxyz
 from slobot.hilserl.handlers.motor_qpos import motor_to_sim_qpos, sim_to_motor_radians
 from slobot.hilserl.models.gripper_pose import GripperLinkPose
 from slobot.hilserl.models.motor_io import MotorRadians
@@ -38,8 +38,7 @@ class IkHandler:
     ) -> MotorRadians:
         """IK for gripper_link pose; overwrite jaw DOF with jaw_rad."""
         target_pos = torch.tensor(pose.position, dtype=torch.float32)
-        rotvec = torch.tensor(pose.rotvec, dtype=torch.float32)
-        quat = ScipyRotation.from_rotvec(rotvec).as_quat(scalar_first=True)
+        quat = rotation_6d_to_quat_wxyz(pose.rotation_6d)
         target_quat = torch.tensor(quat, dtype=torch.float32)
 
         if self._entity.scene.n_envs > 0:
