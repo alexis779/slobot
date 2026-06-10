@@ -73,128 +73,89 @@ Streaming Parameters Video Capture:
         Read buffers     : 0
 ```
 
-### Night recording risks (auto-exposure, white balance, glare)
+### Reward classifier and fixed camera settings
 
-At night, USB webcams left on **auto-exposure** and **auto white balance** often produce images that look nothing like daytime recordings of the same scene:
+The HIL-SERL reward classifier is **images-only** (side + wrist). It fuses both streams in one head. If the **side camera** keeps **auto-exposure** or **auto white balance** enabled, aperture and color temperature drift between the train recording and a later eval session — even when the robot pose looks identical.
 
-- **Yellow / orange color cast** — AWB locks onto warm lamp light (e.g. 4000 K) instead of neutral grey.
-- **Glare and blown highlights** — auto-exposure runs long (e.g. 300+ units vs ~150 on a better-exposed camera), washing out the table and cube.
-- **Low SNR** — gain and long exposure add grain; fine cues (gripper–cube gap, cube on target) become hard to learn.
-- **Moving banding** — AC mains or PWM-dimmed lamps plus rolling shutter show as faint dark waves on the table.
-- **Visible shadows** — side lighting casts gripper shadows toward the camera; overhead lighting removes them.
+#### Example: `so100_cube_rectangle_day` (episode 0)
 
-These artifacts are a problem for **vision-based reward classifiers** trained on human labels: the model sees pixels only (not EE pose). It can memorize night-specific texture and color, then fail on a new session even when the robot pose is almost identical.
+The side camera is this [Tewiky Wide Angle Camera](https://www.amazon.com/dp/B08VJ25PL1).
 
-#### Example: `so100_cube_rectangle_night` (10 episodes)
+| Stream key | Device | Physical mount |
+|------------|--------|----------------|
+| `observation.images.side` | `/dev/video2` | eMeet C950 — fixed side view |
 
-Two cameras were recorded (config keys `observation.images.side` and `observation.images.wrist`; device mapping may be swapped vs physical mount — verify with `v4l2-ctl --list-devices`):
+Train labels reached 100% classifier accuracy. On eval (`so100_cube_rectangle_day_eval` ep0), the classifier never crossed the 0.5 threshold despite a successful place. Side-camera train vs eval frames look the same to the eye; mean pixel difference is only **5.8 / 255 (~2.3%)**, concentrated in **table glare** (top-right) and a slight global warmth shift — enough to collapse the fused score when auto settings differ across sessions.
 
-| Stream key | Device (this setup) | Night appearance |
-|------------|---------------------|------------------|
-| `side` | eMeet C950 (`/dev/video2`) | Dark table, grey cube, white jaw — crisp contrast |
-| `wrist` | USB camera (`/dev/video4`) | Yellow / orange wash, glare |
+![Side camera train f105 vs eval f53 — original frames, diff ×8, hotspots](./images/camera/side_train_vs_eval_diff_panel.png)
 
-**Train** (human `s` labels, `reward=1`):
-
-![Night train success ep0 frame 57 — side (left) and wrist (right)](./images/camera/night_train_success_ep0_f57.png)
-
-**Eval** (classifier should fire, same task, prob ≈ 0.04):
-
-![Night eval miss ep0 frame 57 — side (left) and wrist (right)](./images/camera/night_eval_miss_ep0_f57.png)
-
-Frames look similar to the eye; classifier output collapses on eval. Training reached 100% accuracy on labeled frames; generalization failed.
-
-Additional pairs (success region, frames 56 and 60):
-
-![Night train success ep0 frame 56](./images/camera/night_train_success_ep0_f56.png)
-
-![Night eval miss ep0 frame 60](./images/camera/night_eval_miss_ep0_f60.png)
+Panel columns: **train f105** | **eval f53** | **diff ×8** (per-channel \|eval − train\| × 8 as RGB) | **hotspots** (red where any channel differs by > 12/255). Yellow/white speckle in diff ×8 is glare instability, not gripper motion.
 
 #### Ablation: which camera hurts the fused classifier?
 
-The reward classifier concatenates embeddings from both cameras, then applies one MLP head. Offline tests on checkpoint `so100_cube_rectangle_night_reward_classifier` (ep0 frame 57):
+The reward classifier concatenates embeddings from both cameras, then applies one MLP head. Offline tests on checkpoint `so100_cube_rectangle_day_reward_classifier` (eval ep0 frame 53):
+
+| Stream key | Device |
+|------------|--------|
+| `observation.images.side` | `/dev/video2` (eMeet, side) |
+| `observation.images.wrist` | `/dev/video4` (USB, wrist) |
 
 **Zero ablation** — zero one camera input before inference:
 
 | Eval images | Prob |
 |-------------|------|
 | Side + wrist (both eval) | 0.001 |
-| Side only (wrist zeroed) | **0.95** |
-| Wrist only (side zeroed) | 0.003 |
+| Side only (wrist zeroed) | 0.94 |
+| Wrist only (side zeroed) | 0.02 |
 
-The side stream alone is enough for success; adding the wrist stream collapses the fused score.
+Fused eval side + eval wrist collapses to 0.001. Side-only reaches 0.94 — the side view looks like success in isolation, but the eval side stream does not match train in the fused head. Wrist-only stays low (0.02); the side camera is what drifts between sessions.
 
 **Swap test** — replace one eval camera with the train success image at the same frame index:
 
 | Images used | Prob |
 |-------------|------|
 | Eval side + eval wrist | 0.001 |
-| Train side + eval wrist | 0.36 |
-| Eval side + train wrist | 0.56 |
+| Train side + eval wrist | 0.15 |
+| Eval side + train wrist | 0.96 |
 | Train side + train wrist | **0.99** |
 
-Eval wrist hurts more than eval side (larger gain when replaced with train wrist). The only fix is to manually lock camera settings (especially on the glare-heavy USB stream), re-record the dataset, and retrain the reward classifier on **both** cameras.
+Replacing eval **side** with train side raises 0.001 → 0.15; train side + train wrist reaches 0.99. The side camera on `/dev/video2` (auto exposure / white balance drift, table glare) is the stream that collapses the fused score — lock its settings and re-record before retraining.
 
-`v4l2-ctl` profile for `/dev/video4` (USB camera). Each manual value is followed by the driver default.
+**Fix:** lock exposure and white balance on `/dev/video2` (side) before every train and eval recording, using the workflow below.
 
-**Suggested night profile** (reduces yellow cast and glare):
+#### Workflow: dump, disable auto, hardcode
 
-```bash
-# --- Exposure (glare) ---
-v4l2-ctl -d /dev/video4 -c auto_exposure=1
-# default: auto_exposure=3   # Aperture Priority Mode (auto)
+Under the **same lighting** you will use for recording:
 
-v4l2-ctl -d /dev/video4 -c exposure_time_absolute=120
-# default: exposure_time_absolute=313   # inactive while auto_exposure=3
-
-# --- White balance (yellow / orange) ---
-v4l2-ctl -d /dev/video4 -c white_balance_automatic=0
-# default: white_balance_automatic=1   # auto on
-
-v4l2-ctl -d /dev/video4 -c white_balance_temperature=5800
-# default: white_balance_temperature=4000   # inactive while white_balance_automatic=1
-
-# --- Color / tone ---
-v4l2-ctl -d /dev/video4 -c saturation=40
-# default: saturation=51
-
-v4l2-ctl -d /dev/video4 -c contrast=28
-# default: contrast=32
-
-v4l2-ctl -d /dev/video4 -c brightness=-10
-# default: brightness=0
-
-# --- Optional: hot spots ---
-v4l2-ctl -d /dev/video4 -c backlight_compensation=1
-# default: backlight_compensation=0
-
-# --- Optional: AC flicker / moving bands on table ---
-v4l2-ctl -d /dev/video4 -c power_line_frequency=1
-# default: power_line_frequency=1 (50 Hz); use 2 for 60 Hz mains
-```
-
-Check current values:
+1. **Dump the settings** — read what auto exposure and auto white balance have chosen.
+2. **Disable auto** — switch to manual exposure and manual white balance.
+3. **Force the settings** — write the dumped values back.
 
 ```bash
-v4l2-ctl -d /dev/video4 -C auto_exposure,exposure_time_absolute,white_balance_automatic,white_balance_temperature,saturation,contrast,brightness,gamma,gain,backlight_compensation,power_line_frequency
+% v4l2-ctl -d /dev/video2 -C white_balance_automatic,white_balance_temperature,auto_exposure,exposure_time_absolute
+white_balance_automatic: 1
+white_balance_temperature: 4600
+auto_exposure: 3 (Aperture Priority Mode)
+exposure_time_absolute: 157
 ```
 
-**Reset to driver defaults:**
+`exposure_time_absolute` is often reported while auto is on; that value is what you force in step 3. Manual exposure must be enabled before writing `exposure_time_absolute` (it is read-only while `auto_exposure=3`).
+
+Disable auto settings
+```bash
+v4l2-ctl -d /dev/video2 -c auto_exposure=1
+v4l2-ctl -d /dev/video2 -c white_balance_automatic=0
+```
+
+The settings should now look like
 
 ```bash
-v4l2-ctl -d /dev/video4 -c auto_exposure=3
-v4l2-ctl -d /dev/video4 -c white_balance_automatic=1
-v4l2-ctl -d /dev/video4 -c exposure_time_absolute=313
-v4l2-ctl -d /dev/video4 -c white_balance_temperature=4000
-v4l2-ctl -d /dev/video4 -c saturation=51
-v4l2-ctl -d /dev/video4 -c contrast=32
-v4l2-ctl -d /dev/video4 -c brightness=0
-v4l2-ctl -d /dev/video4 -c gamma=100
-v4l2-ctl -d /dev/video4 -c gain=0
-v4l2-ctl -d /dev/video4 -c backlight_compensation=0
-v4l2-ctl -d /dev/video4 -c power_line_frequency=1
+$ v4l2-ctl -d /dev/video2 -C white_balance_automatic,white_balance_temperature,auto_exposure,exposure_time_absolute
+white_balance_automatic: 0
+white_balance_temperature: 4600
+auto_exposure: 1 (Manual Mode)
+exposure_time_absolute: 157
 ```
-
 
 ## Gripper with camera mount
 

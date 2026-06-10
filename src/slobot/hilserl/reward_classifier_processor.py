@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 import torch
 
@@ -12,12 +13,22 @@ from lerobot.teleoperators.utils import TeleopEvents
 from lerobot.utils.constants import OBS_IMAGE
 
 from lerobot.processor.hil_processor import RewardClassifierProcessorStep
-from lerobot.processor.pipeline import PolicyProcessorPipeline, ProcessorStepRegistry
+from lerobot.processor.pipeline import DataProcessorPipeline, PolicyProcessorPipeline, ProcessorStepRegistry
 from lerobot.processor.pipeline import EnvTransition, TransitionKey
 
 REWARD_PROBABILITY = "next.reward.probability"
 
 logger = logging.getLogger(__name__)
+
+
+def find_reward_classifier_step(
+    env_processor: DataProcessorPipeline,
+) -> SlobotRewardClassifierProcessorStep | None:
+    """Return the slobot reward-classifier step from an env processor pipeline."""
+    for step in env_processor.steps:
+        if isinstance(step, SlobotRewardClassifierProcessorStep):
+            return step
+    return None
 
 
 @dataclass
@@ -44,6 +55,35 @@ class SlobotRewardClassifierProcessorStep(RewardClassifierProcessorStep):
                 overrides={"device_processor": {"device": self.device}},
             )
 
+    def predict_probability_from_observation(
+        self,
+        observation: dict[str, Any],
+    ) -> float | None:
+        """Run the classifier on an observation dict (same images saved to the dataset)."""
+        if self.reward_classifier is None or self.preprocessor is None:
+            return None
+
+        expected_keys = list(self.reward_classifier.config.input_features)
+        batch: dict[str, torch.Tensor] = {}
+        for key in expected_keys:
+            if key not in observation:
+                return None
+            value = observation[key]
+            if not isinstance(value, torch.Tensor):
+                value = torch.as_tensor(value)
+            if value.ndim == 3:
+                value = value.unsqueeze(0)
+            batch[key] = value
+
+        with torch.inference_mode():
+            batch = self.preprocessor(batch)
+            images = [
+                batch[key]
+                for key in self.reward_classifier.config.input_features
+                if key.startswith(OBS_IMAGE)
+            ]
+            return float(self.reward_classifier.predict(images).probabilities.squeeze().cpu())
+
     def __call__(self, transition: EnvTransition) -> EnvTransition:
         new_transition = transition.copy()
         observation = new_transition.get(TransitionKey.OBSERVATION)
@@ -51,9 +91,8 @@ class SlobotRewardClassifierProcessorStep(RewardClassifierProcessorStep):
             return new_transition
 
         expected_keys = list(self.reward_classifier.config.input_features)
-        batch = {key: observation[key] for key in expected_keys if key in observation}
-        if len(batch) != len(expected_keys):
-            missing = [key for key in expected_keys if key not in batch]
+        if not all(key in observation for key in expected_keys):
+            missing = [key for key in expected_keys if key not in observation]
             present = [key for key in observation if "image" in key]
             logger.warning(
                 "Reward classifier skipped: missing observation keys %s (have image keys %s)",
@@ -63,17 +102,10 @@ class SlobotRewardClassifierProcessorStep(RewardClassifierProcessorStep):
             return new_transition
 
         start_time = time.perf_counter()
-        with torch.inference_mode():
-            batch = self.preprocessor(batch)
-            images = [
-                batch[key]
-                for key in self.reward_classifier.config.input_features
-                if key.startswith(OBS_IMAGE)
-            ]
-            success_prob = float(
-                self.reward_classifier.predict(images).probabilities.squeeze().cpu()
-            )
-            success = success_prob >= self.success_threshold
+        success_prob = self.predict_probability_from_observation(observation)
+        if success_prob is None:
+            return new_transition
+        success = success_prob >= self.success_threshold
 
         reward = new_transition.get(TransitionKey.REWARD, 0.0)
         terminated = new_transition.get(TransitionKey.DONE, False)

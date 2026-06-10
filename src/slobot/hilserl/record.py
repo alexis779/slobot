@@ -35,7 +35,10 @@ from slobot.hilserl.hilserl_gui_state import HilSerlGuiContext
 from slobot.hilserl.hilserl_processors import make_hilserl_processors
 from slobot.hilserl.factory import Factory
 from slobot.hilserl.ee_action_processors import EE_RECORD_ACTION_FEATURES
-from slobot.hilserl.reward_classifier_processor import REWARD_PROBABILITY
+from slobot.hilserl.reward_classifier_processor import (
+    REWARD_PROBABILITY,
+    find_reward_classifier_step,
+)
 from slobot.hilserl.robot_env_reset import robot_env_reset as perform_robot_env_reset
 from slobot.hilserl.slobot_so100_leader import SlobotSO100LeaderTeleop
 
@@ -124,6 +127,9 @@ def _record_control_loop(env, env_processor, action_processor, teleop_device, cf
     dt = 1.0 / cfg.env.fps
     use_gripper = cfg.env.processor.gripper.use_gripper if cfg.env.processor.gripper is not None else True
     record_reward_prob = _env_has_reward_classifier(cfg.env)
+    reward_classifier_step = (
+        find_reward_classifier_step(env_processor) if record_reward_prob else None
+    )
 
     transition = reset_and_build_transition(env, env_processor, action_processor)
 
@@ -190,13 +196,6 @@ def _record_control_loop(env, env_processor, action_processor, teleop_device, cf
                 if isinstance(v, torch.Tensor)
             }
 
-            # Classifier probability is produced by env_processor for the current
-            # observation; read it before stepping so it aligns with saved images.
-            reward_prob = 0.0
-            if record_reward_prob:
-                info = transition.get(TransitionKey.INFO, {})
-                reward_prob = float(info.get(REWARD_PROBABILITY, 0.0))
-
             transition = gym_manipulator.step_env_and_process_transition(
                 env=env,
                 transition=transition,
@@ -225,6 +224,13 @@ def _record_control_loop(env, env_processor, action_processor, teleop_device, cf
                     )
 
                 if record_reward_prob:
+                    reward_prob = 0.0
+                    if reward_classifier_step is not None:
+                        predicted = reward_classifier_step.predict_probability_from_observation(
+                            observation
+                        )
+                        if predicted is not None:
+                            reward_prob = predicted
                     frame[REWARD_PROBABILITY] = np.array([reward_prob], dtype=np.float32)
 
                 if dataset is not None:
