@@ -13,6 +13,8 @@ from lerobot.teleoperators.utils import TeleopEvents
 from lerobot.utils.robot_utils import precise_sleep
 from lerobot.utils.utils import log_say
 
+from slobot.hilserl.handlers.motor_qpos import GRIPPER_MOTOR_IDX
+
 if TYPE_CHECKING:
     from slobot.hilserl.slobot_so100_follower import SlobotSO100Follower
     from slobot.hilserl.slobot_so100_leader import SlobotSO100LeaderTeleop
@@ -38,6 +40,17 @@ def wait_control_step(step_start: float, fps: float, leader_teleop: SlobotSO100L
     """Sleep until one control period (1/fps) has elapsed since step_start."""
     remaining = max(1.0 / fps - (time.perf_counter() - step_start), 0.0)
     sleep_with_gui_pump(remaining, leader_teleop)
+
+
+def reset_jaw_to_pose(
+    robot: SlobotSO100Follower,
+    target_radians: list[float] | np.ndarray,
+) -> None:
+    """Command only the jaw to the reset pose, leaving arm joints at their present qpos."""
+    target_qpos = np.asarray(target_radians, dtype=np.float32).tolist()
+    qpos = list(robot._feetech.get_qpos())
+    qpos[GRIPPER_MOTOR_IDX] = target_qpos[GRIPPER_MOTOR_IDX]
+    robot._feetech.control_dofs_position(qpos)
 
 
 def reset_follower_to_joint_radians(
@@ -66,6 +79,10 @@ def robot_env_reset(
 
     leader_teleop.notify_resetting()
     leader_teleop.reset_gui_for_episode()
+    if env.reset_pose is not None:
+        # Open the jaw before the manual wait so episode 1 has time to reach the
+        # reset pose (full arm homing still runs after the wait).
+        reset_jaw_to_pose(env.robot, env.reset_pose)
     manual_wait_started_at = time.perf_counter()
     sleep_with_gui_pump(env.reset_time_s, leader_teleop)
     manual_wait_elapsed_s = time.perf_counter() - manual_wait_started_at

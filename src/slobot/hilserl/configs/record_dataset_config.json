@@ -68,16 +68,16 @@
                 }
             },
             "reward_classifier": {
-                "pretrained_path": "alexis779/so100_cube_rectangle_night_reward_classifier",
+                "pretrained_path": null,
                 "success_threshold": 0.5,
                 "success_reward": 1.0
             }
         }
     },
     "dataset": {
-        "repo_id": "alexis779/so100_cube_rectangle_night_eval",
+        "repo_id": "alexis779/so100_cube_rectangle_day",
         "task": "Pick cube and place it on the rectangle",
-        "num_episodes_to_record": 3,
+        "num_episodes_to_record": 10,
         "push_to_hub": true
     },
     "mode": "record",

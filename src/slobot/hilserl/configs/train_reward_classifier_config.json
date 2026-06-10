@@ -1,6 +1,6 @@
 {
     "dataset": {
-        "repo_id": "alexis779/so100_cube_rectangle_night",
+        "repo_id": "alexis779/so100_cube_rectangle_day",
         "root": null
     },
     "reward_model": {
@@ -32,7 +32,7 @@
             }
         },
         "push_to_hub": true,
-        "repo_id": "alexis779/so100_cube_rectangle_night_reward_classifier"
+        "repo_id": "alexis779/so100_cube_rectangle_day_reward_classifier"
     },
     "batch_size": 16,
     "num_workers": 4,

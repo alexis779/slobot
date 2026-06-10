@@ -15,7 +15,7 @@
         "disable_artifact": true
     },
     "dataset": {
-        "repo_id": "alexis779/so100_cube_rectangle_night",
+        "repo_id": "alexis779/so100_cube_rectangle_day",
         "use_imagenet_stats": false
     },
     "algorithm": {
@@ -202,7 +202,7 @@
                 }
             },
             "reward_classifier": {
-                "pretrained_path": "alexis779/so100_cube_rectangle_night_reward_classifier",
+                "pretrained_path": "alexis779/so100_cube_rectangle_day_reward_classifier",
                 "success_threshold": 0.5,
                 "success_reward": 1.0
             }
