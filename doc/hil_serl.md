@@ -6,23 +6,46 @@ Pass supported `so100_follower` **robot.type** and `so100_leader` **teleop.type*
 
 This calibration ensures the middle motor position (`motor step = 4096 / 2 = 2048`) matches exactly the joint range middle point.
 
-## Follower
+## SO-ARM-100
+
+### Follower
 
 ```bash
 uv run lerobot-calibrate \
     --robot.type=so100_follower \
     --robot.port=/dev/ttyACM0 \
-    --robot.id=follower_arm
+    --robot.id=follower_arm_100
 ```
 
-## Leader
+### Leader
 
 ```bash
 uv run lerobot-calibrate \
     --teleop.type=so100_leader \
     --teleop.port=/dev/ttyACM1 \
-    --teleop.id=leader_arm
+    --teleop.id=leader_arm_100
 ```
+
+## SO-ARM-101
+
+### Follower
+
+```bash
+uv run lerobot-calibrate \
+    --robot.type=so101_follower \
+    --robot.port=/dev/ttyACM0 \
+    --robot.id=follower_arm_101
+```
+
+### Leader
+
+```bash
+uv run lerobot-calibrate \
+    --teleop.type=so101_leader \
+    --teleop.port=/dev/ttyACM1 \
+    --teleop.id=leader_arm_101
+```
+
 
 # Verify cameras
 
@@ -50,10 +73,10 @@ Make sure tele-operation works:
 uv run lerobot-teleoperate \
     --robot.type=so100_follower \
     --robot.port=/dev/ttyACM0 \
-    --robot.id=follower_arm \
+    --robot.id=follower_arm_100 \
     --teleop.type=so100_leader \
     --teleop.port=/dev/ttyACM1 \
-    --teleop.id=leader_arm \
+    --teleop.id=leader_arm_100 \
     --robot.cameras="{ wrist: {type: opencv, index_or_path: 4, width: 640, height: 480, fps: 30}, front: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30}}"
 ```
 
@@ -63,10 +86,10 @@ Make sure tele-operation with live simulation works:
 uv run slobot-teleoperate \
     --robot.type=slobot_so100_follower \
     --robot.port=/dev/ttyACM0 \
-    --robot.id=follower_arm \
+    --robot.id=follower_arm_100 \
     --teleop.type=slobot_so100_leader \
     --teleop.port=/dev/ttyACM1 \
-    --teleop.id=slobot_leader_arm \
+    --teleop.id=slobot_leader_arm_100 \
     --robot.cameras="{ wrist: {type: opencv, index_or_path: 4, width: 640, height: 480, fps: 30}, front: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30}}"
 ```
 
@@ -108,12 +131,14 @@ uv run lerobot-dataset-viz --root ~/.cache/huggingface/lerobot/alexis779/so100_c
 
 # Train the reward classifier
 
-This will train the reward classifier on the CPU.
+Train on the **parquet-resized camera tensors** in `observation.preprocessed.*` (float32 `[3, 128, 128]`, same pixels the live classifier sees). `slobot-train` renames those columns to `observation.images.*` for the classifier config. The `observation.images.*` dataset keys stay reserved for AV1 video encode/decode only.
 
 ```
-uv run lerobot-train \
+uv run slobot-train \
     --config_path ./src/slobot/hilserl/configs/train_reward_classifier_config.json
 ```
+
+This runs on CPU by default (`reward_model.device` in the config).
 
 ![Training Loss](./images/hilserl/RewardClassifierTrainingLoss.png)
 

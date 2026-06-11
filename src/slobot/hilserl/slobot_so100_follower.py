@@ -7,7 +7,9 @@ import time
 
 from functools import cached_property
 
-from lerobot.cameras import make_cameras_from_configs
+import cv2
+
+from lerobot.cameras.opencv.camera_opencv import OpenCVCamera
 from lerobot.robots.robot import Robot
 from lerobot.utils.decorators import check_if_already_connected, check_if_not_connected
 
@@ -31,7 +33,9 @@ class SlobotSO100Follower(Robot):
         super().__init__(config)
         self.config = config
         self._feetech = None
-        self.cameras = make_cameras_from_configs(config.cameras)
+        self.cameras: dict[str, OpenCVCamera] = {
+            key: OpenCVCamera(cfg) for key, cfg in config.cameras.items()
+        }
 
     @property
     def bus(self):
@@ -78,7 +82,7 @@ class SlobotSO100Follower(Robot):
             torque=True,
             qpos_handler=Factory.get_robotic_arm() if self.cameras else None,
         )
-        for cam in self.cameras.values():
+        for cam_key, cam in self.cameras.items():
             cam.connect()
         logger.info("%s connected.", self)
 

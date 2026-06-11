@@ -33,23 +33,22 @@ def _invoke_reward_classifier_train_cli(
     config_path: str,
     steps: int | None = None,
 ) -> None:
-    from lerobot.scripts.lerobot_train import main as train_main
+    from slobot.hilserl.train import train_cli
 
     # LeRobot defaults to outputs/train/{date}/{time}_{job_name}/ relative to cwd.
     os.chdir(VOLUME_ROOT)
 
     argv = [
-        "lerobot-train",
+        "slobot-train",
         "--config_path",
         config_path,
         "--reward_model.device=cpu",
-        "--dataset.video_backend=pyav",
         "--num_workers=0",
     ]
     if steps is not None:
         argv.append(f"--steps={steps}")
     sys.argv = argv
-    train_main()
+    train_cli()
 
 
 @app.function(

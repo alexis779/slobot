@@ -28,6 +28,7 @@ slobot-actor = "slobot.hilserl.actor:actor_cli"
 slobot-teleoperate = "slobot.hilserl.teleoperate:main"
 slobot-calibrate = "slobot.hilserl.calibrate:main"
 slobot-joint-control-real = "slobot.teleop.gradio_joint_control_real_app:main"
+slobot-train = "slobot.hilserl.train:train_cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -8,6 +8,7 @@ init_x11_threading()
 
 import logging
 import time
+from pathlib import Path
 from typing import Any
 
 import gymnasium as gym
@@ -26,7 +27,7 @@ from lerobot.processor import TransitionKey
 from lerobot.rl import gym_manipulator
 from lerobot.rl.gym_manipulator import main
 from lerobot.teleoperators.utils import TeleopEvents
-from lerobot.utils.constants import ACTION, DONE, OBS_STATE, REWARD
+from lerobot.utils.constants import ACTION, DONE, HF_LEROBOT_HOME, OBS_STATE, REWARD
 from lerobot.utils.robot_utils import precise_sleep
 from lerobot.utils.utils import log_say
 
@@ -41,7 +42,11 @@ from slobot.hilserl.reward_classifier_processor import (
 )
 from slobot.hilserl.robot_env_reset import robot_env_reset as perform_robot_env_reset
 from slobot.hilserl.slobot_so100_leader import SlobotSO100LeaderTeleop
-
+from slobot.hilserl.dataset_image_keys import (
+    camera_name_from_video_key,
+    is_video_image_key,
+    preprocessed_camera_key,
+)
 Factory.install()
 
 _orig_make_robot_env = gym_manipulator.make_robot_env
@@ -122,6 +127,60 @@ def _env_has_reward_classifier(env_cfg) -> bool:
     return reward_classifier is not None and reward_classifier.pretrained_path is not None
 
 
+def _preprocessed_feature_spec(shape: tuple[int, ...]) -> dict:
+    """Parquet feature for live-resized float32 [C, H, W] classifier tensors."""
+    return {
+        "dtype": "float32",
+        "shape": shape,
+        "names": ["channels", "height", "width"],
+    }
+
+
+def _recording_dataset_root(cfg) -> Path:
+    if cfg.dataset.root is not None:
+        return Path(cfg.dataset.root)
+    return HF_LEROBOT_HOME / cfg.dataset.repo_id
+
+
+def _open_recording_dataset(
+    cfg,
+    features: dict,
+) -> LeRobotDataset:
+    root = _recording_dataset_root(cfg)
+    writer_kwargs = {
+        "image_writer_threads": 4,
+        "image_writer_processes": 0,
+    }
+    if (root / "meta" / "info.json").exists():
+        logging.info("Resuming existing dataset at %s", root)
+        return LeRobotDataset.resume(cfg.dataset.repo_id, root=root, **writer_kwargs)
+
+    return LeRobotDataset.create(
+        cfg.dataset.repo_id,
+        cfg.env.fps,
+        root=cfg.dataset.root,
+        use_videos=True,
+        features=features,
+        **writer_kwargs,
+    )
+
+
+def _observation_for_frame(observation: dict[str, Any]) -> dict[str, Any]:
+    """Build the frame dict: video keys for AV1, preprocessed keys for parquet."""
+    frame: dict[str, Any] = {}
+    for key, value in observation.items():
+        if isinstance(value, torch.Tensor):
+            value = value.numpy()
+        if is_video_image_key(key):
+            camera = camera_name_from_video_key(key)
+            if camera is not None:
+                frame[preprocessed_camera_key(camera)] = np.asarray(value, dtype=np.float32)
+            frame[key] = value
+        else:
+            frame[key] = value
+    return frame
+
+
 def _record_control_loop(env, env_processor, action_processor, teleop_device, cfg):
     """Record gripper_link EE pose + gripper command actions from leader teleop."""
     dt = 1.0 / cfg.env.fps
@@ -130,7 +189,7 @@ def _record_control_loop(env, env_processor, action_processor, teleop_device, cf
     reward_classifier_step = (
         find_reward_classifier_step(env_processor) if record_reward_prob else None
     )
-
+    # Store live resized tensors in parquet (observation.preprocessed.*) alongside AV1 video.
     transition = reset_and_build_transition(env, env_processor, action_processor)
 
     dataset = None
@@ -161,22 +220,18 @@ def _record_control_loop(env, env_processor, action_processor, teleop_device, cf
                     "shape": value.squeeze(0).shape,
                     "names": list(EE_RECORD_ACTION_FEATURES["names"]),
                 }
-            if "image" in key:
+            if is_video_image_key(key):
+                shape = tuple(value.squeeze(0).shape)
                 features[key] = {
                     "dtype": "video",
-                    "shape": value.squeeze(0).shape,
+                    "shape": shape,
                     "names": ["channels", "height", "width"],
                 }
+                camera = camera_name_from_video_key(key)
+                if camera is not None:
+                    features[preprocessed_camera_key(camera)] = _preprocessed_feature_spec(shape)
 
-        dataset = LeRobotDataset.create(
-            cfg.dataset.repo_id,
-            cfg.env.fps,
-            root=cfg.dataset.root,
-            use_videos=True,
-            image_writer_threads=4,
-            image_writer_processes=0,
-            features=features,
-        )
+        dataset = _open_recording_dataset(cfg, features)
 
     episode_idx = 0
     episode_step = 0
@@ -195,6 +250,7 @@ def _record_control_loop(env, env_processor, action_processor, teleop_device, cf
                 for k, v in transition[TransitionKey.OBSERVATION].items()
                 if isinstance(v, torch.Tensor)
             }
+            frame_observation = _observation_for_frame(observation)
 
             transition = gym_manipulator.step_env_and_process_transition(
                 env=env,
@@ -210,7 +266,7 @@ def _record_control_loop(env, env_processor, action_processor, teleop_device, cf
                 complementary = transition.get(TransitionKey.COMPLEMENTARY_DATA, {})
                 action_to_record = complementary.get("teleop_action", transition[TransitionKey.ACTION])
                 frame = {
-                    **observation,
+                    **frame_observation,
                     ACTION: action_to_record.cpu()
                     if hasattr(action_to_record, "cpu")
                     else action_to_record,
@@ -223,6 +279,7 @@ def _record_control_loop(env, env_processor, action_processor, teleop_device, cf
                         [discrete_penalty], dtype=np.float32
                     )
 
+                reward_prob: float | None = None
                 if record_reward_prob:
                     reward_prob = 0.0
                     if reward_classifier_step is not None:

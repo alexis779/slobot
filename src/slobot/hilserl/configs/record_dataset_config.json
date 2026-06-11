@@ -77,7 +77,7 @@
     "dataset": {
         "repo_id": "alexis779/so100_cube_rectangle_day",
         "task": "Pick cube and place it on the rectangle",
-        "num_episodes_to_record": 10,
+        "num_episodes_to_record": 1,
         "push_to_hub": true
     },
     "mode": "record",

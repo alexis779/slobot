@@ -123,13 +123,17 @@ Replacing eval **side** with train side raises 0.001 → 0.15; train side + trai
 
 **Fix:** lock exposure and white balance on `/dev/video2` (side) before every train and eval recording, using the workflow below.
 
+#### Offline replay vs recorded live probability
+
+`next.reward.probability` in the dataset is computed on the **live** preprocessed tensors at record time. Offline replay re-decodes frames from the dataset's **lossy AV1 videos**. Encode/decode changes pixels (blocking, color shift, glare smoothing) enough to move classifier scores — even when frame indices line up. That is the main reason decoded offline replay diverges from the recorded live series, not async writer misalignment.
+
+The reward classifier is sensitive to small visual deltas (see the ~2% side-camera drift above). A lossy round-trip through AV1 can flip a near-threshold frame.
+
+**Record path:** `slobot-record` stores live resized tensors in parquet as `observation.preprocessed_images.*` (float32 `[C,H,W]`, no AV1 round-trip) and encodes `observation.images.*` as AV1 video for viz / policy training. Train the reward classifier with `slobot-train`, which reads the preprocessed parquet columns.
+
 #### Workflow: dump, disable auto, hardcode
 
-Under the **same lighting** you will use for recording:
-
-1. **Dump the settings** — read what auto exposure and auto white balance have chosen.
-2. **Disable auto** — switch to manual exposure and manual white balance.
-3. **Force the settings** — write the dumped values back.
+Check the current settings
 
 ```bash
 % v4l2-ctl -d /dev/video2 -C white_balance_automatic,white_balance_temperature,auto_exposure,exposure_time_absolute
@@ -139,13 +143,15 @@ auto_exposure: 3 (Aperture Priority Mode)
 exposure_time_absolute: 157
 ```
 
-`exposure_time_absolute` is often reported while auto is on; that value is what you force in step 3. Manual exposure must be enabled before writing `exposure_time_absolute` (it is read-only while `auto_exposure=3`).
-
 Disable auto settings
 ```bash
 v4l2-ctl -d /dev/video2 -c auto_exposure=1
 v4l2-ctl -d /dev/video2 -c white_balance_automatic=0
 ```
+
+See effect:
+
+<video controls src="https://github.com/user-attachments/assets/d2084311-d788-4533-9d2b-5049301b42b0"></video>
 
 The settings should now look like
 
