@@ -7,7 +7,7 @@ dependencies = [
     # "genesis-world @ git+https://github.com/Genesis-Embodied-AI/Genesis.git",
     "torch",
     "tensorboard",
-    # "lerobot @ git+https://github.com/huggingface/lerobot.git",
+    "lerobot @ git+https://github.com/huggingface/lerobot.git@v0.2.0",
     "feetech-servo-sdk", # to control motors
     "gradio", # to build webapps
     # "nvidia-gr00t-sdk" @ git+https://github.com/NVIDIA/Isaac-GR00T.git
