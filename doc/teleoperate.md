@@ -23,19 +23,19 @@ It should be started after spawning all the remaining workers, because it needs 
 Pass the *recording id* as a command line argument to send the metrics to Rerun.io.
 
 ```
-python scripts/teleop/asyncprocessing/spawn_cron.py --recording-id episode --fps 30
+uv run python scripts/teleop/asyncprocessing/spawn_cron.py --recording-id episode --fps 30
 ```
 
 ### Leader Read
 
 ```
-python scripts/teleop/asyncprocessing/spawn_leader_read.py --port /dev/ttyACM1
+uv run python scripts/teleop/asyncprocessing/spawn_leader_read.py --port /dev/ttyACM1
 ```
 
 ### Follower Control
 
 ```
-python scripts/teleop/asyncprocessing/spawn_follower_control.py --port /dev/ttyACM0 --camera-id 2 --camera-id 4 --sim
+uv run python scripts/teleop/asyncprocessing/spawn_follower_control.py --port /dev/ttyACM0 --camera-id 2 --camera-id 4 --sim
 ```
 
 ### Webcam Capture
@@ -43,19 +43,19 @@ python scripts/teleop/asyncprocessing/spawn_follower_control.py --port /dev/ttyA
 Start the capture from the *fixed webcam* or the *wrist webcam*
 
 ```
-python scripts/teleop/asyncprocessing/spawn_webcam_capture.py --camera-id 1 --width 640 --height 480 --fps 30 --detect-objects
+uv run python scripts/teleop/asyncprocessing/spawn_webcam_capture.py --camera-id 1 --width 640 --height 480 --fps 30 --detect-objects
 ```
 
 ### Sim Step
 ```
-python scripts/teleop/asyncprocessing/spawn_sim_step.py --width 640 --height 480 --fps 30 --substeps 40 --vis-mode visual
+uv run python scripts/teleop/asyncprocessing/spawn_sim_step.py --width 640 --height 480 --fps 30 --substeps 40 --vis-mode visual
 ```
 
 ### Detect Objects
 Start object detection via YOLO model. Webcam Capture worker is a producer. Detect Objects worker is a consumer. It reads the image from a shared memory between the two workers.
 
 ```
-python scripts/teleop/asyncprocessing/spawn_detect_objects.py --camera-id 1 --width 640 --height 480 --detection-task DETECT
+uv run python scripts/teleop/asyncprocessing/spawn_detect_objects.py --camera-id 1 --width 640 --height 480 --detection-task DETECT
 ```
 
 ## Mirror Kinematics
@@ -68,5 +68,5 @@ The mirror kinematics leverages the cheap robot leader arm like a SO-ARM-100 to 
 Start the *Mirror Kinematics* worker instead of *Follower Control* worker:
 
 ```
-python scripts/teleop/asyncprocessing/spawn_mirror_kinematics.py --fps 30 --substeps 40 --width 640 --height 480 --vis-mode visual --mjcf-path ../mujoco_menagerie/franka_emika_panda/panda.xml --end-effector-link link7
+uv run python scripts/teleop/asyncprocessing/spawn_mirror_kinematics.py --fps 30 --substeps 40 --width 640 --height 480 --vis-mode visual --mjcf-path ../mujoco_menagerie/franka_emika_panda/panda.xml --end-effector-link link7
 ```

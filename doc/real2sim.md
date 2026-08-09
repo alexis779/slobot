@@ -19,7 +19,7 @@ The simulator executes all the environments steps in parallel.
 ## Local run
 
 ```
-python scripts/sim/replay_episodes.py --dataset-repo-id alexis779/so100_ball_cup2 --episode-id 0,1,2,3,4,5,6,7,8
+uv run python scripts/sim/replay_episodes.py --dataset-repo-id alexis779/so100_ball_cup2 --episode-id 0,1,2,3,4,5,6,7,8
 ```
 
 ## Remote run
@@ -71,7 +71,7 @@ Generate the equivalent LeRobot SIM dataset from the LeRobot REAL dataset.
 See [SIM Example](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2Falexis779%2Fso100_ball_cup2_sim%2Fepisode_0) generated from [Real Example](https://huggingface.co/spaces/lerobot/visualize_dataset?path=%2Falexis779%2Fso100_ball_cup2%2Fepisode_0)
 
 ```
-python scripts/sim/generate_sim_lerobot_dataset.py --dataset-repo-id alexis779/so100_ball_cup2 --sim-dataset-repo-id alexis779/so100_ball_cup2_sim
+uv run python scripts/sim/generate_sim_lerobot_dataset.py --dataset-repo-id alexis779/so100_ball_cup2 --sim-dataset-repo-id alexis779/so100_ball_cup2_sim
 ```
 
 ## Pick & Place frames

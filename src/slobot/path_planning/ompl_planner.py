@@ -8,7 +8,7 @@ Installation options:
   - PyPI (Python 3.10-3.12): uv pip install ompl
   - Built from source (e.g. ~/Documents/python/robotics/ompl):
     cd ompl/build/Release && cmake ../.. -DOMPL_BUILD_PYTHON_BINDINGS=ON && make
-    PYTHONPATH=ompl/build/Release/nanobinds:$PYTHONPATH python -m slobot.path_planning.ompl_planner
+    PYTHONPATH=ompl/build/Release/nanobinds:$PYTHONPATH uv run python -m slobot.path_planning.ompl_planner
 
 Usage:
     planner = OmplPathPlanner(entity, scene)

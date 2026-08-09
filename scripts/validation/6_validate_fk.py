@@ -4,7 +4,7 @@ import sys
 import numpy as np
 
 if len(sys.argv) < 2:
-    print("Usage: python scripts/validation/6_validate_fk.py [middle|zero|rotated|rest]")
+    print("Usage: uv run python scripts/validation/6_validate_fk.py [middle|zero|rotated|rest]")
     sys.exit(1)
 
 # Validate the forward kinematics of the robot

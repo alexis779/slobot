@@ -14,9 +14,9 @@ uv run python scripts/sim/run_gym_agent.py --ball-x -5 --ball-y -11 --cup-x 8 --
 This policy relies on Inverse Kinematics + Path Planning to perform the task.
 
 ```
-python scripts/sim/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode vertical
-python scripts/sim/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode vertical-flip
-python scripts/sim/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode horizontal
+uv run python scripts/sim/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode vertical
+uv run python scripts/sim/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode vertical-flip
+uv run python scripts/sim/run_sim_policy.py --ball-x -5 --ball-y -11 --cup-x 8 --cup-y -11 --pre-grasp-mode horizontal
 ```
 
 Vertical|Vertical Flip|Horizontal
@@ -84,7 +84,7 @@ cd gr00t
 Evaluate the camera calibration by replaying an episode from the dataset
 
 ```
-python scripts/policy/gr00t/eval_gr00t_so100.py --dataset_path ~/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 748
+uv run python scripts/policy/gr00t/eval_gr00t_so100.py --dataset_path ~/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 748
 ```
 
 <video controls src="https://github.com/user-attachments/assets/ac5b6dc7-b900-4109-8b2c-068c95ad927e"></video>
@@ -108,7 +108,7 @@ Evaluate the policy by running a new episode.
 Find dynamic `host` and `port` from modal tunnel information displayed while starting the inference server.
 
 ```
-python eval_gr00t_so100.py --dataset_path ~/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 40 --action_horizon 16 --use_policy --host r19.modal.host --port 39147 --lang_instruction "pick up the golf ball and place it in the cup" --record_imgs
+uv run python eval_gr00t_so100.py --dataset_path ~/Documents/python/robotics/so100_ball_cup --cam_idx 2 --actions_to_execute 40 --action_horizon 16 --use_policy --host r19.modal.host --port 39147 --lang_instruction "pick up the golf ball and place it in the cup" --record_imgs
 ```
 
 #### Transcode the eval video
@@ -150,5 +150,5 @@ modal run train_policy.py::upload_model --dataset-repo-id $dataset_repo_id --pol
 #### Eval
 
 ```
-python scripts/policy/lerobot/eval_policy.py --robot_type so100 --policy_type $policy --model_path ~/Documents/python/robotics/so100_ball_cup_act
+uv run python scripts/policy/lerobot/eval_policy.py --robot_type so100 --policy_type $policy --model_path ~/Documents/python/robotics/so100_ball_cup_act
 ```

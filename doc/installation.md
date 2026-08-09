@@ -2,25 +2,13 @@
 
 ## Python venv
 
-Create a virtual environment with _venv_
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+Create virtual environment:
 
 ```
-sudo apt install python3.13-venv
+uv venv
 ```
-
-```
-python3.13 -m venv .venv
-. .venv/bin/activate
-```
-
-Validate python version in the venv
-
-```
-(.venv) $ python -V
-Python 3.13.5
-```
-
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) for faster installs.
 
 ## Dependencies
 
@@ -29,8 +17,6 @@ Install following dependencies
 ### 1. slobot
 
 ```
-git clone git+https://github.com/alexis779/slobot.git
-cd slobot
 uv pip install -e .
 ```
 
@@ -64,7 +50,7 @@ ln -s `pwd`/../mujoco_menagerie/trs_so_arm100 src/slobot/config/trs_so_arm100
 GIT_LFS_SKIP_SMUDGE=1 uv pip install git+https://github.com/huggingface/lerobot.git
 
 uv pip install 'lerobot[dataset]'
-uv pip install 'lerobot[deepdiff-dep]'
+uv pip install 'lerobot[feetech]'
 
 uv pip install 'lerobot[training]'
 uv pip install transformers

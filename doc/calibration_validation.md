@@ -7,7 +7,7 @@ A series of scripts are provided to help with validation and calibration.
 This validates that the robot is in the targetted position preset from the sim qpos.
 
 ```
-python scripts/validation/0_validate_sim_qpos.py [middle|zero|rotated|rest]
+uv run python scripts/validation/0_validate_sim_qpos.py [middle|zero|rotated|rest]
 ```
 
 | middle                          | zero                        | rotated                           | rest                           |
@@ -21,7 +21,7 @@ For [motor calibration](https://huggingface.co/docs/lerobot/so101#calibration-vi
 Position the arm manually into the `middle` preset.
 
 ```
-python scripts/validation/1_calibrate_motor_pos.py middle
+uv run python scripts/validation/1_calibrate_motor_pos.py middle
 ```
 
 It will read the motor positions and output them. It should return an int vector around `[2047, 2047, 2047, 2047, 2047, 2047]`, the _middle_ position for each motor.
@@ -98,7 +98,7 @@ A calibration sample file `~/.cache/huggingface/lerobot/calibration/robots/so100
 Same as script 0, but using the motor pos instead of the sim qpos.
 
 ```
-python scripts/validation/2_validate_sim_pos.py [middle|zero|rotated|rest]
+uv run python scripts/validation/2_validate_sim_pos.py [middle|zero|rotated|rest]
 ```
 
 ### 3. Validate the preset pos in real
@@ -106,7 +106,7 @@ python scripts/validation/2_validate_sim_pos.py [middle|zero|rotated|rest]
 Similar than 2 which but now in real. It validates the robot is positioned correctly to the target pos.
 
 ```
-python scripts/validation/3_validate_real_pos.py [middle|zero|rotated|rest]
+uv run python scripts/validation/3_validate_real_pos.py [middle|zero|rotated|rest]
 ```
 
 | middle                           | zero                         | rotated                            | rest                            |
@@ -118,7 +118,7 @@ python scripts/validation/3_validate_real_pos.py [middle|zero|rotated|rest]
 This validates that moving the real robot also updates the rendered robot in sim.
 
 ```
-python scripts/validation/4_validate_real_to_sim.py [middle|zero|rotated|rest]
+uv run python scripts/validation/4_validate_real_to_sim.py [middle|zero|rotated|rest]
 ```
 
 ### 5. Validate sim to real
@@ -126,7 +126,7 @@ python scripts/validation/4_validate_real_to_sim.py [middle|zero|rotated|rest]
 This validates the robot simulation also controls the physical robot.
 
 ```
-python scripts/validation/5_validate_sim_to_real.py [middle|zero|rotated|rest]
+uv run python scripts/validation/5_validate_sim_to_real.py [middle|zero|rotated|rest]
 ```
 
 ### 6. Validate Forward Kinematics
@@ -140,7 +140,7 @@ To come with the preset qpos, use the [SIM Joint controller](./gradio_apps.md#si
 This script will plot the preset robot skeleton in 3d, showing each link frame 3d pose.
 
 ```
-python scripts/validation/6_validate_fk.py [middle|zero|rotated|rest]
+uv run python scripts/validation/6_validate_fk.py [middle|zero|rotated|rest]
 ```
 
 | middle                           | zero                         | rotated                            | rest                            |

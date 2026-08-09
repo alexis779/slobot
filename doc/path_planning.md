@@ -26,5 +26,5 @@ make -j$(nproc)
 To run the script, specify the custom location of the wheel built from source,
 
 ```
-PYTHONPATH=$OMPL_HOME/build/Release/nanobinds python scripts/sim/run_sim_policy.py
+PYTHONPATH=$OMPL_HOME/build/Release/nanobinds uv run python scripts/sim/run_sim_policy.py
 ```

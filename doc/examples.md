@@ -5,7 +5,7 @@
 This example moves the robot to the preset positions, waiting 1 sec in between each one.
 
 ```
-python scripts/real.py
+uv run python scripts/real.py
 ```
 
 <video controls src="https://github.com/user-attachments/assets/54d11b46-accf-499b-97ac-ce53533c1029"></video>
@@ -16,7 +16,7 @@ This example performs the 3 elemental rotations in sim and real.
 The simulation generates steps, propagating the joint positions to the Feetech motors.
 
 ```
-python scripts/sim_to_real.py
+uv run python scripts/sim_to_real.py
 ```
 
 | sim                                                                                                            | real                                                                                                           |
@@ -35,7 +35,7 @@ Genesis camera provides access to each frames rendered by the rasterizer. Multip
 The following script iterates through all the frames, calculating the FPS metric every second.
 
 ```
-python scripts/sim_fps.py
+uv run python scripts/sim_fps.py
 ...
 FPS= FpsMetric(1743573645.3103304, 0.10412893176772242)
 FPS= FpsMetric(1743573646.3160942, 59.656155690238116)

@@ -3,7 +3,7 @@ from slobot.feetech import Feetech
 from slobot.sim_client import SimClient
 
 # first, start server via
-# python sim_gradio_qpos.py
+# uv run python sim_gradio_qpos.py
 
 feetech = Feetech(qpos_map=Configuration.MJCF_QPOS_MAP)
 
