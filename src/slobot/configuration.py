@@ -31,6 +31,7 @@ class Configuration:
         "zero": [0, 0, 0, 0, 0, 0],
         "rotated": [-torch.pi/2, -torch.pi/2, torch.pi/2, torch.pi/2, -torch.pi/2, torch.pi/2],
         "rest": [0.049, -3.32, 3.14, 1.21, -0.17, -0.17],
+        "center": [0, -torch.pi/2, torch.pi/2, torch.pi/2, 0, torch.pi/2],
     }
 
     URDF_QPOS_MAP = {
@@ -44,7 +45,8 @@ class Configuration:
         "middle": [2047, 2047, 2047, 2047, 2047, 2047],
         "zero": [2047, 3083, 1030, 2048, 2047, 2144],
         "rotated": [3071, 2052, 2051, 3071, 1023, 3168],
-        "rest": [2016, 907, 3070, 2831, 1937, 2035],
+        "rest": [2016, 907, 3070, 2831, 3085, 2035],
+        "center": [2047, 2047, 2047, 3071, 2047, 3168],
     }
 
     REFERENCE_FRAME = 'middle'

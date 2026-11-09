@@ -33,7 +33,14 @@ class Feetech():
 
     def move_to_pos(pos):
         feetech = Feetech(qpos_map=Configuration.MJCF_QPOS_MAP)
-        feetech.control_position(pos)
+        try:
+            feetech.goto_position(pos)
+            time.sleep(10.0)
+        except Exception as e:
+            Feetech.LOGGER.error(f"Error moving to position {pos}: {e}")
+        finally:
+            feetech.go_home()
+
 
     def __init__(self, **kwargs):
         self.qpos_map = kwargs['qpos_map']
@@ -100,6 +107,21 @@ class Feetech():
     def control_position(self, pos: list[float]):
         self._write_config('Goal_Position', pos)
         self.sync_real_to_sim(pos)
+
+    def goto_position(self, pos: list[float]) -> bool:
+        self.control_position(pos)
+        while True:
+            current_pos = self.get_pos()
+            if np.allclose(current_pos, pos, atol=50):
+                Feetech.LOGGER.info(f"Reached position {pos}")
+                return True
+            time.sleep(0.1)
+
+    def go_home(self):
+        Feetech.LOGGER.info(f"Returning to home position")
+        home_pos = Configuration.POS_MAP['rest']
+        self.goto_position(home_pos)
+        self.disconnect()
 
     def sync_real_to_sim(self, pos: list[float]):
         if self.qpos_handler is not None:
