@@ -18,9 +18,9 @@ The sim recording is written to `~/.slobot/wrist_roll_center_sim.mp4`.
 uv run python scripts/record_wrist_roll_mobile.py --feetech --video-id 2
 ```
 
-| sim                                                                                                            | real                                                                                                           |
+| real                                                                                                           | sim                                                                                                            |
 | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| <video controls src="https://github.com/user-attachments/assets/3306c2ae-d92a-48fb-9baa-d5fc1387b0c3"></video> | <video controls src="https://github.com/user-attachments/assets/943f79a6-8c7c-48d8-8f12-d8b2f2c923b4"></video> |
+| <video controls src="https://github.com/user-attachments/assets/943f79a6-8c7c-48d8-8f12-d8b2f2c923b4"></video> | <video controls src="https://github.com/user-attachments/assets/3306c2ae-d92a-48fb-9baa-d5fc1387b0c3"></video> |
 
 | Camera | File |
 | --- | --- |
