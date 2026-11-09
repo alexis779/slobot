@@ -11,6 +11,7 @@ There are 2 main use cases
 - [Installation](doc/installation.md)
 - [Camera](doc/camera.md)
 - [Calibration & Validation](doc/calibration_validation.md)
+- [Wrist roll sweep](doc/record_wrist_roll.md)
 - [Real 2 Sim](doc/real2sim.md)
 - [Path Planning](doc/path_planning.md)
 - [Dataset Generation](doc/dataset_generation.md)
